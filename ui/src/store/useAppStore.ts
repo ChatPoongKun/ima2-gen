@@ -275,6 +275,12 @@ type PersistedInFlight = {
 };
 const INFLIGHT_TTL_MS = 180_000;
 
+// Module-level lock to dedupe concurrent runGenerateNodeInPlace calls for the
+// same clientId. Prevents double-fire from rapid clicks before React's
+// disabled propagation lands, React 18 StrictMode dev re-invocation, or any
+// other path that funnels through runGenerateNodeInPlace twice in one tick.
+const nodeGenerationLocks = new Set<string>();
+
 type ServerInFlightJob = {
   requestId: string;
   kind?: string;
@@ -2198,16 +2204,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   async runGenerateNodeInPlace(clientId, options = {}) {
+    if (nodeGenerationLocks.has(clientId)) return null;
+    nodeGenerationLocks.add(clientId);
     const beforeRepair = get().graphNodes;
     const repairedNodes = deriveParentServerNodeIds(beforeRepair, get().graphEdges);
     if (repairedNodes.some((n, i) => n.data.parentServerNodeId !== beforeRepair[i]?.data.parentServerNodeId)) {
       set({ graphNodes: repairedNodes });
     }
     const node = repairedNodes.find((n) => n.id === clientId);
-    if (!node) return null;
+    if (!node) {
+      nodeGenerationLocks.delete(clientId);
+      return null;
+    }
     const { prompt, parentServerNodeId } = node.data;
     if (!prompt.trim()) {
       get().showToast(t("toast.promptRequired"), true);
+      nodeGenerationLocks.delete(clientId);
       return null;
     }
     const nodeRefs = node.data.referenceImages ?? [];
@@ -2220,6 +2232,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const incoming = get().graphEdges.find((edge) => edge.target === clientId);
     if (incoming && !effectiveParentServerNodeId) {
       get().showToast(t("node.parentImageRequired"), true);
+      nodeGenerationLocks.delete(clientId);
       return null;
     }
 
@@ -2385,6 +2398,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } finally {
       // Global state cleanup must always run regardless of active session,
       // otherwise the spinner/counter leaks.
+      nodeGenerationLocks.delete(clientId);
       const remaining = get().inFlight.filter((f) => f.id !== flightId);
       saveInFlight(remaining);
       set({
