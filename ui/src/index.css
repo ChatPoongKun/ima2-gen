@@ -1397,6 +1397,57 @@ body {
   display: none;
 }
 
+.settings-mobile-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-mobile-nav__item {
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-dim);
+  background: var(--control-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.settings-mobile-nav__item span {
+  color: inherit;
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.1;
+}
+
+.settings-mobile-nav__item small {
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.settings-mobile-nav__item:hover,
+.settings-mobile-nav__item.is-active {
+  color: var(--accent-ink);
+  border-color: transparent;
+  background: var(--accent);
+}
+
+.settings-mobile-nav__item.is-active small {
+  color: color-mix(in srgb, var(--accent-ink) 76%, transparent);
+}
+
+.settings-mobile-nav__item:active {
+  transform: scale(0.98);
+}
+
 .settings-nav__item {
   width: 100%;
   display: flex;
@@ -3382,6 +3433,19 @@ body {
     height: auto;
     overflow: visible;
   }
+  .app.app--settings-open {
+    grid-template-rows: 1fr;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .app.app--settings-open .sidebar,
+  .app.app--settings-open .history-strip {
+    display: none;
+  }
+  .app.app--settings-open .settings-workspace {
+    grid-column: 1;
+    grid-row: 1;
+  }
   .app--history-horizontal .sidebar,
   .app--history-horizontal .history-strip,
   .app--history-horizontal .canvas,
@@ -3458,11 +3522,9 @@ body {
   }
   .settings-nav {
     z-index: 10;
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: visible;
     flex: 0 0 auto;
+    padding: 12px;
     border-right: none;
     border-bottom: 1px solid var(--border);
     background: color-mix(in srgb, var(--surface) 94%, transparent);
@@ -3473,15 +3535,12 @@ body {
   .settings-layout > .settings-nav:not(.settings-nav--mobile) {
     display: none;
   }
-  .settings-nav--mobile select {
-    width: 100%;
-    min-height: 44px;
-    padding: 0 12px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    color: var(--text);
-    background: var(--surface-2);
-    font: inherit;
+  .settings-mobile-nav {
+    grid-template-columns: repeat(5, minmax(104px, 1fr));
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    padding-bottom: 2px;
   }
   .settings-nav__item {
     min-width: 120px;
@@ -3496,6 +3555,107 @@ body {
   }
   .settings-row__control {
     justify-content: flex-start;
+  }
+  @media (max-width: 600px) {
+    .settings-workspace {
+      height: 100dvh;
+      padding: 0;
+      background: var(--bg);
+    }
+    .settings-shell {
+      height: 100dvh;
+      border: 0;
+      border-radius: 0;
+      background: var(--surface);
+      box-shadow: none;
+    }
+    .settings-header {
+      align-items: flex-start;
+      gap: 12px;
+      padding:
+        max(14px, env(safe-area-inset-top))
+        max(14px, env(safe-area-inset-right))
+        14px
+        max(14px, env(safe-area-inset-left));
+    }
+    .settings-header h2 {
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+    .settings-header p:not(.settings-eyebrow) {
+      max-width: 30ch;
+      margin-top: 8px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .settings-close {
+      width: 44px;
+      height: 44px;
+      flex: 0 0 auto;
+    }
+    .settings-layout {
+      display: flex;
+      flex-direction: column;
+    }
+    .settings-nav {
+      padding:
+        10px
+        max(12px, env(safe-area-inset-right))
+        12px
+        max(12px, env(safe-area-inset-left));
+    }
+    .settings-mobile-nav {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      overflow: visible;
+    }
+    .settings-mobile-nav__item {
+      min-width: 0;
+      min-height: 54px;
+    }
+    .settings-content {
+      padding:
+        14px
+        max(14px, env(safe-area-inset-right))
+        max(28px, env(safe-area-inset-bottom))
+        max(14px, env(safe-area-inset-left));
+      gap: 20px;
+    }
+    .settings-section {
+      scroll-margin-top: 12px;
+    }
+    .settings-section__header {
+      padding-bottom: 8px;
+    }
+    .settings-section__header h3 {
+      font-size: 17px;
+      letter-spacing: -0.02em;
+    }
+    .settings-section__header p {
+      font-size: 10px;
+    }
+    .settings-section__body {
+      max-width: none;
+      gap: 8px;
+    }
+    .settings-row,
+    .settings-note {
+      padding: 14px;
+      border-radius: 12px;
+    }
+    .settings-row {
+      gap: 12px;
+    }
+    .settings-row__copy {
+      width: 100%;
+    }
+    .settings-row__control {
+      width: 100%;
+    }
+    .settings-row__control > *,
+    .settings-row__control select,
+    .settings-row__control button {
+      min-height: 44px;
+    }
   }
   /* Right panel becomes off-canvas drawer */
   .right-panel {
