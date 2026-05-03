@@ -620,7 +620,9 @@ function mapSessionToGraph(session: SessionFull): {
   };
 }
 
-type ToastState = { message: string; error: boolean; id: number } | null;
+type ToastEntry = { message: string; error: boolean; id: number; createdAt: number };
+type ToastState = ToastEntry | null;
+type ErrorCardEntry = { code: ImaErrorCode; fallbackMessage?: string; id: number; createdAt: number };
 type TrashPendingState = {
   filename: string;
   trashId: string;
@@ -703,6 +705,7 @@ type AppState = {
   history: GenerateItem[];
   trashPending: TrashPendingState;
   toast: ToastState;
+  toastLog: ToastEntry[];
   customSizeConfirm: CustomSizeConfirmState;
   metadataRestore: MetadataRestoreState;
   readDroppedImageMetadata: (file: File, targetNodeId?: ClientNodeId | null) => Promise<boolean>;
@@ -846,9 +849,11 @@ type AppState = {
   cancelCustomSizeAdjustment: () => void;
   hydrateHistory: () => void;
   showToast: (message: string, error?: boolean) => void;
-  errorCard: { code: ImaErrorCode; fallbackMessage?: string; id: number } | null;
+  dismissToast: (id: number) => void;
+  errorCard: ErrorCardEntry | null;
+  errorCardLog: ErrorCardEntry[];
   showErrorCard: (code: ImaErrorCode, params?: { fallbackMessage?: string }) => void;
-  dismissErrorCard: () => void;
+  dismissErrorCard: (id?: number) => void;
   getResolvedSize: () => string;
 
   // Prompt Library (0.23)
@@ -1507,8 +1512,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   history: [],
   trashPending: null,
   toast: null,
+  toastLog: [],
   customSizeConfirm: null,
   errorCard: null,
+  errorCardLog: [],
   rightPanelOpen: loadRightPanelOpen(),
   toggleRightPanel: () =>
     set((s) => {
@@ -3187,13 +3194,33 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   showToast(message, error = false) {
-    set({ toast: { message, error, id: Date.now() + Math.random() } });
+    const createdAt = Date.now();
+    const entry = { message, error, id: createdAt + Math.random(), createdAt };
+    set((s) => ({ toast: entry, toastLog: [...s.toastLog, entry] }));
+  },
+  dismissToast(id) {
+    set((s) => {
+      const toastLog = s.toastLog.filter((toast) => toast.id !== id);
+      return {
+        toastLog,
+        toast: s.toast?.id === id ? toastLog[toastLog.length - 1] ?? null : s.toast,
+      };
+    });
   },
   showErrorCard(code, params) {
-    set({ errorCard: { code, fallbackMessage: params?.fallbackMessage, id: Date.now() + Math.random() } });
+    const createdAt = Date.now();
+    const entry = { code, fallbackMessage: params?.fallbackMessage, id: createdAt + Math.random(), createdAt };
+    set((s) => ({ errorCard: entry, errorCardLog: [...s.errorCardLog, entry] }));
   },
-  dismissErrorCard() {
-    set({ errorCard: null });
+  dismissErrorCard(id) {
+    set((s) => {
+      if (id == null) return { errorCard: null, errorCardLog: [] };
+      const errorCardLog = s.errorCardLog.filter((card) => card.id !== id);
+      return {
+        errorCardLog,
+        errorCard: s.errorCard?.id === id ? errorCardLog[errorCardLog.length - 1] ?? null : s.errorCard,
+      };
+    });
   },
 
   // ── Prompt Library actions (0.23) ──
