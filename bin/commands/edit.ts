@@ -4,6 +4,7 @@ import { fileToDataUri, dataUriToFile, defaultOutName } from "../lib/files.js";
 import { out, die, dieWithError, color, json } from "../lib/output.js";
 import { config } from "../../config.js";
 
+import { errInfo } from "../../lib/errInfo.js";
 const VALID_MODES = new Set(["auto", "direct"]);
 const VALID_MODERATION = new Set(["auto", "low"]);
 const KNOWN_IMAGE_MODELS = new Set(["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex-spark"]);
@@ -47,19 +48,19 @@ const HELP = `
         --web-search / --no-web-search    Override default web-search toggle
 `;
 
-export default async function editCmd(argv) {
+export default async function editCmd(argv: string[]) {
   const args = parseArgs(argv, SPEC);
   if (args.help) { out(HELP); return; }
   const input = args.positional[0];
   if (!input) die(2, "input image path required");
   if (!args.prompt) die(2, "--prompt is required");
-  if (!VALID_MODES.has(args.mode)) die(2, "--mode must be one of: auto, direct");
-  if (!VALID_MODERATION.has(args.moderation)) die(2, "--moderation must be one of: auto, low");
-  if (args.model && !KNOWN_IMAGE_MODELS.has(args.model)) {
+  if (!VALID_MODES.has(String(args.mode))) die(2, "--mode must be one of: auto, direct");
+  if (!VALID_MODERATION.has(String(args.moderation))) die(2, "--moderation must be one of: auto, low");
+  if (args.model && !KNOWN_IMAGE_MODELS.has(String(args.model))) {
     die(2, "--model must be one of: gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark");
   }
   const VALID_REASONING = new Set(["none", "low", "medium", "high", "xhigh"]);
-  if (args["reasoning-effort"] && !VALID_REASONING.has(args["reasoning-effort"])) {
+  if (args["reasoning-effort"] && !VALID_REASONING.has(String(args["reasoning-effort"]))) {
     die(2, "--reasoning-effort must be one of: none, low, medium, high, xhigh");
   }
   if (args["web-search"] && args["no-web-search"]) {
@@ -69,14 +70,15 @@ export default async function editCmd(argv) {
   let server;
   try { server = await resolveServer({ serverFlag: args.server }); }
   catch (e) {
-    if (args.json) json({ ok: false, error: e.message, code: e.code, status: e.status });
+    const err = errInfo(e);
+    if (args.json) json({ ok: false, error: err.message, code: err.code, status: err.status });
     dieWithError(e);
   }
 
   const imageDataUri = await fileToDataUri(input);
   const imageB64 = imageDataUri.split(",")[1];
 
-  const timeoutMs = (parseInt(args.timeout) || 180) * 1000;
+  const timeoutMs = (parseInt(String(args.timeout)) || 180) * 1000;
   let resp;
   try {
     const editBody: any = {
@@ -98,14 +100,15 @@ export default async function editCmd(argv) {
       timeoutMs,
     });
   } catch (e) {
-    if (args.json) json({ ok: false, error: e.message, code: e.code });
+    const err = errInfo(e);
+    if (args.json) json({ ok: false, error: err.message, code: err.code });
     dieWithError(e);
   }
 
   const image = resp.image;
   if (!image) die(1, "server returned no image");
   const target = args.out || `${config.storage.generatedDir}/${defaultOutName(0, 1)}`;
-  await dataUriToFile(image, target);
+  await dataUriToFile(image, String(target));
 
   if (args.json) {
     json({ ok: true, path: target, requestId: resp.requestId, elapsed: resp.elapsed });

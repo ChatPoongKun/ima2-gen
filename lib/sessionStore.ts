@@ -15,36 +15,47 @@ export function createSession({ title = "Untitled" } = {}) {
   return { id, title, createdAt: t, updatedAt: t, graphVersion: 0 };
 }
 
+type SessionRow = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  graphVersion: number;
+};
+type NodeRow = { id: string; x: number; y: number; data: string };
+type EdgeRow = { id: string; source: string; target: string; data: string };
+type StyleSheetRow = { styleSheet: string | null; styleSheetEnabled: number | null };
+
 export function listSessions() {
   const db = getDb();
   const rows = db
     .prepare(
       "SELECT id, title, created_at AS createdAt, updated_at AS updatedAt, graph_version AS graphVersion FROM sessions ORDER BY updated_at DESC",
     )
-    .all();
+    .all() as SessionRow[];
   return rows.map((r) => ({
     ...r,
-    nodeCount: db
+    nodeCount: (db
       .prepare("SELECT COUNT(*) AS c FROM nodes WHERE session_id = ?")
-      .get(r.id).c,
+      .get(r.id) as { c: number } | undefined)?.c ?? 0,
   }));
 }
 
-export function getSession(id) {
+export function getSession(id: string) {
   const db = getDb();
   const session = db
     .prepare(
       "SELECT id, title, created_at AS createdAt, updated_at AS updatedAt, graph_version AS graphVersion FROM sessions WHERE id = ?",
     )
-    .get(id);
+    .get(id) as SessionRow | undefined;
   if (!session) return null;
-  const nodes = db
+  const nodes = (db
     .prepare("SELECT id, x, y, data FROM nodes WHERE session_id = ?")
-    .all(id)
+    .all(id) as NodeRow[])
     .map((n) => ({ id: n.id, x: n.x, y: n.y, data: safeParse(n.data) }));
-  const edges = db
+  const edges = (db
     .prepare("SELECT id, source, target, data FROM edges WHERE session_id = ?")
-    .all(id)
+    .all(id) as EdgeRow[])
     .map((e) => ({
       id: e.id,
       source: e.source,
@@ -54,17 +65,17 @@ export function getSession(id) {
   return { ...session, nodes, edges };
 }
 
-export function getSessionTitleMap(ids = []) {
+export function getSessionTitleMap(ids: string[] = []) {
   const cleanIds = [...new Set(ids.filter((id) => typeof id === "string" && id.length > 0))];
-  if (cleanIds.length === 0) return new Map();
+  if (cleanIds.length === 0) return new Map<string, string>();
   const placeholders = cleanIds.map(() => "?").join(", ");
   const rows = getDb()
     .prepare(`SELECT id, title FROM sessions WHERE id IN (${placeholders})`)
-    .all(...cleanIds);
+    .all(...cleanIds) as Array<{ id: string; title: string }>;
   return new Map(rows.map((row) => [row.id, row.title]));
 }
 
-export function renameSession(id, title) {
+export function renameSession(id: string, title: string) {
   const db = getDb();
   const res = db
     .prepare("UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?")
@@ -72,7 +83,7 @@ export function renameSession(id, title) {
   return res.changes > 0;
 }
 
-export function deleteSession(id) {
+export function deleteSession(id: string) {
   const db = getDb();
   const res = db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
   return res.changes > 0;
@@ -80,12 +91,12 @@ export function deleteSession(id) {
 
 const MAX_STR = 10_000;
 
-function cleanStr(v) {
+function cleanStr(v: unknown): string {
   if (typeof v !== "string") return "";
   return v.length > MAX_STR ? v.slice(0, MAX_STR) : v;
 }
 
-function cleanData(v) {
+function cleanData(v: unknown): string {
   try {
     const json = JSON.stringify(v ?? {});
     return json.length > MAX_STR * 10 ? "{}" : json;
@@ -94,16 +105,33 @@ function cleanData(v) {
   }
 }
 
-function normalizeGraphPayload(nodes, edges) {
+interface NodeInput {
+  id?: unknown;
+  x?: unknown;
+  y?: unknown;
+  data?: unknown;
+  position?: { x?: unknown; y?: unknown };
+  [k: string]: unknown;
+}
+interface EdgeInput {
+  id?: unknown;
+  source?: unknown;
+  target?: unknown;
+  data?: unknown;
+  [k: string]: unknown;
+}
+type GraphErr = Error & { code?: string; status?: number; currentVersion?: number };
+
+function normalizeGraphPayload(nodes: NodeInput[], edges: EdgeInput[]) {
   const nodeIds = new Set(nodes.map((n) => n?.id).filter(Boolean).map(String));
   const cleanEdges = edges.filter(
     (e) => e?.id && e?.source && e?.target && nodeIds.has(String(e.source)) && nodeIds.has(String(e.target)),
   );
-  const incomingByTarget = new Map();
+  const incomingByTarget = new Map<string, EdgeInput>();
   for (const edge of cleanEdges) {
     const target = String(edge.target);
     if (incomingByTarget.has(target)) {
-      const err: any = new Error(`Node ${target} has multiple parent edges`);
+      const err = new Error(`Node ${target} has multiple parent edges`) as GraphErr;
       err.code = "GRAPH_PARENT_CONFLICT";
       err.status = 409;
       throw err;
@@ -111,11 +139,11 @@ function normalizeGraphPayload(nodes, edges) {
     incomingByTarget.set(target, edge);
   }
 
-  const nodeDataById = new Map();
+  const nodeDataById = new Map<string, Record<string, unknown>>();
   for (const node of nodes) {
     if (!node?.id) continue;
     const data = node.data && typeof node.data === "object" && !Array.isArray(node.data)
-      ? { ...node.data }
+      ? { ...(node.data as Record<string, unknown>) }
       : {};
     nodeDataById.set(String(node.id), data);
   }
@@ -123,7 +151,7 @@ function normalizeGraphPayload(nodes, edges) {
   const normalizedNodes = nodes.map((node) => {
     if (!node?.id) return node;
     const id = String(node.id);
-    const data = { ...(nodeDataById.get(id) ?? {}) };
+    const data: Record<string, unknown> = { ...(nodeDataById.get(id) ?? {}) };
     const incoming = incomingByTarget.get(id);
     if (!incoming) {
       data.parentServerNodeId = null;
@@ -139,13 +167,19 @@ function normalizeGraphPayload(nodes, edges) {
   return { nodes: normalizedNodes, edges: cleanEdges };
 }
 
-export function saveGraph(sessionId, { nodes = [], edges = [], expectedVersion = null }) {
+interface SaveGraphOptions {
+  nodes?: NodeInput[];
+  edges?: EdgeInput[];
+  expectedVersion?: number | null;
+}
+
+export function saveGraph(sessionId: string, { nodes = [], edges = [], expectedVersion = null }: SaveGraphOptions = {}) {
   const db = getDb();
   const sessionExists = db
     .prepare("SELECT 1 FROM sessions WHERE id = ?")
     .get(sessionId);
   if (!sessionExists) {
-    const err: any = new Error(`Session not found: ${sessionId}`);
+    const err = new Error(`Session not found: ${sessionId}`) as GraphErr;
     err.code = "SESSION_NOT_FOUND";
     err.status = 404;
     throw err;
@@ -153,16 +187,16 @@ export function saveGraph(sessionId, { nodes = [], edges = [], expectedVersion =
 
   const versionRow = db
     .prepare("SELECT graph_version AS graphVersion FROM sessions WHERE id = ?")
-    .get(sessionId);
+    .get(sessionId) as { graphVersion?: number } | undefined;
   const currentVersion = versionRow?.graphVersion ?? 0;
   if (
     typeof expectedVersion === "number" &&
     Number.isFinite(expectedVersion) &&
     expectedVersion !== currentVersion
   ) {
-    const err: any = new Error(
+    const err = new Error(
       `Graph version conflict for session ${sessionId}: expected ${expectedVersion}, got ${currentVersion}`,
-    );
+    ) as GraphErr;
     err.code = "GRAPH_VERSION_CONFLICT";
     err.status = 409;
     err.currentVersion = currentVersion;
@@ -180,8 +214,9 @@ export function saveGraph(sessionId, { nodes = [], edges = [], expectedVersion =
     );
     for (const n of normalized.nodes) {
       if (!n?.id) continue;
-      const x = Number(n.x ?? n.position?.x ?? 0);
-      const y = Number(n.y ?? n.position?.y ?? 0);
+      const pos = (n.position ?? {}) as { x?: unknown; y?: unknown };
+      const x = Number((n.x ?? pos.x ?? 0) as number);
+      const y = Number((n.y ?? pos.y ?? 0) as number);
       insNode.run(
         sessionId,
         cleanStr(String(n.id)),
@@ -209,18 +244,19 @@ export function saveGraph(sessionId, { nodes = [], edges = [], expectedVersion =
       sessionId,
     );
 
-    return db
+    return (db
       .prepare("SELECT graph_version AS graphVersion FROM sessions WHERE id = ?")
-      .get(sessionId).graphVersion;
+      .get(sessionId) as { graphVersion: number }).graphVersion;
   });
 
   const nextVersion = tx();
   return { ok: true, graphVersion: nextVersion };
 }
 
-function safeParse(json) {
+function safeParse(json: string): Record<string, unknown> {
   try {
-    return JSON.parse(json);
+    const parsed: unknown = JSON.parse(json);
+    return (parsed && typeof parsed === "object" ? parsed : {}) as Record<string, unknown>;
   } catch {
     return {};
   }
@@ -233,13 +269,13 @@ export function ensureDefaultSession() {
 }
 
 // ── Style sheet (0.10) ───────────────────────────────────────────────────
-export function getStyleSheet(sessionId) {
+export function getStyleSheet(sessionId: string) {
   const db = getDb();
   const row = db
     .prepare(
       "SELECT style_sheet AS styleSheet, style_sheet_enabled AS styleSheetEnabled FROM sessions WHERE id = ?",
     )
-    .get(sessionId);
+    .get(sessionId) as StyleSheetRow | undefined;
   if (!row) return null;
   let parsed = null;
   if (row.styleSheet) {
@@ -252,7 +288,7 @@ export function getStyleSheet(sessionId) {
   return { styleSheet: parsed, enabled: !!row.styleSheetEnabled };
 }
 
-export function setStyleSheet(sessionId, sheet) {
+export function setStyleSheet(sessionId: string, sheet: unknown) {
   const db = getDb();
   const json = sheet == null ? null : JSON.stringify(sheet);
   const res = db
@@ -261,7 +297,7 @@ export function setStyleSheet(sessionId, sheet) {
   return res.changes > 0;
 }
 
-export function setStyleSheetEnabled(sessionId, enabled) {
+export function setStyleSheetEnabled(sessionId: string, enabled: boolean) {
   const db = getDb();
   const res = db
     .prepare(

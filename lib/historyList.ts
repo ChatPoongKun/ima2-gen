@@ -3,10 +3,11 @@ import { dirname, join } from "path";
 import { config } from "../config.js";
 import { readEmbeddedImageMetadataFromFile } from "./imageMetadataStore.js";
 
-async function listImageFiles(baseDir) {
-  const out = [];
+import { errInfo } from "./errInfo.js";
+async function listImageFiles(baseDir: string) {
+  const out: Array<{ full: string; rel: string; name: string }> = [];
 
-  async function walk(dir, depth) {
+  async function walk(dir: string, depth: number) {
     const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
     for (const entry of entries) {
       if (entry.name === config.storage.trashDirName) continue;
@@ -79,40 +80,42 @@ export async function listHistoryRows(baseDir = config.storage.generatedDir) {
   return rows;
 }
 
-async function readImageSidecar(full, rel) {
+async function readImageSidecar(full: string, rel: string) {
   const sibling = full.replace(/\.(png|jpe?g|webp)$/i, ".json");
   for (const candidate of [`${full}.json`, sibling]) {
     try {
       return JSON.parse(await readFile(candidate, "utf-8"));
     } catch (e) {
-      if (e.code !== "ENOENT") console.warn("[history] sidecar parse fail:", rel, e.message);
+      const err = errInfo(e);
+      if (err.code !== "ENOENT") console.warn("[history] sidecar parse fail:", rel, err.message);
     }
   }
   return null;
 }
 
-async function readImageMetadata(full, rel) {
+async function readImageMetadata(full: string, rel: string) {
   const sidecar = await readImageSidecar(full, rel);
   if (sidecar) return sidecar;
   try {
     const embedded = await readEmbeddedImageMetadataFromFile(full);
     return embedded.metadata;
   } catch (e) {
-    if (e.code !== "ENOENT") console.warn("[history] embedded metadata read fail:", rel, e.message);
+    const err = errInfo(e);
+    if (err.code !== "ENOENT") console.warn("[history] embedded metadata read fail:", rel, err.message);
     return null;
   }
 }
 
-async function listCardNewsSetRows(baseDir) {
+async function listCardNewsSetRows(baseDir: string) {
   const root = join(baseDir, "cardnews");
   const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
-  const rows = [];
+  const rows: any[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     try {
       const manifestPath = join(root, entry.name, "manifest.json");
-      const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
-      const first = (manifest.cards || []).find((card) => card.imageFilename);
+      const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as any;
+      const first = (manifest.cards || []).find((card: any) => card.imageFilename);
       const filename = `cardnews/${entry.name}/manifest.json`;
       rows.push({
         filename,
@@ -143,7 +146,7 @@ async function listCardNewsSetRows(baseDir) {
         title: manifest.title || "Untitled card news",
         headline: manifest.title || "Untitled card news",
         body: null,
-        cards: (manifest.cards || []).map((card) => ({
+        cards: (manifest.cards || []).map((card: any) => ({
           url: card.imageFilename
             ? `/generated/cardnews/${encodeURIComponent(entry.name)}/${encodeURIComponent(card.imageFilename)}`
             : "",
@@ -157,7 +160,8 @@ async function listCardNewsSetRows(baseDir) {
         dir: dirname(manifestPath),
       });
     } catch (e) {
-      if (e.code !== "ENOENT") console.warn("[history] card-news manifest parse fail:", entry.name, e.message);
+      const err = errInfo(e);
+      if (err.code !== "ENOENT") console.warn("[history] card-news manifest parse fail:", entry.name, err.message);
     }
   }
   return rows;

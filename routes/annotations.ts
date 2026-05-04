@@ -1,13 +1,16 @@
+import type { Express, Request, Response } from "express";
 import { getDb } from "../lib/db.js";
 
+import { errInfo } from "../lib/errInfo.js";
+import type { RouteRuntimeContext } from "../lib/runtimeContext.js";
 const MAX_ANNOTATION_PAYLOAD_CHARS = 256 * 1024;
 
-function getBrowserId(req) {
+function getBrowserId(req: Request): string | null {
   const browserId = req.headers["x-ima2-browser-id"];
   return typeof browserId === "string" && browserId.trim() ? browserId.trim() : null;
 }
 
-function isSafeFilename(filename) {
+function isSafeFilename(filename: unknown): filename is string {
   return (
     typeof filename === "string" &&
     filename.length > 0 &&
@@ -18,8 +21,25 @@ function isSafeFilename(filename) {
   );
 }
 
-function normalizePayload(value) {
-  const payload = value?.annotations ?? value;
+interface AnnotationPayload {
+  paths?: unknown;
+  boxes?: unknown;
+  memos?: unknown;
+  annotations?: AnnotationPayload;
+}
+
+interface NormalizedPayload {
+  payload?: { paths: unknown[]; boxes: unknown[]; memos: unknown[] };
+  text?: string;
+  error?: string;
+}
+
+function normalizePayload(value: unknown): NormalizedPayload {
+  const v = value as AnnotationPayload | null | undefined;
+  const payload = (v && typeof v === "object" && "annotations" in v ? v.annotations : v) as
+    | AnnotationPayload
+    | null
+    | undefined;
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return { error: "annotations payload is required" };
   }
@@ -34,8 +54,8 @@ function normalizePayload(value) {
   return { payload: normalized, text };
 }
 
-export function registerAnnotationRoutes(app, _ctx?: any) {
-  app.get("/api/annotations/:filename", (req, res) => {
+export function registerAnnotationRoutes(app: Express, _ctx: RouteRuntimeContext) {
+  app.get("/api/annotations/:filename", (req: Request<{ filename: string }>, res: Response) => {
     try {
       const browserId = getBrowserId(req);
       const filename = decodeURIComponent(req.params.filename);
@@ -44,15 +64,16 @@ export function registerAnnotationRoutes(app, _ctx?: any) {
 
       const row = getDb()
         .prepare("SELECT payload FROM image_annotations WHERE browser_id = ? AND filename = ?")
-        .get(browserId, filename);
+        .get(browserId, filename) as { payload: string } | undefined;
       const annotations = row ? JSON.parse(row.payload) : null;
       res.json({ annotations });
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.put("/api/annotations/:filename", (req, res) => {
+  app.put("/api/annotations/:filename", (req: Request<{ filename: string }>, res: Response) => {
     try {
       const browserId = getBrowserId(req);
       const filename = decodeURIComponent(req.params.filename);
@@ -72,12 +93,13 @@ export function registerAnnotationRoutes(app, _ctx?: any) {
           updated_at = unixepoch()
       `).run(id, browserId, filename, normalized.text);
       res.json({ ok: true });
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.delete("/api/annotations/:filename", (req, res) => {
+  app.delete("/api/annotations/:filename", (req: Request<{ filename: string }>, res: Response) => {
     try {
       const browserId = getBrowserId(req);
       const filename = decodeURIComponent(req.params.filename);
@@ -88,7 +110,8 @@ export function registerAnnotationRoutes(app, _ctx?: any) {
         .prepare("DELETE FROM image_annotations WHERE browser_id = ? AND filename = ?")
         .run(browserId, filename);
       res.json({ ok: true });
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
       res.status(500).json({ error: err.message });
     }
   });

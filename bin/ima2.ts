@@ -5,16 +5,15 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { spawn, execSync } from "child_process";
-import { networkInterfaces, homedir } from "os";
 import { openUrl, resolveBin } from "./lib/platform.js";
 import { maybePromptGithubStar } from "./lib/star-prompt.js";
 import { buildStorageDoctorLines } from "./lib/storage-doctor.js";
 import { detectCodexAuth } from "../lib/codexDetect.js";
 import { config as runtimeConfig } from "../config.js";
 
+import { errInfo } from "../lib/errInfo.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const HOME = homedir();
 const requireFromRoot = createRequire(join(ROOT, "package.json"));
 // Config lives under runtimeConfig.storage.configDir (honors IMA2_CONFIG_DIR).
 // Legacy installs that stored config at <packageRoot>/.ima2/config.json will be
@@ -40,7 +39,7 @@ function loadConfig() {
   return {};
 }
 
-function saveConfig(config) {
+function saveConfig(config: Record<string, unknown>) {
   mkdirSync(CONFIG_DIR, { recursive: true });
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 }
@@ -131,11 +130,12 @@ async function setup() {
   return config;
 }
 
-async function serve(serveArgs = []) {
+async function serve(serveArgs: string[] = []) {
   try {
     await maybePromptGithubStar();
-  } catch (err) {
-    console.error(`[ima2] Star prompt skipped: ${err?.message || err}`);
+  } catch (e) {
+    const err = errInfo(e);
+    console.error(`[ima2] Star prompt skipped: ${err.message || err.raw}`);
   }
 
   let config = loadConfig();

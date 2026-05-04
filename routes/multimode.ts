@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import { randomBytes } from "crypto";
+import type { Express, Request, Response } from "express";
 import { summarizeReferencePayload, validateAndNormalizeRefs } from "../lib/refs.js";
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
@@ -10,30 +11,38 @@ import { startJob, finishJob } from "../lib/inflight.js";
 import { logEvent, logError } from "../lib/logger.js";
 import { embedImageMetadataBestEffort } from "../lib/imageMetadataStore.js";
 
-function sendSse(res, event, data) {
+import { errInfo } from "../lib/errInfo.js";
+import { requireRuntimeContext, type RouteRuntimeContext, type RuntimeContext } from "../lib/runtimeContext.js";
+function sendSse(res: Response, event: string, data: unknown) {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-function validateModeration(ctx, moderation) {
+function validateModeration(ctx: RuntimeContext, moderation: unknown) {
   if (typeof moderation !== "string" || !ctx.config.oauth.validModeration.has(moderation)) {
     return { error: "moderation must be one of: auto, low" };
   }
   return { moderation };
 }
 
-function normalizeMaxImages(value) {
+function normalizeMaxImages(value: unknown): number {
   return Math.min(8, Math.max(1, Math.trunc(Number(value) || 1)));
 }
 
-function sequenceStatus(returned, requested) {
+function sequenceStatus(returned: number, requested: number): "empty" | "partial" | "complete" {
   if (returned <= 0) return "empty";
   if (returned < requested) return "partial";
   return "complete";
 }
 
-export function registerMultimodeRoutes(app, ctx) {
-  app.post("/api/generate/multimode", async (req, res) => {
+interface MultimodeImage {
+  b64: string;
+  revisedPrompt?: string | null;
+}
+
+export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
+  const ctx = requireRuntimeContext(ctxRaw);
+  app.post("/api/generate/multimode", async (req: Request, res: Response) => {
     const requestId = typeof req.body?.requestId === "string" ? req.body.requestId : req.id;
     let finishStatus = "completed";
     let finishHttpStatus = 200;
@@ -96,14 +105,15 @@ export function registerMultimodeRoutes(app, ctx) {
         sendSse(res, "error", { error: moderationCheck.error, code: finishErrorCode, status: 400, requestId });
         return;
       }
-      const refCheck = validateAndNormalizeRefs(references);
-      if (refCheck.error) {
+      const refCheckResult = validateAndNormalizeRefs(references);
+      if (refCheckResult.error) {
         finishStatus = "error";
         finishHttpStatus = 400;
-        finishErrorCode = refCheck.code;
-        sendSse(res, "error", { error: refCheck.error, code: refCheck.code, status: 400, requestId });
+        finishErrorCode = refCheckResult.code;
+        sendSse(res, "error", { error: refCheckResult.error, code: refCheckResult.code, status: 400, requestId });
         return;
       }
+      const refCheck = refCheckResult as Extract<typeof refCheckResult, { refs: string[] }>;
       const referencePayload = summarizeReferencePayload(references);
 
       startJob({
@@ -136,8 +146,8 @@ export function registerMultimodeRoutes(app, ctx) {
       });
 
       const startTime = Date.now();
-      const mimeMap = { png: "image/png", jpeg: "image/jpeg", webp: "image/webp" };
-      const mime = mimeMap[format] || "image/png";
+      const mimeMap: Record<string, string> = { png: "image/png", jpeg: "image/jpeg", webp: "image/webp" };
+      const mime = mimeMap[String(format)] || "image/png";
       const sequenceId = `seq_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
       await mkdir(ctx.config.storage.generatedDir, { recursive: true });
 
@@ -170,9 +180,18 @@ export function registerMultimodeRoutes(app, ctx) {
       const returned = generated.images.length;
       const status = sequenceStatus(returned, maxImages);
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-      const images = [];
+      const images: Array<{
+        image: string;
+        filename: string;
+        revisedPrompt: string | null;
+        sequenceId: string;
+        sequenceIndex: number;
+        sequenceTotalRequested: number;
+        sequenceTotalReturned: number;
+        sequenceStatus: ReturnType<typeof sequenceStatus>;
+      }> = [];
 
-      for (const [index, image] of generated.images.entries()) {
+      for (const [index, image] of generated.images.entries() as IterableIterator<[number, MultimodeImage]>) {
         const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
         const filename = `${Date.now()}_${rand}_multimode_${index}.${format}`;
         const meta = {
@@ -252,20 +271,22 @@ export function registerMultimodeRoutes(app, ctx) {
         status,
         elapsedMs: Date.now() - startTime,
       });
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
+      const ext = (err.raw && typeof err.raw === "object" ? err.raw as Record<string, unknown> : {});
       const fallbackCode = err.code || classifyUpstreamError(err.message);
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = fallbackCode || "MULTIMODE_GENERATE_FAILED";
-      logError("multimode", "error", err, { requestId, code: finishErrorCode });
+      logError("multimode", "error", err.raw, { requestId, code: finishErrorCode });
       sendSse(res, "error", {
         error: err.message,
         code: finishErrorCode,
         status: finishHttpStatus,
         requestId,
-        upstreamCode: err.upstreamCode || null,
-        upstreamType: err.upstreamType || null,
-        upstreamParam: err.upstreamParam || null,
+        upstreamCode: ext.upstreamCode || null,
+        upstreamType: ext.upstreamType || null,
+        upstreamParam: ext.upstreamParam || null,
       });
     } finally {
       finishJob(requestId, {

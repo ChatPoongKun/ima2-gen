@@ -1,3 +1,4 @@
+import type { Express, Request, Response } from "express";
 import { mkdir } from "fs/promises";
 import {
   newNodeId,
@@ -12,27 +13,41 @@ import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
 import { generateViaResponses, editViaResponses } from "../lib/responsesImageAdapter.js";
-import { isNonRetryableGenerationError, normalizeGenerationFailure } from "../lib/generationErrors.js";
+import { isNonRetryableGenerationError, normalizeGenerationFailure, type UpstreamErr } from "../lib/generationErrors.js";
 import { logEvent, logError } from "../lib/logger.js";
 
-function validateModeration(ctx, moderation) {
+import { errInfo } from "../lib/errInfo.js";
+import { requireRuntimeContext, type RouteRuntimeContext, type RuntimeContext } from "../lib/runtimeContext.js";
+
+function asUpstream(e: unknown): UpstreamErr {
+  return (e && typeof e === "object" ? e : {}) as UpstreamErr;
+}
+
+function validateModeration(ctx: RuntimeContext, moderation: unknown) {
   if (typeof moderation !== "string" || !ctx.config.oauth.validModeration.has(moderation)) {
     return { error: "moderation must be one of: auto, low" };
   }
   return { moderation };
 }
 
-function wantsSse(req) {
+function wantsSse(req: Request) {
   const accept = typeof req.headers.accept === "string" ? req.headers.accept : "";
   return accept.includes("text/event-stream");
 }
 
-function writeSse(res, event, data) {
+function writeSse(res: Response, event: string, data: unknown) {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-function writeNodeError(res, status, code, message, parentNodeId, details = {}) {
+function writeNodeError(
+  res: Response,
+  status: number,
+  code: string,
+  message: string,
+  parentNodeId: string | null,
+  details: Record<string, unknown> = {},
+) {
   if (res.headersSent) {
     writeSse(res, "error", {
       error: { code, message },
@@ -51,22 +66,42 @@ function writeNodeError(res, status, code, message, parentNodeId, details = {}) 
   });
 }
 
-function dataUrlFromB64(format, b64) {
+function dataUrlFromB64(format: string, b64: string) {
   return `data:image/${format === "jpeg" ? "jpeg" : format};base64,${b64}`;
 }
 
-export function registerNodeRoutes(app, ctx) {
-  app.post("/api/node/generate", async (req, res) => {
-    const body = req.body || {};
+export function registerNodeRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
+  const ctx = requireRuntimeContext(ctxRaw);
+  app.post("/api/node/generate", async (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as {
+      prompt?: string;
+      parentNodeId?: string;
+      requestId?: string;
+      sessionId?: string;
+      clientNodeId?: string;
+      references?: unknown;
+      quality?: string;
+      size?: string;
+      format?: string;
+      moderation?: string;
+      externalSrc?: string | null;
+      mode?: string;
+      contextMode?: string;
+      searchMode?: string;
+      model?: string;
+      reasoningEffort?: string;
+      provider?: string;
+      webSearchEnabled?: boolean;
+    };
     const streamResponse = wantsSse(req);
-    const parentNodeId = body.parentNodeId ?? null;
-    const requestId = typeof body.requestId === "string" ? body.requestId : req.id;
+    const parentNodeId = (typeof body.parentNodeId === "string" ? body.parentNodeId : null);
+    const requestId = typeof body.requestId === "string" ? body.requestId : (req.id ?? "");
     const sessionId = typeof body.sessionId === "string" ? body.sessionId : null;
     const clientNodeId = typeof body.clientNodeId === "string" ? body.clientNodeId : null;
-    let finishMeta = {};
+    let finishMeta: Record<string, unknown> = {};
     let finishStatus = "completed";
-    let finishHttpStatus;
-    let finishErrorCode;
+    let finishHttpStatus: number | undefined;
+    let finishErrorCode: string | undefined;
     const referencePayload = summarizeReferencePayload(body.references);
     startJob({
       requestId,
@@ -146,17 +181,18 @@ export function registerNodeRoutes(app, ctx) {
           parentNodeId,
         });
       }
-      const refCheck = validateAndNormalizeRefs(references);
-      if (refCheck.error) {
+      const refCheckResult = validateAndNormalizeRefs(references);
+      if (refCheckResult.error) {
         finishStatus = "error";
         finishHttpStatus = 400;
-        finishErrorCode = refCheck.code;
+        finishErrorCode = refCheckResult.code;
         return res.status(400).json({
-          error: { code: refCheck.code, message: refCheck.error },
-          code: refCheck.code,
+          error: { code: refCheckResult.code, message: refCheckResult.error },
+          code: refCheckResult.code,
           parentNodeId,
         });
       }
+      const refCheck = refCheckResult as Extract<typeof refCheckResult, { refs: string[] }>;
       const moderationCheck = validateModeration(ctx, moderation);
       if (moderationCheck.error) {
         finishStatus = "error";
@@ -169,7 +205,7 @@ export function registerNodeRoutes(app, ctx) {
       }
 
       const startTime = Date.now();
-      let parentB64 = null;
+      let parentB64: string | null = null;
       if (parentNodeId) {
         parentB64 = await loadNodeB64(ctx.rootDir, `${parentNodeId}.png`, ctx.config.storage.generatedDir);
       } else if (typeof externalSrc === "string" && externalSrc.length > 0) {
@@ -215,9 +251,9 @@ export function registerNodeRoutes(app, ctx) {
         writeSse(res, "phase", { requestId, phase: "streaming" });
       }
 
-      let b64, usage, webSearchCalls = 0, revisedPrompt = null;
+      let b64: string | undefined, usage: unknown, webSearchCalls = 0, revisedPrompt: string | null = null;
       const MAX_RETRIES = 1;
-      let lastErr;
+      let lastErr: UpstreamErr | null = null;
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         try {
           logEvent("node", "attempt", {
@@ -278,10 +314,10 @@ export function registerNodeRoutes(app, ctx) {
             revisedPrompt = r.revisedPrompt || null;
             break;
           }
-          lastErr = new Error("Empty response (safety refusal)");
+          lastErr = { message: "Empty response (safety refusal)" };
         } catch (e) {
-          lastErr = e;
-          if (isNonRetryableGenerationError(e)) break;
+          lastErr = asUpstream(e);
+          if (isNonRetryableGenerationError(lastErr)) break;
         }
         if (attempt < MAX_RETRIES) {
           logEvent("node", "retry", {
@@ -320,8 +356,8 @@ export function registerNodeRoutes(app, ctx) {
         });
         return writeNodeError(
           res,
-          finishHttpStatus,
-          finishErrorCode,
+          finishHttpStatus ?? 500,
+          finishErrorCode ?? "NODE_GEN_FAILED",
           finalErr.message,
           parentNodeId,
           {
@@ -416,16 +452,18 @@ export function registerNodeRoutes(app, ctx) {
       } else {
         res.json(payload);
       }
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
+      const ext = (err.raw && typeof err.raw === "object" ? err.raw as Record<string, unknown> : {});
       const code = err.code || classifyUpstreamError(err.message) || "NODE_GEN_FAILED";
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = code;
-      logError("node", "error", err, { requestId, code, parentNodeId, sessionId, clientNodeId });
+      logError("node", "error", err.raw, { requestId, code, parentNodeId, sessionId, clientNodeId });
       writeNodeError(res, err.status || 500, code, err.message, parentNodeId, {
-        upstreamCode: err.upstreamCode || null,
-        upstreamType: err.upstreamType || null,
-        upstreamParam: err.upstreamParam || null,
+        upstreamCode: ext.upstreamCode || null,
+        upstreamType: ext.upstreamType || null,
+        upstreamParam: ext.upstreamParam || null,
       });
     } finally {
       finishJob(requestId, {
@@ -437,7 +475,7 @@ export function registerNodeRoutes(app, ctx) {
     }
   });
 
-  app.get("/api/node/:nodeId", async (req, res) => {
+  app.get("/api/node/:nodeId", async (req: Request<{ nodeId: string }>, res: Response) => {
     try {
       const { nodeId } = req.params;
       const meta = await loadNodeMeta(ctx.rootDir, nodeId, "png", ctx.config.storage.generatedDir);
@@ -446,7 +484,8 @@ export function registerNodeRoutes(app, ctx) {
       }
       const ext = meta?.options?.format || meta?.format || "png";
       res.json({ nodeId, meta, url: `/generated/${nodeId}.${ext}` });
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
       res.status(err.status || 500).json({
         error: { code: err.code || "NODE_FETCH_FAILED", message: err.message },
       });

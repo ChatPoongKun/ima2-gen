@@ -1,6 +1,7 @@
 import { inspectGeneratedStorage } from "../../lib/storageMigration.js";
+import type { RouteRuntimeContext } from "../../lib/runtimeContext.js";
 
-export async function buildStorageDoctorLines(ctx) {
+export async function buildStorageDoctorLines(ctx: RouteRuntimeContext) {
   const status = await inspectGeneratedStorage(ctx);
   const lines = [
     "  Storage",
@@ -11,7 +12,7 @@ export async function buildStorageDoctorLines(ctx) {
     `    Legacy folders found: ${status.legacySourcesFound}`,
   ];
 
-  for (const source of status.legacySources.slice(0, 5)) {
+  for (const source of status.legacySources.slice(0, 5) as Array<{ path: any; fileCount: number }>) {
     lines.push(`      - ${source.path} (${source.fileCount} files)`);
   }
   if (status.legacySources.length > 5) {

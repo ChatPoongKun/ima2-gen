@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import { randomBytes } from "crypto";
+import type { Express, Request, Response } from "express";
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
@@ -9,7 +10,9 @@ import { startJob, finishJob } from "../lib/inflight.js";
 import { logEvent, logError } from "../lib/logger.js";
 import { hasPngAlphaChannel, parsePngInfo } from "../lib/pngInfo.js";
 
-function validateModeration(ctx, moderation) {
+import { errInfo } from "../lib/errInfo.js";
+import { requireRuntimeContext, type RouteRuntimeContext, type RuntimeContext } from "../lib/runtimeContext.js";
+function validateModeration(ctx: RuntimeContext, moderation: unknown) {
   if (typeof moderation !== "string" || !ctx.config.oauth.validModeration.has(moderation)) {
     return { error: "moderation must be one of: auto, low" };
   }
@@ -19,12 +22,20 @@ function validateModeration(ctx, moderation) {
 const MAX_EDIT_MASK_BYTES = 16 * 1024 * 1024;
 const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 
-function stripPngDataUrl(value) {
+function stripPngDataUrl(value: unknown): string {
   if (typeof value !== "string") return "";
   return value.replace(/^data:image\/png;base64,/, "");
 }
 
-function decodePngDataUrl(value, invalidCode, pngCode) {
+interface PngDecodeResult {
+  b64?: string;
+  buffer?: Buffer;
+  info?: ReturnType<typeof parsePngInfo>;
+  error?: string;
+  code?: string;
+}
+
+function decodePngDataUrl(value: unknown, invalidCode: string, pngCode: string): PngDecodeResult {
   const b64 = stripPngDataUrl(value).replace(/\s+/g, "");
   if (!b64 || b64.length % 4 !== 0 || !BASE64_RE.test(b64)) {
     return { error: "image must be valid base64", code: invalidCode };
@@ -38,13 +49,20 @@ function decodePngDataUrl(value, invalidCode, pngCode) {
   return { b64, buffer, info };
 }
 
-function validateEditMask(imageB64, mask) {
+interface MaskValidationResult {
+  mask?: string | null;
+  maskBytes?: number;
+  error?: string;
+  code?: string;
+}
+
+function validateEditMask(imageB64: unknown, mask: unknown): MaskValidationResult {
   if (mask == null) return { mask: null, maskBytes: 0 };
   if (typeof mask !== "string" || mask.length === 0) {
     return { error: "mask must be a PNG data URL or base64 string", code: "INVALID_EDIT_MASK" };
   }
   const maskCheck = decodePngDataUrl(mask, "INVALID_EDIT_MASK_BASE64", "INVALID_EDIT_MASK_PNG");
-  if (maskCheck.error) return maskCheck;
+  if (maskCheck.error || !maskCheck.buffer || !maskCheck.info) return maskCheck;
   if (maskCheck.buffer.length > MAX_EDIT_MASK_BYTES) {
     return { error: "mask is too large", code: "EDIT_MASK_TOO_LARGE" };
   }
@@ -52,15 +70,16 @@ function validateEditMask(imageB64, mask) {
     return { error: "mask PNG must include an alpha channel", code: "EDIT_MASK_NO_ALPHA" };
   }
   const imageCheck = decodePngDataUrl(imageB64, "INVALID_EDIT_IMAGE_BASE64", "INVALID_EDIT_IMAGE_PNG");
-  if (imageCheck.error) return imageCheck;
+  if (imageCheck.error || !imageCheck.info) return imageCheck;
   if (imageCheck.info.width !== maskCheck.info.width || imageCheck.info.height !== maskCheck.info.height) {
     return { error: "mask dimensions must match image dimensions", code: "EDIT_MASK_DIMENSION_MISMATCH" };
   }
   return { mask: maskCheck.b64, maskBytes: maskCheck.buffer.length };
 }
 
-export function registerEditRoutes(app, ctx) {
-  app.post("/api/edit", async (req, res) => {
+export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
+  const ctx = requireRuntimeContext(ctxRaw);
+  app.post("/api/edit", async (req: Request, res: Response) => {
     const requestId = typeof req.body?.requestId === "string" ? req.body.requestId : req.id;
     let finishStatus = "completed";
     let finishHttpStatus;
@@ -211,12 +230,13 @@ export function registerEditRoutes(app, ctx) {
         webSearchCalls,
         webSearchEnabled,
       });
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
       const fallbackCode = err.code || classifyUpstreamError(err.message);
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = fallbackCode || "EDIT_FAILED";
-      logError("edit", "error", err, { requestId, code: finishErrorCode });
+      logError("edit", "error", err.raw, { requestId, code: finishErrorCode });
       res.status(err.status || 500).json({ error: err.message, code: fallbackCode });
     } finally {
       finishJob(requestId, {

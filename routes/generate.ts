@@ -1,25 +1,29 @@
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import { randomBytes } from "crypto";
+import type { Express, Request, Response } from "express";
 import { summarizeReferencePayload, validateAndNormalizeRefs } from "../lib/refs.js";
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
 import { generateViaResponses } from "../lib/responsesImageAdapter.js";
-import { isNonRetryableGenerationError, normalizeGenerationFailure } from "../lib/generationErrors.js";
+import { isNonRetryableGenerationError, normalizeGenerationFailure, type UpstreamErr } from "../lib/generationErrors.js";
 import { startJob, finishJob } from "../lib/inflight.js";
 import { logEvent, logError } from "../lib/logger.js";
 import { embedImageMetadataBestEffort } from "../lib/imageMetadataStore.js";
 
-function validateModeration(ctx, moderation) {
+import { errInfo } from "../lib/errInfo.js";
+import { requireRuntimeContext, type RouteRuntimeContext, type RuntimeContext } from "../lib/runtimeContext.js";
+function validateModeration(ctx: RuntimeContext, moderation: unknown) {
   if (typeof moderation !== "string" || !ctx.config.oauth.validModeration.has(moderation)) {
     return { error: "moderation must be one of: auto, low" };
   }
   return { moderation };
 }
 
-export function registerGenerateRoutes(app, ctx) {
-  app.post("/api/generate", async (req, res) => {
+export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
+  const ctx = requireRuntimeContext(ctxRaw);
+  app.post("/api/generate", async (req: Request, res: Response) => {
     const requestId = typeof req.body?.requestId === "string" ? req.body.requestId : req.id;
     let finishStatus = "completed";
     let finishHttpStatus;
@@ -88,13 +92,14 @@ export function registerGenerateRoutes(app, ctx) {
         },
       });
 
-      const refCheck = validateAndNormalizeRefs(references);
-      if (refCheck.error) {
+      const refCheckResult = validateAndNormalizeRefs(references);
+      if (refCheckResult.error) {
         finishStatus = "error";
         finishHttpStatus = 400;
-        finishErrorCode = refCheck.code;
-        return res.status(400).json({ error: refCheck.error, code: refCheck.code });
+        finishErrorCode = refCheckResult.code;
+        return res.status(400).json({ error: refCheckResult.error, code: refCheckResult.code });
       }
+      const refCheck = refCheckResult as Extract<typeof refCheckResult, { refs: string[] }>;
 
       const client = req.get("x-ima2-client") || "ui";
       const referenceDiagnostics = refCheck.referenceDiagnostics || [];
@@ -121,13 +126,13 @@ export function registerGenerateRoutes(app, ctx) {
       });
       const startTime = Date.now();
 
-      const mimeMap = { png: "image/png", jpeg: "image/jpeg", webp: "image/webp" };
-      const mime = mimeMap[format] || "image/png";
+      const mimeMap: Record<string, string> = { png: "image/png", jpeg: "image/jpeg", webp: "image/webp" };
+      const mime = mimeMap[String(format)] || "image/png";
       await mkdir(ctx.config.storage.generatedDir, { recursive: true });
 
       const generateOne = async () => {
         const MAX_RETRIES = 1;
-        let lastErr;
+        let lastErr: unknown;
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
           try {
             const r = await generateViaResponses(
@@ -146,20 +151,23 @@ export function registerGenerateRoutes(app, ctx) {
             lastErr = new Error("Empty response (safety refusal)");
           } catch (e) {
             lastErr = e;
-            if (isNonRetryableGenerationError(e)) break;
+            if (isNonRetryableGenerationError(e as UpstreamErr | null | undefined)) break;
           }
           if (attempt < MAX_RETRIES) {
-            logEvent("generate", "retry", { requestId, attempt: attempt + 1, errorCode: lastErr?.code });
+            const errCode = (lastErr && typeof lastErr === "object" && "code" in lastErr)
+              ? (lastErr as { code?: unknown }).code
+              : undefined;
+            logEvent("generate", "retry", { requestId, attempt: attempt + 1, errorCode: errCode });
           }
         }
-        throw normalizeGenerationFailure(lastErr, {
+        throw normalizeGenerationFailure(lastErr as UpstreamErr | null | undefined, {
           safetyMessage: "Content generation refused after retries",
         });
       };
 
       const results = await Promise.allSettled(Array.from({ length: count }, generateOne));
-      const images = [];
-      let totalUsage = null;
+      const images: Array<{ image: string; filename: string; revisedPrompt: any }> = [];
+      let totalUsage: Record<string, number> | null = null;
       let totalWebSearchCalls = 0;
       for (const r of results) {
         if (r.status === "fulfilled" && r.value.b64) {
@@ -206,10 +214,14 @@ export function registerGenerateRoutes(app, ctx) {
             revisedPrompt: r.value.revisedPrompt || null,
           });
           if (r.value.usage) {
-            if (!totalUsage) totalUsage = { ...r.value.usage };
-            else Object.keys(r.value.usage).forEach((k) => {
-              if (typeof r.value.usage[k] === "number") totalUsage[k] = (totalUsage[k] || 0) + r.value.usage[k];
-            });
+            const usageValue = r.value.usage;
+            if (!totalUsage) totalUsage = { ...usageValue };
+            else {
+              const tu = totalUsage;
+              Object.keys(usageValue).forEach((k) => {
+                if (typeof usageValue[k] === "number") tu[k] = (tu[k] || 0) + usageValue[k];
+              });
+            }
           }
           if (typeof r.value.webSearchCalls === "number") totalWebSearchCalls += r.value.webSearchCalls;
         } else if (r.status === "rejected") {
@@ -279,22 +291,24 @@ export function registerGenerateRoutes(app, ctx) {
         });
         res.json({ images, elapsed, count: images.length, requestId, ...extra });
       }
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
+      const ext = (err.raw && typeof err.raw === "object" ? err.raw as Record<string, unknown> : {});
       const fallbackCode = err.code || classifyUpstreamError(err.message);
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = fallbackCode || "GENERATE_FAILED";
-      logError("generate", "error", err, { requestId, code: finishErrorCode });
+      logError("generate", "error", err.raw, { requestId, code: finishErrorCode });
       res.status(err.status || 500).json({
         error: err.message,
         code: fallbackCode,
-        upstreamCode: err.upstreamCode || null,
-        upstreamType: err.upstreamType || null,
-        upstreamParam: err.upstreamParam || null,
-        diagnosticReason: err.diagnosticReason || null,
-        retryKind: err.retryKind || null,
-        referencesDroppedOnRetry: err.referencesDroppedOnRetry ?? null,
-        errorEventCount: err.eventCount ?? null,
+        upstreamCode: ext.upstreamCode || null,
+        upstreamType: ext.upstreamType || null,
+        upstreamParam: ext.upstreamParam || null,
+        diagnosticReason: ext.diagnosticReason || null,
+        retryKind: ext.retryKind || null,
+        referencesDroppedOnRetry: ext.referencesDroppedOnRetry ?? null,
+        errorEventCount: ext.eventCount ?? null,
         requestId,
       });
     } finally {

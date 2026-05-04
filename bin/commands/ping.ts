@@ -2,6 +2,7 @@ import { parseArgs } from "../lib/args.js";
 import { resolveServer } from "../lib/client.js";
 import { out, die, color, json, exitCodeForError } from "../lib/output.js";
 
+import { errInfo } from "../../lib/errInfo.js";
 const SPEC = {
   flags: {
     json:   { type: "boolean" },
@@ -10,7 +11,7 @@ const SPEC = {
   },
 };
 
-export default async function pingCmd(argv) {
+export default async function pingCmd(argv: string[]) {
   const args = parseArgs(argv, SPEC);
   if (args.help) { out("ima2 ping [--json]"); return; }
 
@@ -23,7 +24,8 @@ export default async function pingCmd(argv) {
       out(color.green("✓ ") + `${base}  v${h.version}  uptime ${h.uptimeSec}s  activeJobs ${h.activeJobs}`);
     }
   } catch (e) {
-    if (args.json) { json({ ok: false, error: e.message }); process.exit(exitCodeForError(e)); }
-    die(exitCodeForError(e), e.message);
+    const err = errInfo(e);
+    if (args.json) { json({ ok: false, error: err.message }); process.exit(exitCodeForError(e)); }
+    die(exitCodeForError(e), err.message);
   }
 }

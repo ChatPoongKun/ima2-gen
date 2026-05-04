@@ -1,3 +1,4 @@
+import type { Express, Request, Response } from "express";
 import { listImageTemplates, readTemplatePreview } from "../lib/cardNewsTemplateStore.js";
 import { listRoleTemplates } from "../lib/cardNewsRoleTemplateStore.js";
 import { createCardNewsDraft } from "../lib/cardNewsPlanner.js";
@@ -13,31 +14,53 @@ import {
 } from "../lib/cardNewsJobStore.js";
 import { listCardNewsSets, readCardNewsManifest, readCardNewsSetPlan } from "../lib/cardNewsManifestStore.js";
 
-function sendError(res, err) {
-  const status = err.status || 500;
+import { errInfo } from "../lib/errInfo.js";
+import { requireRuntimeContext, type RouteRuntimeContext, type RuntimeContext } from "../lib/runtimeContext.js";
+
+interface CardLike {
+  id?: string;
+  cardId?: string;
+  status?: string;
+  error?: { message?: string } | string | null;
+  headline?: string;
+  body?: string;
+  textFields?: unknown;
+  imageFilename?: string | null;
+  generatedAt?: string | number | null;
+  setId?: string;
+}
+
+function sendError(res: Response, err: unknown) {
+  const info = errInfo(err);
+  const status = info.status || 500;
   res.status(status).json({
     error: {
-      code: err.code || "CARD_NEWS_ERROR",
-      message: err.message || "Card News request failed",
+      code: info.code || "CARD_NEWS_ERROR",
+      message: info.message || "Card News request failed",
     },
   });
 }
 
-function runCardNewsJob(ctx, jobId, plan) {
+function runCardNewsJob(ctx: RuntimeContext, jobId: string, plan: unknown) {
   setImmediate(async () => {
     try {
       updateCardNewsJob(jobId, { status: "running" });
-      await generateCardNewsSet(ctx, plan, {
-        onCardStart: (card) => {
-          updateCardNewsJobCard(jobId, card.cardId, { status: "generating", error: undefined });
+      await generateCardNewsSet(ctx, plan as Parameters<typeof generateCardNewsSet>[1], {
+        onCardStart: (card: CardLike) => {
+          updateCardNewsJobCard(jobId, card.cardId ?? "", { status: "generating", error: undefined });
         },
-        onCardDone: (card) => {
-          const url = card.imageFilename
+        onCardDone: (card: CardLike) => {
+          const url = card.imageFilename && card.setId
             ? `/generated/cardnews/${encodeURIComponent(card.setId)}/${encodeURIComponent(card.imageFilename)}`
             : undefined;
-          updateCardNewsJobCard(jobId, card.cardId, {
+          const errStr = card.error
+            ? (typeof card.error === "object" && card.error && "message" in card.error
+              ? card.error.message
+              : (typeof card.error === "string" ? card.error : undefined))
+            : undefined;
+          updateCardNewsJobCard(jobId, card.cardId ?? "", {
             status: card.status || "generated",
-            error: card.error?.message || card.error || undefined,
+            error: errStr,
             headline: card.headline,
             body: card.body,
             textFields: Array.isArray(card.textFields) ? card.textFields : [],
@@ -48,7 +71,8 @@ function runCardNewsJob(ctx, jobId, plan) {
         },
       });
       finishCardNewsJob(jobId);
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
       updateCardNewsJob(jobId, {
         status: "error",
         error: err.message || "Card News job failed",
@@ -57,8 +81,9 @@ function runCardNewsJob(ctx, jobId, plan) {
   });
 }
 
-export function registerCardNewsRoutes(app, ctx) {
-  app.get("/api/cardnews/image-templates", async (_req, res) => {
+export function registerCardNewsRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
+  const ctx = requireRuntimeContext(ctxRaw);
+  app.get("/api/cardnews/image-templates", async (_req: Request, res: Response) => {
     try {
       res.json({ templates: await listImageTemplates(ctx) });
     } catch (err) {
@@ -66,7 +91,7 @@ export function registerCardNewsRoutes(app, ctx) {
     }
   });
 
-  app.get("/api/cardnews/image-templates/:templateId/preview", async (req, res) => {
+  app.get("/api/cardnews/image-templates/:templateId/preview", async (req: Request<{ templateId: string }>, res: Response) => {
     try {
       const buf = await readTemplatePreview(ctx, req.params.templateId);
       res.type("image/png").send(buf);
@@ -75,11 +100,11 @@ export function registerCardNewsRoutes(app, ctx) {
     }
   });
 
-  app.get("/api/cardnews/role-templates", (_req, res) => {
+  app.get("/api/cardnews/role-templates", (_req: Request, res: Response) => {
     res.json({ templates: listRoleTemplates() });
   });
 
-  app.get("/api/cardnews/sets", async (_req, res) => {
+  app.get("/api/cardnews/sets", async (_req: Request, res: Response) => {
     try {
       res.json({ sets: await listCardNewsSets(ctx) });
     } catch (err) {
@@ -87,7 +112,7 @@ export function registerCardNewsRoutes(app, ctx) {
     }
   });
 
-  app.get("/api/cardnews/sets/:setId", async (req, res) => {
+  app.get("/api/cardnews/sets/:setId", async (req: Request<{ setId: string }>, res: Response) => {
     try {
       res.json({ plan: await readCardNewsSetPlan(ctx, req.params.setId) });
     } catch (err) {
@@ -95,7 +120,7 @@ export function registerCardNewsRoutes(app, ctx) {
     }
   });
 
-  app.get("/api/cardnews/sets/:setId/manifest", async (req, res) => {
+  app.get("/api/cardnews/sets/:setId/manifest", async (req: Request<{ setId: string }>, res: Response) => {
     try {
       const manifest = await readCardNewsManifest(ctx, req.params.setId);
       if (req.query.download === "1") {
@@ -107,34 +132,35 @@ export function registerCardNewsRoutes(app, ctx) {
     }
   });
 
-  app.post("/api/cardnews/draft", async (req, res) => {
+  app.post("/api/cardnews/draft", async (req: Request, res: Response) => {
     try {
-      res.json(await createCardNewsDraft(ctx, req.body || {}));
+      res.json(await createCardNewsDraft(ctx, (req.body ?? {}) as Parameters<typeof createCardNewsDraft>[1]));
     } catch (err) {
       sendError(res, err);
     }
   });
 
-  app.post("/api/cardnews/generate", async (req, res) => {
+  app.post("/api/cardnews/generate", async (req: Request, res: Response) => {
     try {
-      const result = await generateCardNewsSet(ctx, req.body || {});
+      const result = await generateCardNewsSet(ctx, (req.body ?? {}) as Parameters<typeof generateCardNewsSet>[1]);
       res.json(result);
     } catch (err) {
       sendError(res, err);
     }
   });
 
-  app.post("/api/cardnews/jobs", (req, res) => {
+  app.post("/api/cardnews/jobs", (req: Request, res: Response) => {
     try {
-      const summary = createCardNewsJob(req.body || {});
-      runCardNewsJob(ctx, summary.jobId, req.body || {});
+      const body = (req.body ?? {}) as Parameters<typeof createCardNewsJob>[0];
+      const summary = createCardNewsJob(body);
+      runCardNewsJob(ctx, summary.jobId, body);
       res.status(202).json(summary);
     } catch (err) {
       sendError(res, err);
     }
   });
 
-  app.get("/api/cardnews/jobs/:jobId", (req, res) => {
+  app.get("/api/cardnews/jobs/:jobId", (req: Request<{ jobId: string }>, res: Response) => {
     const job = getCardNewsJob(req.params.jobId);
     if (!job) {
       res.status(404).json({ error: { code: "CARD_NEWS_JOB_NOT_FOUND", message: "Job not found" } });
@@ -143,37 +169,39 @@ export function registerCardNewsRoutes(app, ctx) {
     res.json(job);
   });
 
-  app.post("/api/cardnews/jobs/:jobId/retry", (req, res) => {
+  app.post("/api/cardnews/jobs/:jobId/retry", (req: Request<{ jobId: string }>, res: Response) => {
     const plan = getCardNewsJobPlan(req.params.jobId);
-    const job = retryCardNewsJob(req.params.jobId, req.body?.cardIds || []);
+    const body = (req.body ?? {}) as { cardIds?: string[] };
+    const job = retryCardNewsJob(req.params.jobId, body.cardIds || []);
     if (!job) {
       res.status(404).json({ error: { code: "CARD_NEWS_JOB_NOT_FOUND", message: "Job not found" } });
       return;
     }
     if (plan) {
-      const wanted = new Set(req.body?.cardIds || []);
+      const wanted = new Set(body.cardIds || []);
+      const planObj = plan as { cards?: Array<{ id: string }> } & Record<string, unknown>;
       runCardNewsJob(ctx, req.params.jobId, {
-        ...plan,
-        cards: (plan.cards || []).filter((card) => wanted.has(card.id)),
+        ...planObj,
+        cards: (planObj.cards || []).filter((card: { id: string }) => wanted.has(card.id)),
       });
     }
     res.status(202).json(job);
   });
 
-  app.post("/api/cardnews/cards/:cardId/regenerate", async (req, res) => {
+  app.post("/api/cardnews/cards/:cardId/regenerate", async (req: Request<{ cardId: string }>, res: Response) => {
     try {
-      const body = req.body || {};
+      const body = (req.body ?? {}) as { cards?: CardLike[]; card?: CardLike } & Record<string, unknown>;
       const cards = Array.isArray(body.cards)
-        ? body.cards.filter((card) => card.id === req.params.cardId || card.cardId === req.params.cardId)
+        ? body.cards.filter((card: CardLike) => card.id === req.params.cardId || card.cardId === req.params.cardId)
         : body.card ? [body.card] : [];
-      const result = await generateCardNewsSet(ctx, { ...body, cards });
+      const result = await generateCardNewsSet(ctx, { ...body, cards } as Parameters<typeof generateCardNewsSet>[1]);
       res.json(result);
     } catch (err) {
       sendError(res, err);
     }
   });
 
-  app.post("/api/cardnews/export", (_req, res) => {
+  app.post("/api/cardnews/export", (_req: Request, res: Response) => {
     res.status(202).json({
       ok: true,
       status: "planned",

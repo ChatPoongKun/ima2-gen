@@ -1,31 +1,42 @@
+import type { Express, Request, Response } from "express";
 import { listHistoryRows } from "../lib/historyList.js";
 import { trashAsset, restoreAsset, deleteAssetPermanent } from "../lib/assetLifecycle.js";
 import { getSessionTitleMap } from "../lib/sessionStore.js";
 import { logError, logEvent } from "../lib/logger.js";
 import { getDb } from "../lib/db.js";
 
-export function registerHistoryRoutes(app, ctx) {
-  app.get("/api/history", async (req, res) => {
+import { errInfo } from "../lib/errInfo.js";
+import { requireRuntimeContext, type RouteRuntimeContext } from "../lib/runtimeContext.js";
+
+function asStr(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+export function registerHistoryRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
+  const ctx = requireRuntimeContext(ctxRaw);
+  app.get("/api/history", async (req: Request, res: Response) => {
     try {
-      const limitRaw = parseInt(req.query.limit);
+      const limitRaw = parseInt(asStr(req.query.limit));
       const limit = Math.min(
         Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : ctx.config.history.defaultPageSize,
         ctx.config.history.maxPageCap,
       );
-      const beforeTs = parseInt(req.query.before);
+      const beforeTs = parseInt(asStr(req.query.before));
       const beforeFn = typeof req.query.beforeFilename === "string" ? req.query.beforeFilename : null;
-      const sinceTs = parseInt(req.query.since);
+      const sinceTs = parseInt(asStr(req.query.since));
       const sessionId = typeof req.query.sessionId === "string" ? req.query.sessionId : null;
       const groupBy = req.query.groupBy === "session" ? "session" : null;
-      const browserId = req.headers["x-ima2-browser-id"] || null;
+      const browserId = typeof req.headers["x-ima2-browser-id"] === "string"
+        ? req.headers["x-ima2-browser-id"]
+        : null;
 
       const rows = await listHistoryRows(ctx.config.storage.generatedDir);
 
       // Enrich with favorite status
-      let favoriteSet = new Set();
+      let favoriteSet = new Set<string>();
       if (browserId) {
         const db = getDb();
-        const favRows = db.prepare("SELECT filename FROM gallery_favorites WHERE browser_id = ?").all(browserId);
+        const favRows = db.prepare("SELECT filename FROM gallery_favorites WHERE browser_id = ?").all(browserId) as Array<{ filename: string }>;
         favoriteSet = new Set(favRows.map((r) => r.filename));
       }
 
@@ -50,8 +61,8 @@ export function registerHistoryRoutes(app, ctx) {
         : null;
 
       if (groupBy === "session") {
-        const groups = new Map();
-        const loose = [];
+        const groups = new Map<string, { sessionId: any; items: any[]; lastUsedAt: any }>();
+        const loose: any[] = [];
         for (const row of page) {
           if (row.sessionId) {
             let group = groups.get(row.sessionId);
@@ -82,48 +93,54 @@ export function registerHistoryRoutes(app, ctx) {
       }
 
       res.json({ items: page, total: rows.length, nextCursor });
-    } catch (err) {
-      logError("history", "error", err);
+    } catch (e) {
+      const err = errInfo(e);
+      logError("history", "error", err.raw);
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.delete("/api/history/:filename/permanent", async (req, res) => {
+  app.delete("/api/history/:filename/permanent", async (req: Request<{ filename: string }>, res: Response) => {
     try {
       const filename = decodeURIComponent(req.params.filename);
       const result = await deleteAssetPermanent(ctx.rootDir, filename);
       res.json(result);
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
       res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
   });
 
-  app.delete("/api/history/:filename", async (req, res) => {
+  app.delete("/api/history/:filename", async (req: Request<{ filename: string }>, res: Response) => {
     try {
       const filename = decodeURIComponent(req.params.filename);
       const result = await trashAsset(ctx.rootDir, filename);
       res.json(result);
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
       res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
   });
 
-  app.post("/api/history/:filename/restore", async (req, res) => {
+  app.post("/api/history/:filename/restore", async (req: Request<{ filename: string }>, res: Response) => {
     try {
       const filename = decodeURIComponent(req.params.filename);
-      const trashId = typeof req.body?.trashId === "string" ? req.body.trashId : null;
+      const body = (req.body ?? {}) as { trashId?: unknown };
+      const trashId = typeof body.trashId === "string" ? body.trashId : null;
       if (!trashId) return res.status(400).json({ error: "trashId required" });
       const result = await restoreAsset(ctx.rootDir, trashId, filename);
       res.json(result);
-    } catch (err) {
+    } catch (e) {
+      const err = errInfo(e);
       res.status(err.status || 500).json({ error: err.message });
     }
   });
 
-  app.post("/api/history/favorite", async (req, res) => {
+  app.post("/api/history/favorite", async (req: Request, res: Response) => {
     try {
       const db = getDb();
-      const { filename } = req.body || {};
+      const body = (req.body ?? {}) as { filename?: unknown };
+      const { filename } = body;
       const browserId = req.headers["x-ima2-browser-id"];
 
       if (!filename || typeof filename !== "string") {
@@ -145,8 +162,9 @@ export function registerHistoryRoutes(app, ctx) {
         ).run(id, browserId, filename, Math.floor(Date.now() / 1000));
         res.json({ isFavorite: true });
       }
-    } catch (err) {
-      logError("history", "favorite_error", err);
+    } catch (e) {
+      const err = errInfo(e);
+      logError("history", "favorite_error", err.raw);
       res.status(500).json({ error: err.message });
     }
   });

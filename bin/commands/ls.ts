@@ -2,6 +2,7 @@ import { parseArgs } from "../lib/args.js";
 import { resolveServer, request } from "../lib/client.js";
 import { out, die, color, json, table, exitCodeForError } from "../lib/output.js";
 
+import { errInfo } from "../../lib/errInfo.js";
 const SPEC = {
   flags: {
     count:  { short: "n", type: "string", default: "20" },
@@ -13,7 +14,7 @@ const SPEC = {
   },
 };
 
-export default async function lsCmd(argv) {
+export default async function lsCmd(argv: string[]) {
   const args = parseArgs(argv, SPEC);
   if (args.help) {
     out("ima2 ls [-n count] [--session <id>] [--favorites] [--json]");
@@ -22,19 +23,21 @@ export default async function lsCmd(argv) {
 
   let server;
   try { server = await resolveServer({ serverFlag: args.server }); }
-  catch (e) { die(exitCodeForError(e), e.message); }
+  catch (e) {
+    const err = errInfo(e); die(exitCodeForError(e), err.message); }
 
-  const limit = parseInt(args.count) || 20;
+  const limit = parseInt(String(args.count)) || 20;
   const qs = new URLSearchParams();
-  if (args.session) qs.set("sessionId", args.session);
+  if (args.session) qs.set("sessionId", String(args.session));
   qs.set("limit", String(Math.max(limit, args.favorites ? 200 : limit)));
   const path = `/api/history?${qs.toString()}`;
   let resp;
   try { resp = await request(server.base, path); }
-  catch (e) { die(exitCodeForError(e), e.message); }
+  catch (e) {
+    const err = errInfo(e); die(exitCodeForError(e), err.message); }
 
-  let items = (resp.items || resp.history || []);
-  if (args.favorites) items = items.filter((it) => it.isFavorite === true);
+  let items: Record<string, unknown>[] = (resp.items || resp.history || []);
+  if (args.favorites) items = items.filter((it: Record<string, unknown>) => it.isFavorite === true);
   items = items.slice(0, limit);
 
   if (args.json) { json({ items }); return; }
@@ -47,12 +50,12 @@ export default async function lsCmd(argv) {
     { key: "filename", label: "FILENAME" },
     { key: "quality",  label: "Q" },
     { key: "size",     label: "SIZE" },
-    { key: "createdAt", label: "WHEN", format: (v) => {
+    { key: "createdAt", label: "WHEN", format: (v: unknown) => {
       if (!v) return "";
-      const d = new Date(v);
+      const d = new Date(v as string);
       return d.toISOString().replace("T", " ").slice(0, 19);
     } },
-    { key: "prompt", label: "PROMPT", format: (v) => {
+    { key: "prompt", label: "PROMPT", format: (v: unknown) => {
       const s = String(v || "").replace(/\s+/g, " ");
       return s.length > 48 ? s.slice(0, 45) + "…" : s;
     } },

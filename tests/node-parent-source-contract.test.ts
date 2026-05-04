@@ -1,4 +1,4 @@
-import { test, before, after } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -63,7 +63,7 @@ test("saveGraph rejects multiple incoming parent edges for one node", () => {
         { id: "b->c", source: "b", target: "c", data: {} },
       ],
     }),
-    (err) => err?.code === "GRAPH_PARENT_CONFLICT",
+    (err) => (err as { code?: string })?.code === "GRAPH_PARENT_CONFLICT",
   );
 });
 

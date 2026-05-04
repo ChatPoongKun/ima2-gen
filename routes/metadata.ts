@@ -1,27 +1,32 @@
 import { Buffer } from "node:buffer";
+import type { Express, Request, Response } from "express";
+import { errInfo } from "../lib/errInfo.js";
 import {
   isSupportedMetadataFormat,
   normalizeImageMetadataFormat,
   readEmbeddedImageMetadata,
 } from "../lib/imageMetadataStore.js";
+import { requireRuntimeContext, type RouteRuntimeContext } from "../lib/runtimeContext.js";
 
-const MIME_FORMATS = {
+const MIME_FORMATS: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpeg",
   "image/webp": "webp",
 };
 
-function parseDataUrl(dataUrl) {
+function parseDataUrl(dataUrl: unknown): { mime: string; rawB64: string } | null {
   if (typeof dataUrl !== "string") return null;
   const match = /^data:([^;,]+);base64,(.+)$/s.exec(dataUrl);
   if (!match) return null;
   return { mime: match[1].toLowerCase(), rawB64: match[2] };
 }
 
-export function registerMetadataRoutes(app, ctx) {
-  app.post("/api/metadata/read", async (req, res) => {
+export function registerMetadataRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
+  const ctx = requireRuntimeContext(ctxRaw);
+  app.post("/api/metadata/read", async (req: Request, res: Response) => {
     try {
-      const parsed = parseDataUrl(req.body?.dataUrl);
+      const body = (req.body ?? {}) as { dataUrl?: unknown };
+      const parsed = parseDataUrl(body.dataUrl);
       if (!parsed) {
         return res.status(400).json({
           ok: false,
@@ -61,10 +66,11 @@ export function registerMetadataRoutes(app, ctx) {
         warnings: result.warnings,
       });
     } catch (error) {
+      const err = errInfo(error);
       return res.status(400).json({
         ok: false,
-        code: error?.code || "IMAGE_METADATA_INVALID",
-        error: error?.message || "Could not read image metadata.",
+        code: err.code || "IMAGE_METADATA_INVALID",
+        error: err.message || "Could not read image metadata.",
       });
     }
   });

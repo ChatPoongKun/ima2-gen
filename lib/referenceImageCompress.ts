@@ -6,19 +6,19 @@ const DEFAULT_QUALITY_LADDER = [85, 75, 65, 55];
 const FALLBACK_MAX_EDGE = 2048;
 const FALLBACK_QUALITY_LADDER = [75, 65, 55];
 
-function stripDataUrlPrefix(value) {
+function stripDataUrlPrefix(value: unknown) {
   return String(value || "").replace(/^data:[^;]+;base64,/, "");
 }
 
-function toBase64(buffer) {
+function toBase64(buffer: Buffer) {
   return buffer.toString("base64");
 }
 
-async function encodeJpegWithinBudget(input, {
+async function encodeJpegWithinBudget(input: Buffer, {
   maxB64Bytes,
   maxEdge,
   qualityLadder,
-}) {
+}: { maxB64Bytes: number; maxEdge: number; qualityLadder: number[] }) {
   for (const quality of qualityLadder) {
     const out = await sharp(input, { failOn: "none" })
       .rotate()
@@ -37,7 +37,16 @@ async function encodeJpegWithinBudget(input, {
   return null;
 }
 
-export async function compressReferenceB64ForOAuth(imageB64, options: any = {}) {
+interface CompressOptions {
+  maxB64Bytes?: number;
+  maxEdge?: number;
+  qualityLadder?: number[];
+  fallbackMaxEdge?: number;
+  fallbackQualityLadder?: number[];
+  force?: boolean;
+}
+
+export async function compressReferenceB64ForOAuth(imageB64: string | undefined | null, options: CompressOptions = {}) {
   const rawB64 = stripDataUrlPrefix(imageB64);
   const maxB64Bytes = options.maxB64Bytes ?? DEFAULT_MAX_B64_BYTES;
   const maxEdge = options.maxEdge ?? DEFAULT_MAX_EDGE;
@@ -68,7 +77,7 @@ export async function compressReferenceB64ForOAuth(imageB64, options: any = {}) 
     return { ...fallback, inputBytes, outputBytes: fallback.b64.length };
   }
 
-  const err: any = new Error(`Reference image remains above ${maxB64Bytes} base64 bytes after compression`);
+  const err = new Error(`Reference image remains above ${maxB64Bytes} base64 bytes after compression`) as Error & { code?: string; status?: number };
   err.code = "REF_TOO_LARGE";
   err.status = 400;
   throw err;

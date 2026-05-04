@@ -3,10 +3,11 @@ import assert from "node:assert";
 import express from "express";
 import { request } from "node:http";
 import { registerHealthRoutes } from "../routes/health.ts";
+import type { RouteRuntimeContext } from "../lib/runtimeContext.ts";
 
 const originalFetch = globalThis.fetch;
 
-function makeCtx(overrides = {}) {
+function makeCtx(overrides: Partial<RouteRuntimeContext> = {}): RouteRuntimeContext {
   return {
     hasApiKey: false,
     apiKey: null,
@@ -22,12 +23,14 @@ function makeCtx(overrides = {}) {
   };
 }
 
-async function getJson(app, path) {
+type GetJsonResult = { status: number | undefined; body: Record<string, unknown> };
+
+async function getJson(app, path): Promise<GetJsonResult> {
   const server = app.listen(0);
-  await new Promise((resolve) => server.once("listening", resolve));
-  const port = server.address().port;
+  await new Promise<void>((resolve) => server.once("listening", () => resolve()));
+  const port = (server.address() as import("node:net").AddressInfo).port;
   try {
-    return await new Promise((resolve, reject) => {
+    return await new Promise<GetJsonResult>((resolve, reject) => {
       const req = request(
         { hostname: "127.0.0.1", port, path, method: "GET" },
         (res) => {
@@ -37,7 +40,7 @@ async function getJson(app, path) {
             body += chunk;
           });
           res.on("end", () => {
-            resolve({ status: res.statusCode, body: JSON.parse(body) });
+            resolve({ status: res.statusCode, body: JSON.parse(body) as Record<string, unknown> });
           });
         },
       );
@@ -45,7 +48,7 @@ async function getJson(app, path) {
       req.end();
     });
   } finally {
-    await new Promise((resolve) => server.close(resolve));
+    await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 }
 
@@ -69,10 +72,10 @@ describe("/api/billing apiKeySource", () => {
   });
 
   it("reports env when the key came from OPENAI_API_KEY", async () => {
-    globalThis.fetch = async (url) => ({
+    globalThis.fetch = (async (url) => ({
       ok: String(url).includes("/v1/models"),
       json: async () => ({}),
-    });
+    })) as unknown as typeof fetch;
     const app = express();
     registerHealthRoutes(app, makeCtx({
       hasApiKey: true,
@@ -88,10 +91,10 @@ describe("/api/billing apiKeySource", () => {
   });
 
   it("reports config when the key came from config.json", async () => {
-    globalThis.fetch = async (url) => ({
+    globalThis.fetch = (async (url) => ({
       ok: String(url).includes("/v1/models"),
       json: async () => ({}),
-    });
+    })) as unknown as typeof fetch;
     const app = express();
     registerHealthRoutes(app, makeCtx({
       hasApiKey: true,
