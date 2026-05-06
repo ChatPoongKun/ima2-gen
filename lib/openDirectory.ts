@@ -15,7 +15,7 @@ export async function openDirectory(dir: string, options: any = {}) {
   return new Promise((resolve) => {
     try {
       const isWin = platform === "win32";
-      const child = spawnImpl(command, isWin ? [`"${dir}"`] : [dir], {
+      const child = spawnImpl(command, [dir], {
         detached: !isWin,
         stdio: "ignore",
         windowsHide: !isWin,

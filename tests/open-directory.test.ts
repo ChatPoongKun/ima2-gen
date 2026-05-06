@@ -31,9 +31,9 @@ test("openDirectory chooses platform-specific commands", async () => {
     assert.deepEqual(await openDirectory(dir, { platform: "win32", spawnImpl, settleMs: 10 }), { ok: true });
     assert.deepEqual(await openDirectory(dir, { platform: "linux", spawnImpl, settleMs: 10 }), { ok: true });
     assert.deepEqual(calls.map((call) => call.command), ["open", "explorer", "xdg-open"]);
-    assert.equal(calls[0].args[0], dir);        // darwin: unquoted
-    assert.equal(calls[1].args[0], `"${dir}"`); // win32: quoted
-    assert.equal(calls[2].args[0], dir);        // linux: unquoted
+    assert.equal(calls[0].args[0], dir); // darwin: raw path
+    assert.equal(calls[1].args[0], dir); // win32: raw path
+    assert.equal(calls[2].args[0], dir); // linux: raw path
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -124,7 +124,7 @@ test("openDirectory on non-Windows keeps windowsHide=true and detached=true", as
   }
 });
 
-test("openDirectory on Windows quotes path with spaces", async () => {
+test("openDirectory on Windows passes path with spaces as one raw arg", async () => {
   const dir = await mkdtemp(join(tmpdir(), "ima2 open "));
   const calls = [];
   const spawnImpl = (command, args) => {
@@ -135,7 +135,26 @@ test("openDirectory on Windows quotes path with spaces", async () => {
   };
   try {
     await openDirectory(dir, { platform: "win32", spawnImpl, settleMs: 10 });
-    assert.equal(calls[0].args[0], `"${dir}"`);
+    assert.equal(calls[0].command, "explorer");
+    assert.deepEqual(calls[0].args, [dir]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("openDirectory on Windows passes non-ASCII paths as one raw arg", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ima2 생성 "));
+  const calls = [];
+  const spawnImpl = (command, args) => {
+    calls.push({ command, args });
+    const child = fakeChild();
+    queueMicrotask(() => child.emit("exit", 0));
+    return child;
+  };
+  try {
+    await openDirectory(dir, { platform: "win32", spawnImpl, settleMs: 10 });
+    assert.equal(calls[0].command, "explorer");
+    assert.deepEqual(calls[0].args, [dir]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
