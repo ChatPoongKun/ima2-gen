@@ -66,7 +66,8 @@
   "inflight": {
     "queued": "대기 중",
     "streaming": "생성 중",
-    "decoding": "마무리 중"
+    "decoding": "마무리 중",
+    "noPrompt": "프롬프트 없음"
   },
   "size": {
     "title": "크기",

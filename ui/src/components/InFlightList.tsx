@@ -22,8 +22,16 @@ export function InFlightList() {
     <ul className="in-flight-list">
       {inFlight.map((f) => {
         const phaseLabel = f.phase ? phaseLabels[f.phase] ?? f.phase : t("inflight.queued");
+        const fullPrompt = f.prompt.trim().replace(/\s+/g, " ");
+        const promptLabel = fullPrompt || t("inflight.noPrompt");
         return (
-          <li key={f.id} className="in-flight-item" data-phase={f.phase ?? "queued"}>
+          <li
+            key={f.id}
+            className="in-flight-item"
+            data-phase={f.phase ?? "queued"}
+            title={promptLabel}
+            aria-label={`${phaseLabel}: ${promptLabel}`}
+          >
             <span className="in-flight-prompt">{truncate(f.prompt)}</span>
             <span className="in-flight-phase">{phaseLabel}</span>
             <span className="in-flight-spinner" aria-hidden="true" />
