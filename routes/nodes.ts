@@ -7,7 +7,12 @@ import {
   loadNodeMeta,
   loadAssetB64,
 } from "../lib/nodeStore.js";
-import { startJob, finishJob } from "../lib/inflight.js";
+import { startJob, finishJob, registerJobAbortController, isJobCanceled } from "../lib/inflight.js";
+import {
+  isGenerationCanceledError,
+  makeGenerationCanceledError,
+  throwIfJobCanceled,
+} from "../lib/generationCancel.js";
 import { summarizeReferencePayload, validateAndNormalizeRefs } from "../lib/refs.js";
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
@@ -102,6 +107,8 @@ export function registerNodeRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
     let finishStatus = "completed";
     let finishHttpStatus: number | undefined;
     let finishErrorCode: string | undefined;
+    let finishCanceled = false;
+    const cancelController = new AbortController();
     const referencePayload = summarizeReferencePayload(body.references);
     startJob({
       requestId,
@@ -117,6 +124,7 @@ export function registerNodeRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         referenceB64Chars: referencePayload.referenceB64Chars,
       },
     });
+    registerJobAbortController(requestId, cancelController);
 
     try {
       const {
@@ -281,6 +289,7 @@ export function registerNodeRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
                 searchMode,
                 reasoningEffort,
                 webSearchEnabled,
+                signal: cancelController.signal,
               })
             : await generateViaResponses(
                 activeProvider,
@@ -296,17 +305,21 @@ export function registerNodeRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
                   model: imageModel,
                   reasoningEffort,
                   webSearchEnabled,
+                  signal: cancelController.signal,
                   partialImages: streamResponse ? 2 : 0,
                   onPartialImage: streamResponse
                     ? (partial) =>
-                        writeSse(res, "partial", {
-                          requestId,
-                          image: dataUrlFromB64(format, partial.b64),
-                          index: partial.index,
-                        })
+                        isJobCanceled(requestId)
+                          ? undefined
+                          : writeSse(res, "partial", {
+                              requestId,
+                              image: dataUrlFromB64(format, partial.b64),
+                              index: partial.index,
+                            })
                     : null,
                 },
               );
+          throwIfJobCanceled(requestId);
           if (r.b64) {
             b64 = r.b64;
             usage = r.usage;
@@ -376,6 +389,7 @@ export function registerNodeRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       }
 
       const nodeId = newNodeId();
+      throwIfJobCanceled(requestId);
       const elapsed = +((Date.now() - startTime) / 1000).toFixed(1);
       const meta = {
         nodeId,
@@ -406,6 +420,7 @@ export function registerNodeRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         moderation,
       };
       await mkdir(ctx.config.storage.generatedDir, { recursive: true });
+      throwIfJobCanceled(requestId);
       const { filename } = await saveNode(ctx.rootDir, {
         nodeId,
         b64,
@@ -456,6 +471,19 @@ export function registerNodeRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       const err = errInfo(e);
       const ext = (err.raw && typeof err.raw === "object" ? err.raw as Record<string, unknown> : {});
       const code = err.code || classifyUpstreamError(err.message) || "NODE_GEN_FAILED";
+      if (isGenerationCanceledError(err.raw) || isJobCanceled(requestId)) {
+        const canceled = makeGenerationCanceledError();
+        finishCanceled = true;
+        finishHttpStatus = canceled.status;
+        finishErrorCode = canceled.code;
+        return writeNodeError(
+          res,
+          canceled.status,
+          canceled.code,
+          canceled.message,
+          parentNodeId,
+        );
+      }
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = code;
@@ -467,6 +495,7 @@ export function registerNodeRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       });
     } finally {
       finishJob(requestId, {
+        canceled: finishCanceled,
         status: finishStatus,
         httpStatus: finishHttpStatus,
         errorCode: finishErrorCode,

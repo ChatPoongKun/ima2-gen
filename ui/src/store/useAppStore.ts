@@ -51,6 +51,7 @@ import {
   toggleGalleryFavorite,
   importPromptLibrary,
   importLocalImage,
+  type HistoryCursor,
   type SessionSummary,
   type SessionFull,
   type SessionGraphEdge,
@@ -341,6 +342,12 @@ function terminalJobError(job: ServerTerminalJob): Error & { code?: string; stat
   e.code = code;
   e.status = typeof job.httpStatus === "number" ? job.httpStatus : undefined;
   return e;
+}
+
+function isCanceledGenerationError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const value = err as { code?: unknown; status?: unknown };
+  return value.code === "GENERATION_CANCELED" || value.status === 499;
 }
 
 function loadInFlight(): PersistedInFlight[] {
@@ -696,6 +703,7 @@ type AppState = {
   activeGenerations: number;
   unseenGeneratedCount: number;
   inFlight: PersistedInFlight[];
+  cancelInFlightJob: (requestId: string) => Promise<void>;
   startInFlightPolling: () => void;
   reconcileInflight: () => Promise<void>;
   reconcileGraphPending: () => Promise<void>;
@@ -704,6 +712,10 @@ type AppState = {
   applyMergedCanvasImage: (item: GenerateItem) => void;
   addGeneratedHistoryItem: (item: GenerateItem) => Promise<void>;
   history: GenerateItem[];
+  historyNextCursor: HistoryCursor | null;
+  historyLoadingOlder: boolean;
+  loadOlderHistory: () => Promise<void>;
+  loadFavoriteHistory: () => Promise<void>;
   trashPending: TrashPendingState;
   toast: ToastState;
   toastLog: ToastEntry[];
@@ -1270,6 +1282,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeGenerations: 0,
   unseenGeneratedCount: 0,
   inFlight: [],
+  cancelInFlightJob: async (requestId) => {
+    if (!requestId) return;
+    set((s) => {
+      const next = s.inFlight.map((job) =>
+        job.id === requestId ? { ...job, phase: "canceling" } : job,
+      );
+      saveInFlight(next);
+      return { inFlight: next };
+    });
+    try {
+      await cancelInflight(requestId);
+      get().startInFlightPolling();
+    } catch {
+      get().showToast(t("toast.cancelFailed"), true);
+    }
+  },
   startInFlightPolling: () => {
     if (typeof window === "undefined") return;
     const w = window as unknown as { __ima2InflightTimer?: number };
@@ -1392,7 +1420,10 @@ export const useAppStore = create<AppState>((set, get) => ({
               saveSelectedFilename(fresh[0].filename);
             }
             return {
-              history: [...fresh, ...s.history].slice(0, HISTORY_LIMIT),
+              history: [...fresh, ...s.history].slice(
+                0,
+                Math.max(HISTORY_LIMIT, s.history.length + fresh.length),
+              ),
               currentImage: nextCurrent,
             };
           });
@@ -1513,6 +1544,58 @@ export const useAppStore = create<AppState>((set, get) => ({
     await addHistory(item, set, get);
   },
   history: [],
+  historyNextCursor: null,
+  historyLoadingOlder: false,
+  loadOlderHistory: async () => {
+    const cursor = get().historyNextCursor;
+    if (!cursor || get().historyLoadingOlder) return;
+    set({ historyLoadingOlder: true });
+    try {
+      const res = await getHistory({ limit: HISTORY_LIMIT, cursor });
+      const incoming = res.items.map(mapHistoryItem);
+      set((s) => {
+        const seen = new Set(s.history.map((item) => item.filename ?? item.image));
+        const appended = incoming.filter((item) => {
+          const key = item.filename ?? item.image;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        return {
+          history: [...s.history, ...appended],
+          historyNextCursor: res.nextCursor,
+          historyLoadingOlder: false,
+        };
+      });
+    } catch {
+      set({ historyLoadingOlder: false });
+      get().showToast(t("gallery.loadOlderFailed"), true);
+    }
+  },
+  loadFavoriteHistory: async () => {
+    try {
+      const res = await getHistory({ limit: HISTORY_LIMIT, favoritesOnly: true });
+      const incoming = res.items.map(mapHistoryItem);
+      set((s) => {
+        const byKey = new Map(s.history.map((item) => [item.filename ?? item.image, item]));
+        for (const item of incoming) {
+          byKey.set(item.filename ?? item.image, item);
+        }
+        return {
+          history: [
+            ...s.history.map((item) => byKey.get(item.filename ?? item.image) ?? item),
+            ...incoming.filter((item) => !s.history.some((h) => (h.filename ?? h.image) === (item.filename ?? item.image))),
+          ],
+          galleryFavorites: new Set([
+            ...Array.from(s.galleryFavorites),
+            ...incoming.filter((item) => item.filename).map((item) => item.filename!),
+          ]),
+        };
+      });
+    } catch {
+      get().showToast(t("gallery.loadOlderFailed"), true);
+    }
+  },
   trashPending: null,
   toast: null,
   toastLog: [],
@@ -2967,7 +3050,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const toastKey = res.status === "complete" ? "multimode.complete" : "multimode.partial";
       get().showToast(t(toastKey, { returned: res.returned, requested: res.requested, elapsed: res.elapsed }));
     } catch (err) {
-      if ((err as Error).name === "AbortError") {
+      if ((err as Error).name === "AbortError" || isCanceledGenerationError(err)) {
         set((state) => {
           const current = state.multimodeSequences[flightId];
           if (!current) return {};
@@ -3025,6 +3108,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const flightId = get().multimodePreviewFlightId;
     if (!flightId) return;
     get().multimodeAbortControllers[flightId]?.abort();
+    void get().cancelInFlightJob(flightId);
     set((state) => {
       const current = state.multimodeSequences[flightId];
       if (!current) return {};
@@ -3129,7 +3213,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         get().showToast(t("toast.generatedSingle", { elapsed: res.elapsed }));
       }
     } catch (err) {
-      handleError(err, get());
+      if (!isCanceledGenerationError(err)) handleError(err, get());
     } finally {
       const remaining = get().inFlight.filter((f) => f.id !== flightId);
       saveInFlight(remaining);
@@ -3177,6 +3261,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       try {
         const res = await getHistory({ limit: HISTORY_LIMIT });
         const history: GenerateItem[] = res.items.map(mapHistoryItem);
+        set({ historyNextCursor: res.nextCursor });
         if (history.length > 0) {
           const selected = loadSelectedFilename();
           const matched = selected
@@ -3187,7 +3272,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             (matched ? resolveVisibleShortcutCurrent(history, matched) : null) ??
             visibleHistory[0] ??
             null;
-          set({ history, currentImage });
+          set({ history, currentImage, historyNextCursor: res.nextCursor });
           if (currentImage?.filename !== selected) {
             saveSelectedFilename(currentImage?.filename ?? null);
           }

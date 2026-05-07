@@ -251,19 +251,45 @@ interface PostResponsesArgs {
   payload: unknown;
   requestId?: string | null;
   maxImages?: number;
+  signal?: AbortSignal | null;
   onPartialImage?: ((partial: { b64: string; index: number | null | undefined }) => void) | null;
 }
 
-async function postResponses({ ctx, provider, scope, payload, requestId, maxImages = 1, onPartialImage = null }: PostResponsesArgs) {
+function combineAbortSignals(signals: AbortSignal[]): AbortSignal {
+  if (signals.length === 1) return signals[0];
+  const controller = new AbortController();
+  for (const signal of signals) {
+    if (signal.aborted) {
+      controller.abort();
+      break;
+    }
+    signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+  return controller.signal;
+}
+
+async function postResponses({
+  ctx,
+  provider,
+  scope,
+  payload,
+  requestId,
+  maxImages = 1,
+  signal = null,
+  onPartialImage = null,
+}: PostResponsesArgs) {
   const { url, headers } = await getEndpoint(ctx, provider, scope);
   const timeoutMs = ctx?.config?.oauth?.generationTimeoutMs || 400 * 1000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const fetchSignal = signal
+    ? combineAbortSignals([controller.signal, signal])
+    : controller.signal;
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: headers as Record<string, string>,
-      signal: controller.signal,
+      signal: fetchSignal,
       body: JSON.stringify(payload),
     });
     logEvent(scope, "response", { requestId, provider, status: res.status, contentType: res.headers.get("content-type") });
@@ -294,6 +320,13 @@ async function postResponses({ ctx, provider, scope, payload, requestId, maxImag
   } catch (e) {
     const err = errInfo(e);
     if (err.name === "AbortError") {
+      if (signal?.aborted) {
+        throw makeError("Generation canceled", {
+          status: 499,
+          code: "GENERATION_CANCELED",
+          cause: err.raw,
+        });
+      }
       throw makeError("Responses image generation timed out", { status: 504, code: "RESPONSES_IMAGE_TIMEOUT", cause: err.raw });
     }
     throw err.raw;
@@ -312,6 +345,7 @@ interface GenerateOptions {
   maxImages?: number;
   references?: ReferenceRef[];
   mask?: string;
+  signal?: AbortSignal | null;
 }
 
 export async function generateViaResponses(provider: string | undefined, prompt: string | undefined, quality: string | undefined, size: string | undefined, moderation: string = "low", references: ReferenceRef[] = [], requestId: string | null = null, mode: string = "auto", ctxRaw: RouteRuntimeContext = {}, options: GenerateOptions = {}) {
@@ -327,6 +361,7 @@ export async function generateViaResponses(provider: string | undefined, prompt:
     scope: provider === "api" ? "api-generate" : "oauth",
     requestId,
     maxImages: 1,
+    signal: options.signal,
     onPartialImage: options.onPartialImage,
     payload: {
       model: options.model || ctx.config?.imageModels?.default || "gpt-5.4-mini",
@@ -366,6 +401,7 @@ export async function generateMultimodeViaResponses(provider: string | undefined
     scope: provider === "api" ? "api-multimode" : "oauth-multimode",
     requestId,
     maxImages,
+    signal: options.signal,
     onPartialImage: options.onPartialImage,
     payload: {
       model: options.model || ctx.config?.imageModels?.default || "gpt-5.4-mini",
@@ -412,6 +448,7 @@ export async function editViaResponses(provider: string | undefined, prompt: str
     scope: provider === "api" ? "api-edit" : "oauth-edit",
     requestId,
     maxImages: 1,
+    signal: options.signal,
     payload: {
       model: options.model || ctx.config?.imageModels?.default || "gpt-5.4-mini",
       input: [

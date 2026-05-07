@@ -2860,6 +2860,25 @@ body {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
+.gallery__load-more {
+  display: flex;
+  justify-content: center;
+  padding: 14px 0 4px;
+}
+.gallery__load-more button {
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 0 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.gallery__load-more button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
 
 /* ── Toast ── */
 .toast-stack {
@@ -4136,6 +4155,25 @@ body {
 .in-flight-item[data-phase="decoding"] .in-flight-phase {
   color: var(--green);
   opacity: 1;
+}
+.in-flight-item[data-phase="canceling"] .in-flight-phase {
+  color: var(--red);
+  opacity: 1;
+}
+.in-flight-cancel {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  line-height: 1;
+}
+.in-flight-cancel:hover {
+  color: var(--red);
+  border-color: var(--red);
 }
 .in-flight-spinner {
   flex-shrink: 0;

@@ -61,13 +61,16 @@
     "comfyExportInvalidUrl": "ComfyUI URL must be a local HTTP address.",
     "comfyExportInvalidImage": "This saved image cannot be sent to ComfyUI.",
     "comfyExportImageNotFound": "Saved image file was not found.",
-    "comfyExportFailed": "Could not upload image to ComfyUI."
+    "comfyExportFailed": "Could not upload image to ComfyUI.",
+    "cancelFailed": "Could not cancel generation."
   },
   "inflight": {
     "queued": "Queued",
     "streaming": "Generating",
     "decoding": "Finalizing",
-    "noPrompt": "No prompt"
+    "canceling": "Canceling",
+    "noPrompt": "No prompt",
+    "cancelAria": "Cancel generation: {prompt}"
   },
   "size": {
     "title": "Size",
@@ -345,6 +348,9 @@
     "emptyAll": "No images yet. Create one first.",
     "emptyFavorites": "No favorite images yet.",
     "noResults": "No results.",
+    "loadOlder": "Load older",
+    "loadingOlder": "Loading older...",
+    "loadOlderFailed": "Could not load older gallery items.",
     "storageNoticeTitle": "Storage notice",
     "storageNoticeRecoverable": "Sorry for the scare. Recent versions moved the gallery folder from the installed package to your user data folder. Your old images may still be in the previous generated folder. Run ima2 doctor or open the recovery guide.",
     "storageNoticeNotFound": "Sorry for the scare. We could not find a previous generated folder on this machine. If the old global install folder was replaced during update, automatic recovery may not be possible. Run ima2 doctor and check the recovery guide for manual search steps.",

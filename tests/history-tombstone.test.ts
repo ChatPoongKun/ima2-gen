@@ -145,6 +145,40 @@ describe("History: delete tombstone + pagination", () => {
     assert.strictEqual(overlap.length, 0, "no duplicates across pages");
   });
 
+  it("favoritesOnly filters favorites before pagination", async () => {
+    const favoriteTarget = createdFiles[2];
+    const browserId = "history_favorites_before_page";
+    const favRes = await fetch(`${base}/api/history/favorite`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Ima2-Browser-Id": browserId,
+      },
+      body: JSON.stringify({ filename: favoriteTarget }),
+    });
+    assert.strictEqual(favRes.status, 200);
+
+    const normalRes = await fetch(`${base}/api/history?limit=1`, {
+      headers: { "X-Ima2-Browser-Id": browserId },
+    });
+    assert.strictEqual(normalRes.status, 200);
+    const normalPage = await normalRes.json();
+    assert.notStrictEqual(
+      normalPage.items[0]?.filename,
+      favoriteTarget,
+      "seeded favorite must be outside the first normal page",
+    );
+
+    const favoriteRes = await fetch(`${base}/api/history?limit=1&favoritesOnly=1`, {
+      headers: { "X-Ima2-Browser-Id": browserId },
+    });
+    assert.strictEqual(favoriteRes.status, 200);
+    const favoritePage = await favoriteRes.json();
+    assert.strictEqual(favoritePage.items.length, 1);
+    assert.strictEqual(favoritePage.items[0].filename, favoriteTarget);
+    assert.strictEqual(favoritePage.items[0].isFavorite, true);
+  });
+
   it("groupBy=session returns sessions + loose arrays", async () => {
     const res = await fetch(`${base}/api/history?groupBy=session&limit=100`);
     assert.strictEqual(res.status, 200);

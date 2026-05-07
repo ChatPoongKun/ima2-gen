@@ -6,7 +6,12 @@ import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
 import { editViaResponses } from "../lib/responsesImageAdapter.js";
-import { startJob, finishJob } from "../lib/inflight.js";
+import { startJob, finishJob, registerJobAbortController, isJobCanceled } from "../lib/inflight.js";
+import {
+  isGenerationCanceledError,
+  makeGenerationCanceledError,
+  throwIfJobCanceled,
+} from "../lib/generationCancel.js";
 import { logEvent, logError } from "../lib/logger.js";
 import { hasPngAlphaChannel, parsePngInfo } from "../lib/pngInfo.js";
 
@@ -85,6 +90,8 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
     let finishHttpStatus;
     let finishErrorCode;
     let finishMeta = {};
+    let finishCanceled = false;
+    const cancelController = new AbortController();
     try {
       const {
         prompt,
@@ -133,6 +140,7 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
           size: effectiveSize,
         },
       });
+      registerJobAbortController(requestId, cancelController);
 
       if (!prompt || !imageB64) {
         finishStatus = "error";
@@ -182,11 +190,19 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         normalizedPromptMode,
         ctx,
         requestId,
-        { model: imageModel, reasoningEffort, webSearchEnabled, mask: maskCheck.mask },
+        {
+          model: imageModel,
+          reasoningEffort,
+          webSearchEnabled,
+          mask: maskCheck.mask,
+          signal: cancelController.signal,
+        },
       );
+      throwIfJobCanceled(requestId);
 
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       await mkdir(ctx.config.storage.generatedDir, { recursive: true });
+      throwIfJobCanceled(requestId);
       const filename = `${Date.now()}_${randomBytes(ctx.config.ids.generatedHexBytes).toString("hex")}.png`;
       await writeFile(join(ctx.config.storage.generatedDir, filename), Buffer.from(resultB64, "base64"));
       const meta = {
@@ -233,6 +249,17 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
     } catch (e) {
       const err = errInfo(e);
       const fallbackCode = err.code || classifyUpstreamError(err.message);
+      if (isGenerationCanceledError(err.raw) || isJobCanceled(requestId)) {
+        const canceled = makeGenerationCanceledError();
+        finishCanceled = true;
+        finishHttpStatus = canceled.status;
+        finishErrorCode = canceled.code;
+        return res.status(canceled.status).json({
+          error: canceled.message,
+          code: canceled.code,
+          requestId,
+        });
+      }
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = fallbackCode || "EDIT_FAILED";
@@ -240,6 +267,7 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       res.status(err.status || 500).json({ error: err.message, code: fallbackCode });
     } finally {
       finishJob(requestId, {
+        canceled: finishCanceled,
         status: finishStatus,
         httpStatus: finishHttpStatus,
         errorCode: finishErrorCode,

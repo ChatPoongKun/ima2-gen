@@ -7,7 +7,12 @@ import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
 import { generateMultimodeViaResponses } from "../lib/responsesImageAdapter.js";
-import { startJob, finishJob } from "../lib/inflight.js";
+import { startJob, finishJob, registerJobAbortController, isJobCanceled } from "../lib/inflight.js";
+import {
+  isGenerationCanceledError,
+  makeGenerationCanceledError,
+  throwIfJobCanceled,
+} from "../lib/generationCancel.js";
 import { logEvent, logError } from "../lib/logger.js";
 import { embedImageMetadataBestEffort } from "../lib/imageMetadataStore.js";
 
@@ -48,6 +53,8 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
     let finishHttpStatus = 200;
     let finishErrorCode;
     let finishMeta = {};
+    let finishCanceled = false;
+    const cancelController = new AbortController();
 
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -131,6 +138,7 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
           referenceB64Chars: referencePayload.referenceB64Chars,
         },
       });
+      registerJobAbortController(requestId, cancelController);
 
       logEvent("multimode", "request", {
         requestId,
@@ -168,14 +176,18 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
           reasoningEffort,
           webSearchEnabled,
           onPartialImage: (partial) =>
-            sendSse(res, "partial", {
-              image: `data:${mime};base64,${partial.b64}`,
-              requestId,
-              sequenceId,
-              index: partial.index,
-            }),
+            isJobCanceled(requestId)
+              ? undefined
+              : sendSse(res, "partial", {
+                  image: `data:${mime};base64,${partial.b64}`,
+                  requestId,
+                  sequenceId,
+                  index: partial.index,
+                }),
+          signal: cancelController.signal,
         },
       );
+      throwIfJobCanceled(requestId);
 
       const returned = generated.images.length;
       const status = sequenceStatus(returned, maxImages);
@@ -192,6 +204,7 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
       }> = [];
 
       for (const [index, image] of generated.images.entries() as IterableIterator<[number, MultimodeImage]>) {
+        throwIfJobCanceled(requestId);
         const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
         const filename = `${Date.now()}_${rand}_multimode_${index}.${format}`;
         const meta = {
@@ -275,6 +288,19 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
       const err = errInfo(e);
       const ext = (err.raw && typeof err.raw === "object" ? err.raw as Record<string, unknown> : {});
       const fallbackCode = err.code || classifyUpstreamError(err.message);
+      if (isGenerationCanceledError(err.raw) || isJobCanceled(requestId)) {
+        const canceled = makeGenerationCanceledError();
+        finishCanceled = true;
+        finishHttpStatus = canceled.status;
+        finishErrorCode = canceled.code;
+        sendSse(res, "error", {
+          error: canceled.message,
+          code: canceled.code,
+          status: canceled.status,
+          requestId,
+        });
+        return;
+      }
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = fallbackCode || "MULTIMODE_GENERATE_FAILED";
@@ -290,6 +316,7 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
       });
     } finally {
       finishJob(requestId, {
+        canceled: finishCanceled,
         status: finishStatus,
         httpStatus: finishHttpStatus,
         errorCode: finishErrorCode,

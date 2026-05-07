@@ -8,12 +8,14 @@ function truncate(s: string, max = 28) {
 
 export function InFlightList() {
   const inFlight = useAppStore((s) => s.inFlight);
+  const cancelInFlightJob = useAppStore((s) => s.cancelInFlightJob);
   const { t } = useI18n();
 
   const phaseLabels: Record<string, string> = {
     queued: t("inflight.queued"),
     streaming: t("inflight.streaming"),
     decoding: t("inflight.decoding"),
+    canceling: t("inflight.canceling"),
   };
 
   if (inFlight.length === 0) return null;
@@ -34,6 +36,16 @@ export function InFlightList() {
           >
             <span className="in-flight-prompt">{truncate(f.prompt)}</span>
             <span className="in-flight-phase">{phaseLabel}</span>
+            <button
+              type="button"
+              className="in-flight-cancel"
+              onClick={() => void cancelInFlightJob(f.id)}
+              disabled={f.phase === "canceling"}
+              aria-label={t("inflight.cancelAria", { prompt: promptLabel })}
+              title={t("common.cancel")}
+            >
+              ×
+            </button>
             <span className="in-flight-spinner" aria-hidden="true" />
           </li>
         );

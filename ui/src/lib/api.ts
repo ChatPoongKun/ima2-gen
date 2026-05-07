@@ -84,10 +84,16 @@ export function getInflight(params?: {
   return jsonFetch(`/api/inflight${suffix}`);
 }
 
-export async function cancelInflight(requestId: string): Promise<void> {
-  await fetch(`/api/inflight/${encodeURIComponent(requestId)}`, {
-    method: "DELETE",
-  }).catch(() => {});
+export function cancelInflight(requestId: string): Promise<{
+  requestId: string;
+  active: boolean;
+  aborted: boolean;
+}> {
+  return jsonFetch<{
+    requestId: string;
+    active: boolean;
+    aborted: boolean;
+  }>(`/api/inflight/${encodeURIComponent(requestId)}`, { method: "DELETE" });
 }
 
 export function getOAuthStatus(): Promise<OAuthStatus> {
@@ -315,7 +321,13 @@ function jsonFetchWithBrowserId<T>(url: string, init?: RequestInit): Promise<T> 
 }
 
 export function getHistory(
-  params: { limit?: number; since?: number; cursor?: HistoryCursor; sessionId?: string } = {},
+  params: {
+    limit?: number;
+    since?: number;
+    cursor?: HistoryCursor;
+    sessionId?: string;
+    favoritesOnly?: boolean;
+  } = {},
 ): Promise<HistoryPage> {
   const qs = new URLSearchParams();
   qs.set("limit", String(params.limit ?? 50));
@@ -325,6 +337,7 @@ export function getHistory(
     qs.set("beforeFilename", params.cursor.beforeFilename);
   }
   if (params.sessionId) qs.set("sessionId", params.sessionId);
+  if (params.favoritesOnly) qs.set("favoritesOnly", "1");
   return jsonFetchWithBrowserId(`/api/history?${qs.toString()}`);
 }
 

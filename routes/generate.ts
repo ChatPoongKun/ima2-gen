@@ -8,7 +8,12 @@ import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
 import { generateViaResponses } from "../lib/responsesImageAdapter.js";
 import { isNonRetryableGenerationError, normalizeGenerationFailure, type UpstreamErr } from "../lib/generationErrors.js";
-import { startJob, finishJob } from "../lib/inflight.js";
+import { startJob, finishJob, registerJobAbortController, isJobCanceled } from "../lib/inflight.js";
+import {
+  isGenerationCanceledError,
+  makeGenerationCanceledError,
+  throwIfJobCanceled,
+} from "../lib/generationCancel.js";
 import { logEvent, logError } from "../lib/logger.js";
 import { embedImageMetadataBestEffort } from "../lib/imageMetadataStore.js";
 
@@ -29,6 +34,8 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
     let finishHttpStatus;
     let finishErrorCode;
     let finishMeta = {};
+    let finishCanceled = false;
+    const cancelController = new AbortController();
     try {
       const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId : null;
       const clientNodeId = typeof req.body?.clientNodeId === "string" ? req.body.clientNodeId : null;
@@ -91,6 +98,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
           referenceB64Chars: referencePayload.referenceB64Chars,
         },
       });
+      registerJobAbortController(requestId, cancelController);
 
       const refCheckResult = validateAndNormalizeRefs(references);
       if (refCheckResult.error) {
@@ -145,8 +153,14 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
               requestId,
               normalizedPromptMode,
               ctx,
-              { model: imageModel, reasoningEffort, webSearchEnabled },
+              {
+                model: imageModel,
+                reasoningEffort,
+                webSearchEnabled,
+                signal: cancelController.signal,
+              },
             );
+            throwIfJobCanceled(requestId);
             if (r.b64) return r;
             lastErr = new Error("Empty response (safety refusal)");
           } catch (e) {
@@ -166,11 +180,13 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
       };
 
       const results = await Promise.allSettled(Array.from({ length: count }, generateOne));
+      throwIfJobCanceled(requestId);
       const images: Array<{ image: string; filename: string; revisedPrompt: any }> = [];
       let totalUsage: Record<string, number> | null = null;
       let totalWebSearchCalls = 0;
       for (const r of results) {
         if (r.status === "fulfilled" && r.value.b64) {
+          throwIfJobCanceled(requestId);
           const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
           const filename = `${Date.now()}_${rand}_${images.length}.${format}`;
           const meta = {
@@ -233,6 +249,16 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
         const firstErr = results.find((r) => r.status === "rejected")?.reason;
         if (firstErr?.code) {
           const status = firstErr.status || 500;
+          if (isGenerationCanceledError(firstErr)) {
+            finishCanceled = true;
+            finishHttpStatus = firstErr.status;
+            finishErrorCode = firstErr.code;
+            return res.status(firstErr.status).json({
+              error: firstErr.message,
+              code: firstErr.code,
+              requestId,
+            });
+          }
           finishStatus = "error";
           finishHttpStatus = status;
           finishErrorCode = firstErr.code;
@@ -295,6 +321,17 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
       const err = errInfo(e);
       const ext = (err.raw && typeof err.raw === "object" ? err.raw as Record<string, unknown> : {});
       const fallbackCode = err.code || classifyUpstreamError(err.message);
+      if (isGenerationCanceledError(err.raw) || isJobCanceled(requestId)) {
+        const canceled = makeGenerationCanceledError();
+        finishCanceled = true;
+        finishHttpStatus = canceled.status;
+        finishErrorCode = canceled.code;
+        return res.status(canceled.status).json({
+          error: canceled.message,
+          code: canceled.code,
+          requestId,
+        });
+      }
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = fallbackCode || "GENERATE_FAILED";
@@ -313,6 +350,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
       });
     } finally {
       finishJob(requestId, {
+        canceled: finishCanceled,
         status: finishStatus,
         httpStatus: finishHttpStatus,
         errorCode: finishErrorCode,

@@ -26,6 +26,8 @@ export function registerHistoryRoutes(app: Express, ctxRaw: RouteRuntimeContext)
       const sinceTs = parseInt(asStr(req.query.since));
       const sessionId = typeof req.query.sessionId === "string" ? req.query.sessionId : null;
       const groupBy = req.query.groupBy === "session" ? "session" : null;
+      const favoritesOnly =
+        req.query.favoritesOnly === "1" || req.query.favoritesOnly === "true";
       const browserId = typeof req.headers["x-ima2-browser-id"] === "string"
         ? req.headers["x-ima2-browser-id"]
         : null;
@@ -53,6 +55,9 @@ export function registerHistoryRoutes(app: Express, ctxRaw: RouteRuntimeContext)
       }
       if (sessionId) {
         filtered = filtered.filter((r) => r.sessionId === sessionId);
+      }
+      if (favoritesOnly) {
+        filtered = filtered.filter((r) => favoriteSet.has(r.filename));
       }
 
       const page = filtered.slice(0, limit).map((r) => ({ ...r, isFavorite: favoriteSet.has(r.filename) }));

@@ -11,8 +11,11 @@ process.env.IMA2_DB_PATH = join(TEST_DIR, "sessions.db");
 const {
   _resetForTests,
   finishJob,
+  abortJob,
+  isJobCanceled,
   listJobs,
   listTerminalJobs,
+  registerJobAbortController,
   setJobPhase,
   startJob,
 } = await import("../lib/inflight.ts");
@@ -65,6 +68,28 @@ test("finishJob records canceled status for explicit cancellation", () => {
   const terminal = listTerminalJobs({ kind: "classic" });
   assert.equal(terminal.length, 1);
   assert.equal(terminal[0].status, "canceled");
+});
+
+test("abortJob aborts the registered controller and records canceled terminal state", () => {
+  startJob({
+    requestId: "req_abort",
+    kind: "classic",
+    prompt: "private prompt",
+    meta: {},
+  });
+  const controller = new AbortController();
+  registerJobAbortController("req_abort", controller);
+
+  const result = abortJob("req_abort");
+
+  assert.equal(result.active, true);
+  assert.equal(result.aborted, true);
+  assert.equal(controller.signal.aborted, true);
+  assert.equal(listJobs({ kind: "classic" }).length, 0);
+  assert.equal(isJobCanceled("req_abort"), true);
+  const terminal = listTerminalJobs({ kind: "classic" });
+  assert.equal(terminal[0].status, "canceled");
+  assert.equal(terminal[0].errorCode, "GENERATION_CANCELED");
 });
 
 test("active jobs expose reference diagnostics in metadata", () => {

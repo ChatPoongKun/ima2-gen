@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { listJobs, listTerminalJobs, finishJob } from "../lib/inflight.js";
+import { abortJob, listJobs, listTerminalJobs } from "../lib/inflight.js";
 
 import { errInfo } from "../lib/errInfo.js";
 import { requireRuntimeContext, type RouteRuntimeContext } from "../lib/runtimeContext.js";
@@ -87,8 +87,7 @@ export function registerHealthRoutes(app: Express, ctxRaw: RouteRuntimeContext) 
   });
 
   app.delete("/api/inflight/:requestId", (req: Request<{ requestId: string }>, res: Response) => {
-    finishJob(req.params.requestId, { canceled: true });
-    res.status(204).end();
+    res.json(abortJob(req.params.requestId));
   });
 
   app.get("/api/billing", async (_req: Request, res: Response) => {

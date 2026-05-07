@@ -40,6 +40,10 @@ export function GalleryModal() {
   const toggleGalleryFavorite = useAppStore((s) => s.toggleGalleryFavorite);
   const galleryScope = useAppStore((s) => s.galleryScope);
   const setGalleryScope = useAppStore((s) => s.setGalleryScope);
+  const historyNextCursor = useAppStore((s) => s.historyNextCursor);
+  const historyLoadingOlder = useAppStore((s) => s.historyLoadingOlder);
+  const loadOlderHistory = useAppStore((s) => s.loadOlderHistory);
+  const loadFavoriteHistory = useAppStore((s) => s.loadFavoriteHistory);
   const currentSessionId = useAppStore(selectCurrentSessionId);
 
   const [query, setQuery] = useState("");
@@ -159,6 +163,11 @@ export function GalleryModal() {
       cancelled = true;
     };
   }, [open, groupBy, galleryScope, currentSessionId]);
+
+  useEffect(() => {
+    if (!open || groupBy === "session" || !favoritesOnly) return;
+    void loadFavoriteHistory();
+  }, [open, groupBy, favoritesOnly, loadFavoriteHistory]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase().normalize("NFC");
@@ -309,10 +318,9 @@ export function GalleryModal() {
   };
 
   const showSessions = groupBy === "session";
+  const canLoadOlder = !showSessions && !favoritesOnly && !query.trim() && Boolean(historyNextCursor);
   const showStorageNotice =
-    storageStatus != null &&
-    storageStatus.state !== "ok" &&
-    !storageDismissed;
+    storageStatus != null && storageStatus.state !== "ok" && !storageDismissed;
   const storageNoticeKey =
     storageStatus?.state === "recoverable" ? "gallery.storageNoticeRecoverable"
     : storageStatus?.state === "not_found" ? "gallery.storageNoticeNotFound"
@@ -507,17 +515,30 @@ export function GalleryModal() {
                 : t("gallery.noResults")}
             </div>
           ) : (
-            dateGroups.map(([label, items]) => (
-              <section key={label} className="gallery__group">
-                <header className="gallery__group-header">
-                  <span className="gallery__group-label">{localizeBucket(label)}</span>
-                  <span className="gallery__group-count">{items.length}</span>
-                </header>
-                <div className="gallery__grid">
-                  {items.map((item, i) => renderTile(item, label, i))}
+            <>
+              {dateGroups.map(([label, items]) => (
+                <section key={label} className="gallery__group">
+                  <header className="gallery__group-header">
+                    <span className="gallery__group-label">{localizeBucket(label)}</span>
+                    <span className="gallery__group-count">{items.length}</span>
+                  </header>
+                  <div className="gallery__grid">
+                    {items.map((item, i) => renderTile(item, label, i))}
+                  </div>
+                </section>
+              ))}
+              {canLoadOlder && (
+                <div className="gallery__load-more">
+                  <button
+                    type="button"
+                    onClick={() => void loadOlderHistory()}
+                    disabled={historyLoadingOlder}
+                  >
+                    {historyLoadingOlder ? t("gallery.loadingOlder") : t("gallery.loadOlder")}
+                  </button>
                 </div>
-              </section>
-            ))
+              )}
+            </>
           )}
         </div>
 

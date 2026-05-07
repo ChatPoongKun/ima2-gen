@@ -49,6 +49,7 @@ interface TerminalJob {
 }
 
 const terminalJobs = new Map<string, TerminalJob>(); // requestId -> terminal snapshot, active-only API stays default
+const abortControllers = new Map<string, AbortController>();
 
 // Phases: "queued" → "streaming" (upstream connection open, waiting for image)
 //                 → "decoding" (b64 received, writing to disk)
@@ -91,6 +92,7 @@ export function startJob({ requestId, kind, prompt, meta = {} }: {
       startedAt,
     );
   terminalJobs.delete(requestId);
+  abortControllers.delete(requestId);
   logEvent("inflight", "start", {
     requestId,
     kind,
@@ -99,6 +101,36 @@ export function startJob({ requestId, kind, prompt, meta = {} }: {
     clientNodeId: normalizedMeta.clientNodeId || null,
     promptChars: typeof prompt === "string" ? prompt.length : 0,
   });
+}
+
+export function registerJobAbortController(
+  requestId: string | null | undefined,
+  controller: AbortController,
+) {
+  if (!requestId) return;
+  abortControllers.set(requestId, controller);
+}
+
+export function abortJob(requestId: string | null | undefined) {
+  if (!requestId) return { requestId: "", active: false, aborted: false };
+  const controller = abortControllers.get(requestId);
+  const active = Boolean(getJob(requestId));
+  let aborted = false;
+  if (controller && !controller.signal.aborted) {
+    controller.abort();
+    aborted = true;
+  }
+  finishJob(requestId, {
+    canceled: true,
+    httpStatus: 499,
+    errorCode: "GENERATION_CANCELED",
+  });
+  return { requestId, active, aborted };
+}
+
+export function isJobCanceled(requestId: string | null | undefined): boolean {
+  if (!requestId) return false;
+  return terminalJobs.get(requestId)?.status === "canceled";
 }
 
 export function setJobPhase(requestId: string | null | undefined, phase: string) {
@@ -143,6 +175,7 @@ export function finishJob(requestId: string | null | undefined, options: any = {
     });
   }
   getDb().prepare("DELETE FROM inflight WHERE request_id = ?").run(requestId);
+  abortControllers.delete(requestId);
   reapTerminalJobs();
 }
 
@@ -188,6 +221,7 @@ export function listTerminalJobs(filters: any = {}) {
 export function _resetForTests() {
   getDb().prepare("DELETE FROM inflight").run();
   terminalJobs.clear();
+  abortControllers.clear();
 }
 
 export function purgeStaleJobs(now = Date.now()) {

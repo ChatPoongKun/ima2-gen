@@ -20,13 +20,17 @@ describe("in-flight prompt tooltip contract", () => {
     assert.match(source, /\{truncate\(f\.prompt\)\}/);
   });
 
-  it("does not expose a misleading cancel button before backend abort exists", () => {
+  it("exposes cancel controls backed by the real inflight cancel action", () => {
     const source = readSource("ui/src/components/InFlightList.tsx");
     const api = readSource("ui/src/lib/api.ts");
+    const store = readSource("ui/src/store/useAppStore.ts");
 
-    assert.doesNotMatch(source, /cancelInflight/);
-    assert.doesNotMatch(source, />\s*\{?t\("common\.cancel"\)\}?\s*</);
-    assert.match(api, /export async function cancelInflight/);
+    assert.match(source, /cancelInFlightJob/);
+    assert.match(source, /className="in-flight-cancel"/);
+    assert.match(source, /t\("inflight\.cancelAria"/);
+    assert.match(api, /export function cancelInflight/);
+    assert.match(store, /cancelInFlightJob:\s*async/);
+    assert.match(store, /await cancelInflight\(requestId\)/);
   });
 
   it("merges noPrompt into the existing locale inflight objects", () => {
@@ -36,10 +40,14 @@ describe("in-flight prompt tooltip contract", () => {
     assert.equal(en.inflight.queued, "Queued");
     assert.equal(en.inflight.streaming, "Generating");
     assert.equal(en.inflight.decoding, "Finalizing");
+    assert.equal(en.inflight.canceling, "Canceling");
     assert.equal(en.inflight.noPrompt, "No prompt");
+    assert.equal(en.inflight.cancelAria, "Cancel generation: {prompt}");
     assert.equal(ko.inflight.queued, "대기 중");
     assert.equal(ko.inflight.streaming, "생성 중");
     assert.equal(ko.inflight.decoding, "마무리 중");
+    assert.equal(ko.inflight.canceling, "취소 중");
     assert.equal(ko.inflight.noPrompt, "프롬프트 없음");
+    assert.equal(ko.inflight.cancelAria, "생성 취소: {prompt}");
   });
 });
