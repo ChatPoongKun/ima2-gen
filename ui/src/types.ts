@@ -85,7 +85,7 @@ export type GenerateItem = {
   sequenceStatus?: "complete" | "partial" | "empty" | null;
 };
 
-export type MultimodeSequenceStatus = "pending" | "partial" | "complete" | "empty" | "error";
+export type MultimodeSequenceStatus = "pending" | "partial" | "complete" | "empty" | "error" | "canceled";
 
 export type EmbeddedGenerationMetadata = {
   schema: "ima2.generation.v1";

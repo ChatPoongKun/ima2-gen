@@ -21,6 +21,7 @@ import {
 } from "./oauthProxy.js";
 
 interface ParsedImage { b64: string; revisedPrompt: string | null; }
+type FinalImageHandler = (image: ParsedImage, index: number) => Promise<void> | void;
 
 interface MakeErrorOptions {
   status?: number;
@@ -174,9 +175,16 @@ interface ParseStreamOptions {
   scope: string;
   maxImages?: number;
   onPartialImage?: ((partial: { b64: string; index: number | null | undefined }) => void) | null;
+  onFinalImage?: FinalImageHandler | null;
 }
 
-async function parseStream(res: Response, { requestId, scope, maxImages = 1, onPartialImage = null }: ParseStreamOptions) {
+async function parseStream(res: Response, {
+  requestId,
+  scope,
+  maxImages = 1,
+  onPartialImage = null,
+  onFinalImage = null,
+}: ParseStreamOptions) {
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
   const images: ParsedImage[] = [];
@@ -204,11 +212,14 @@ async function parseStream(res: Response, { requestId, scope, maxImages = 1, onP
       if (partial && typeof onPartialImage === "function") onPartialImage(partial);
       if (data.type === "response.output_item.done" && data.item?.type === "image_generation_call") {
         if (data.item.result && images.length < maxImages) {
-          images.push({
+          const image = {
             b64: data.item.result,
             revisedPrompt: typeof data.item.revised_prompt === "string" ? data.item.revised_prompt : null,
-          });
+          };
+          const index = images.length;
+          images.push(image);
           if (requestId) setJobPhase(requestId, "decoding");
+          await onFinalImage?.(image, index);
         } else if (data.item.result) extraIgnored++;
       }
       if (data.type === "response.output_item.done" && data.item?.type === "web_search_call") webSearchCalls++;
@@ -255,6 +266,7 @@ interface PostResponsesArgs {
   maxImages?: number;
   signal?: AbortSignal | null;
   onPartialImage?: ((partial: { b64: string; index: number | null | undefined }) => void) | null;
+  onFinalImage?: FinalImageHandler | null;
 }
 
 function combineAbortSignals(signals: AbortSignal[]): AbortSignal {
@@ -279,6 +291,7 @@ async function postResponses({
   maxImages = 1,
   signal = null,
   onPartialImage = null,
+  onFinalImage = null,
 }: PostResponsesArgs) {
   const { url, headers } = await getEndpoint(ctx, provider, scope);
   const timeoutMs = ctx?.config?.oauth?.generationTimeoutMs || 400 * 1000;
@@ -317,7 +330,7 @@ async function postResponses({
     if (requestId) setJobPhase(requestId, "streaming");
     const contentType = res.headers.get("content-type") || "";
     return contentType.includes("text/event-stream")
-      ? await parseStream(res, { requestId, scope, maxImages, onPartialImage })
+      ? await parseStream(res, { requestId, scope, maxImages, onPartialImage, onFinalImage })
       : await parseJson(res, maxImages);
   } catch (e) {
     const err = errInfo(e);
@@ -341,6 +354,7 @@ interface GenerateOptions {
   webSearchEnabled?: boolean;
   searchMode?: string;
   onPartialImage?: ((partial: { b64: string; index: number | null | undefined }) => void) | null;
+  onFinalImage?: FinalImageHandler | null;
   model?: string;
   partialImages?: number;
   reasoningEffort?: string;
@@ -365,6 +379,7 @@ export async function generateViaResponses(provider: string | undefined, prompt:
     maxImages: 1,
     signal: options.signal,
     onPartialImage: options.onPartialImage,
+    onFinalImage: options.onFinalImage,
     payload: {
       model: options.model || ctx.config?.imageModels?.default || "gpt-5.4-mini",
       input: [
@@ -405,6 +420,7 @@ export async function generateMultimodeViaResponses(provider: string | undefined
     maxImages,
     signal: options.signal,
     onPartialImage: options.onPartialImage,
+    onFinalImage: options.onFinalImage,
     payload: {
       model: options.model || ctx.config?.imageModels?.default || "gpt-5.4-mini",
       input: [

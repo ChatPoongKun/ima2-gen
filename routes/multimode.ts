@@ -46,6 +46,17 @@ interface MultimodeImage {
   revisedPrompt?: string | null;
 }
 
+type MultimodeRouteItem = {
+  image: string;
+  filename: string;
+  revisedPrompt: string | null;
+  sequenceId: string;
+  sequenceIndex: number;
+  sequenceTotalRequested: number;
+  sequenceTotalReturned: number;
+  sequenceStatus: ReturnType<typeof sequenceStatus>;
+};
+
 export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
   const ctx = requireRuntimeContext(ctxRaw);
   app.post("/api/generate/multimode", async (req: Request, res: Response) => {
@@ -56,6 +67,22 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
     let finishMeta = {};
     let finishCanceled = false;
     const cancelController = new AbortController();
+    const images: MultimodeRouteItem[] = [];
+    const persistedIndexes = new Set<number>();
+    let routeMaxImages = 0;
+    let routeSequenceId = "";
+    let routeStartTime = Date.now();
+    let routeActiveProvider = "auto";
+    let routeQuality = "medium";
+    let routeEffectiveSize = "1024x1024";
+    let routeModeration = "low";
+    let routeImageModel: string | null = null;
+    let routeWebSearchEnabled = true;
+    let routePromptMode: "auto" | "direct" = "auto";
+    let routeQualityWarnings: unknown[] = [];
+    let latestUsage: Record<string, number> | null = null;
+    let latestWebSearchCalls = 0;
+    let latestExtraIgnored = 0;
 
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -158,7 +185,76 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
       const mimeMap: Record<string, string> = { png: "image/png", jpeg: "image/jpeg", webp: "image/webp" };
       const mime = mimeMap[String(format)] || "image/png";
       const sequenceId = `seq_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+      routeMaxImages = maxImages;
+      routeSequenceId = sequenceId;
+      routeStartTime = startTime;
+      routeActiveProvider = activeProvider ?? "auto";
+      routeQuality = quality;
+      routeEffectiveSize = effectiveSize;
+      routeModeration = moderation;
+      routeImageModel = imageModel ?? null;
+      routeWebSearchEnabled = webSearchEnabled ?? false;
+      routePromptMode = normalizedPromptMode;
+      routeQualityWarnings = qualityWarnings;
       await mkdir(ctx.config.storage.generatedDir, { recursive: true });
+
+      const persistAndSendImage = async (
+        image: MultimodeImage,
+        index: number,
+        totalReturned: number,
+        status: ReturnType<typeof sequenceStatus>,
+      ) => {
+        if (persistedIndexes.has(index)) return;
+        throwIfJobCanceled(requestId);
+        const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
+        const filename = `${Date.now()}_${rand}_multimode_${index}.${format}`;
+        const meta = {
+          kind: "multimode-image",
+          generationStrategy: "one-call-text-sequence",
+          sequenceId,
+          sequenceIndex: index + 1,
+          sequenceTotalRequested: maxImages,
+          sequenceTotalReturned: totalReturned,
+          sequenceStatus: status,
+          stageLabel: String.fromCharCode(65 + index),
+          requestId,
+          prompt,
+          userPrompt: prompt,
+          revisedPrompt: image.revisedPrompt || null,
+          promptMode: normalizedPromptMode,
+          quality,
+          size: effectiveSize,
+          format,
+          moderation,
+          model: imageModel,
+          provider: activeProvider,
+          createdAt: Date.now(),
+          usage: latestUsage,
+          webSearchCalls: latestWebSearchCalls,
+          webSearchEnabled,
+          refsCount: refCheck.refs.length,
+        };
+        const rawBuffer = Buffer.from(image.b64, "base64");
+        const embedded = await embedImageMetadataBestEffort(rawBuffer, format, meta, {
+          version: ctx.packageVersion,
+        });
+        await writeFile(join(ctx.config.storage.generatedDir, filename), embedded.buffer);
+        await writeFile(join(ctx.config.storage.generatedDir, filename + ".json"), JSON.stringify(meta)).catch(() => {});
+        invalidateHistoryIndex();
+        const item = {
+          image: `data:${mime};base64,${image.b64}`,
+          filename,
+          revisedPrompt: image.revisedPrompt || null,
+          sequenceId,
+          sequenceIndex: index + 1,
+          sequenceTotalRequested: maxImages,
+          sequenceTotalReturned: totalReturned,
+          sequenceStatus: status,
+        };
+        persistedIndexes.add(index);
+        images.push(item);
+        sendSse(res, "image", item);
+      };
 
       sendSse(res, "phase", { phase: "streaming", requestId, sequenceId, maxImages });
       const generated = await generateMultimodeViaResponses(
@@ -185,76 +281,35 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
                   sequenceId,
                   index: partial.index,
                 }),
+          onFinalImage: async (image, index) => {
+            const totalReturned = Math.max(index + 1, images.length + 1);
+            await persistAndSendImage(
+              image,
+              index,
+              totalReturned,
+              sequenceStatus(totalReturned, maxImages),
+            );
+          },
           signal: cancelController.signal,
         },
       );
       throwIfJobCanceled(requestId);
 
-      const returned = generated.images.length;
-      const status = sequenceStatus(returned, maxImages);
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-      const images: Array<{
-        image: string;
-        filename: string;
-        revisedPrompt: string | null;
-        sequenceId: string;
-        sequenceIndex: number;
-        sequenceTotalRequested: number;
-        sequenceTotalReturned: number;
-        sequenceStatus: ReturnType<typeof sequenceStatus>;
-      }> = [];
-
+      latestUsage = generated.usage || null;
+      latestWebSearchCalls = generated.webSearchCalls || 0;
+      latestExtraIgnored = generated.extraIgnored || 0;
       for (const [index, image] of generated.images.entries() as IterableIterator<[number, MultimodeImage]>) {
-        throwIfJobCanceled(requestId);
-        const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
-        const filename = `${Date.now()}_${rand}_multimode_${index}.${format}`;
-        const meta = {
-          kind: "multimode-image",
-          generationStrategy: "one-call-text-sequence",
-          sequenceId,
-          sequenceIndex: index + 1,
-          sequenceTotalRequested: maxImages,
-          sequenceTotalReturned: returned,
-          sequenceStatus: status,
-          stageLabel: String.fromCharCode(65 + index),
-          requestId,
-          prompt,
-          userPrompt: prompt,
-          revisedPrompt: image.revisedPrompt || null,
-          promptMode: normalizedPromptMode,
-          quality,
-          size: effectiveSize,
-          format,
-          moderation,
-          model: imageModel,
-          provider: activeProvider,
-          createdAt: Date.now(),
-          usage: generated.usage || null,
-          webSearchCalls: generated.webSearchCalls || 0,
-          webSearchEnabled,
-          refsCount: refCheck.refs.length,
-        };
-        const rawBuffer = Buffer.from(image.b64, "base64");
-        const embedded = await embedImageMetadataBestEffort(rawBuffer, format, meta, {
-          version: ctx.packageVersion,
-        });
-        await writeFile(join(ctx.config.storage.generatedDir, filename), embedded.buffer);
-        await writeFile(join(ctx.config.storage.generatedDir, filename + ".json"), JSON.stringify(meta)).catch(() => {});
-        invalidateHistoryIndex();
-        const item = {
-          image: `data:${mime};base64,${image.b64}`,
-          filename,
-          revisedPrompt: image.revisedPrompt || null,
-          sequenceId,
-          sequenceIndex: index + 1,
-          sequenceTotalRequested: maxImages,
-          sequenceTotalReturned: returned,
-          sequenceStatus: status,
-        };
-        images.push(item);
-        sendSse(res, "image", item);
+        await persistAndSendImage(
+          image,
+          index,
+          generated.images.length,
+          sequenceStatus(generated.images.length, maxImages),
+        );
       }
 
+      const returned = images.length;
+      const status = sequenceStatus(returned, maxImages);
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       finishMeta = {
         sequenceId,
         filenames: images.map((image) => image.filename),
@@ -277,11 +332,11 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
         size: effectiveSize,
         moderation,
         model: imageModel,
-        usage: generated.usage || null,
-        webSearchCalls: generated.webSearchCalls || 0,
+        usage: latestUsage,
+        webSearchCalls: latestWebSearchCalls,
         webSearchEnabled,
         warnings: qualityWarnings,
-        extraIgnored: generated.extraIgnored || 0,
+        extraIgnored: latestExtraIgnored,
         promptMode: normalizedPromptMode,
       });
       logEvent("multimode", "saved", {
@@ -306,6 +361,53 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
           code: canceled.code,
           status: canceled.status,
           requestId,
+        });
+        return;
+      }
+      if ((fallbackCode === "RESPONSES_IMAGE_TIMEOUT" || err.status === 504) && images.length > 0) {
+        const status = sequenceStatus(images.length, routeMaxImages);
+        const elapsed = ((Date.now() - routeStartTime) / 1000).toFixed(1);
+        finishStatus = "completed";
+        finishHttpStatus = 206;
+        finishMeta = {
+          sequenceId: routeSequenceId,
+          filenames: images.map((image) => image.filename),
+          imageCount: images.length,
+          maxImages: routeMaxImages,
+          status,
+          partialErrorCode: "RESPONSES_IMAGE_TIMEOUT",
+        };
+        sendSse(res, "done", {
+          ok: true,
+          partial: true,
+          requestId,
+          sequenceId: routeSequenceId,
+          requested: routeMaxImages,
+          returned: images.length,
+          status,
+          elapsed,
+          images,
+          provider: routeActiveProvider,
+          quality: routeQuality,
+          size: routeEffectiveSize,
+          moderation: routeModeration,
+          model: routeImageModel,
+          usage: latestUsage,
+          webSearchCalls: latestWebSearchCalls,
+          webSearchEnabled: routeWebSearchEnabled,
+          warnings: routeQualityWarnings,
+          extraIgnored: latestExtraIgnored,
+          promptMode: routePromptMode,
+          warning: {
+            code: "RESPONSES_IMAGE_TIMEOUT",
+            message: "The provider timed out after returning partial multimode results.",
+          },
+        });
+        logEvent("multimode", "partial_timeout", {
+          requestId,
+          sequenceId: routeSequenceId,
+          imageCount: images.length,
+          maxImages: routeMaxImages,
         });
         return;
       }

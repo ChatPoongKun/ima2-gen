@@ -85,7 +85,9 @@ export function MultimodeSequencePreview() {
                     ? t("multimode.error")
                     : sequence.status === "empty"
                       ? t("multimode.empty")
-                      : t("multimode.generating")}
+                      : sequence.status === "canceled"
+                        ? t("multimode.canceled")
+                        : t("multimode.generating")}
                 </div>
               )}
             </article>

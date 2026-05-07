@@ -167,6 +167,7 @@
     "complete": "{requested}장 중 {returned}장을 {elapsed}초 만에 생성했습니다.",
     "empty": "반환된 이미지 없음",
     "error": "생성 실패",
+    "canceled": "취소됨",
     "cancel": "취소"
   },
   "metadata": {

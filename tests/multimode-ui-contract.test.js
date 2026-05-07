@@ -56,11 +56,30 @@ describe("multimode frontend UX contract", () => {
     assert.match(canvas, /<MultimodeSequencePreview \/>/);
     assert.match(preview, /sequence\.requested/);
     assert.match(preview, /cancelMultimode/);
-    assert.match(types, /export type MultimodeSequenceStatus = "pending" \| "partial" \| "complete" \| "empty" \| "error"/);
+    assert.match(types, /export type MultimodeSequenceStatus = "pending" \| "partial" \| "complete" \| "empty" \| "error" \| "canceled"/);
     assert.match(types, /sequenceId\?: string \| null/);
     assert.match(types, /sequenceTotalRequested\?: number \| null/);
     assert.match(store, /sequenceId: it\.sequenceId \?\? null/);
     assert.match(store, /sequenceStatus: it\.sequenceStatus \?\? null/);
+  });
+
+  it("reconciles multimode in-flight phase and treats user cancellation as canceled", () => {
+    const store = readSource("ui/src/store/useAppStore.ts");
+    const api = readSource("ui/src/lib/api.ts");
+    const preview = readSource("ui/src/components/MultimodeSequencePreview.tsx");
+
+    assert.match(api, /kind\?: "classic" \| "node" \| "multimode"/);
+    assert.match(store, /type InflightQueryScope = \{/);
+    assert.match(store, /kind: NonNullable<PersistedInFlight\["kind"\]>/);
+    assert.match(store, /job\.kind === "multimode"/);
+    assert.match(store, /scopes\.push\(\{ kind: "multimode" \}\)/);
+    assert.match(store, /fetchInflightScopes\(scopes\)/);
+    assert.match(store, /matchesInflightScope\(f, scopes\)/);
+    assert.doesNotMatch(store, /hasMultimode && state\.uiMode !== "node"/);
+    assert.match(store, /status: "canceled"/);
+    assert.doesNotMatch(store, /status: current\.images\.length > 0 \? "partial" : "empty"/);
+    assert.match(preview, /sequence\.status === "canceled"/);
+    assert.match(preview, /multimode\.canceled/);
   });
 
   it("adds multimode copy and upper-bound cost display", () => {

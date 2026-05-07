@@ -167,6 +167,7 @@
     "complete": "Generated {returned}/{requested} images in {elapsed}s.",
     "empty": "No image returned",
     "error": "Generation failed",
+    "canceled": "Canceled",
     "cancel": "Cancel"
   },
   "metadata": {

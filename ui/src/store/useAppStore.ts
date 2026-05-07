@@ -299,6 +299,50 @@ type ServerTerminalJob = ServerInFlightJob & {
   errorCode?: string;
 };
 
+type InflightQueryScope = {
+  kind: NonNullable<PersistedInFlight["kind"]>;
+  sessionId?: string;
+};
+
+function getInflightQueryScopes(state: {
+  uiMode: UIMode;
+  activeSessionId?: string | null;
+  inFlight: PersistedInFlight[];
+}): InflightQueryScope[] {
+  const scopes: InflightQueryScope[] = state.uiMode === "node"
+    ? [{ kind: "node", sessionId: state.activeSessionId ?? undefined }]
+    : [{ kind: "classic" }];
+  if (state.inFlight.some((job) => job.kind === "multimode")) {
+    scopes.push({ kind: "multimode" });
+  }
+  return scopes;
+}
+
+function matchesInflightScope(job: PersistedInFlight, scopes: InflightQueryScope[]): boolean {
+  const kind = job.kind ?? "classic";
+  return scopes.some((scope) =>
+    kind === scope.kind &&
+    (scope.kind !== "node" || (job.sessionId ?? null) === (scope.sessionId ?? null)),
+  );
+}
+
+async function fetchInflightScopes(scopes: InflightQueryScope[]): Promise<{
+  jobs: ServerInFlightJob[];
+  terminalJobs: ServerTerminalJob[];
+}> {
+  const responses = await Promise.all(scopes.map((scope) =>
+    getInflight({
+      kind: scope.kind,
+      sessionId: scope.sessionId,
+      includeTerminal: true,
+    }),
+  ));
+  return {
+    jobs: responses.flatMap((response) => response.jobs),
+    terminalJobs: responses.flatMap((response) => response.terminalJobs ?? []) as ServerTerminalJob[],
+  };
+}
+
 type InsertedPrompt = {
   id: string;
   name: string;
@@ -348,6 +392,19 @@ function isCanceledGenerationError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const value = err as { code?: unknown; status?: unknown };
   return value.code === "GENERATION_CANCELED" || value.status === 499;
+}
+
+function multimodeImageKey(item: GenerateItem): string {
+  return item.filename || item.image;
+}
+
+function mergeMultimodeImages(current: GenerateItem[], incoming: GenerateItem[]): GenerateItem[] {
+  const byKey = new Map(current.map((item) => [multimodeImageKey(item), item] as const));
+  for (const item of incoming) byKey.set(multimodeImageKey(item), item);
+  return [...byKey.values()].sort((a, b) =>
+    (a.sequenceIndex ?? Number.MAX_SAFE_INTEGER) -
+    (b.sequenceIndex ?? Number.MAX_SAFE_INTEGER),
+  );
 }
 
 function loadInFlight(): PersistedInFlight[] {
@@ -1368,14 +1425,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       let scopedActiveServerIds = new Set<string>();
       // Merge server-side phase info so the spinner label reflects real progress
       try {
-        const inflightKind: "classic" | "node" = get().uiMode === "node" ? "node" : "classic";
-        const inflightSessionId =
-          inflightKind === "node" ? get().activeSessionId ?? undefined : undefined;
-        const { jobs, terminalJobs = [] } = await getInflight({
-          kind: inflightKind,
-          sessionId: inflightSessionId,
-          includeTerminal: true,
-        });
+        const scopes = getInflightQueryScopes(get());
+        const { jobs, terminalJobs = [] } = await fetchInflightScopes(scopes);
         scopedActiveServerIds = new Set(jobs.map((j) => j.requestId));
         const byId = new Map(jobs.map((j) => [j.requestId, j] as const));
         const terminalById = new Map((terminalJobs as ServerTerminalJob[]).map((j) => [j.requestId, j] as const));
@@ -1387,12 +1438,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         for (const f of get().inFlight) {
           // Out-of-scope entries (different kind/session) must not be dropped
           // based on this tick's byId — the server wasn't asked about them.
-          const fKind = f.kind ?? "classic";
-          const matchesScope =
-            fKind === inflightKind &&
-            (inflightKind !== "node" ||
-              (f.sessionId ?? null) === (inflightSessionId ?? null));
-          if (!matchesScope) {
+          if (!matchesInflightScope(f, scopes)) {
             nextInflight.push(f);
             continue;
           }
@@ -1505,14 +1551,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   reconcileInflight: async () => {
     try {
-      const inflightKind = get().uiMode === "node" ? "node" : "classic";
-      const inflightSessionId =
-        inflightKind === "node" ? get().activeSessionId ?? undefined : undefined;
-      const { jobs, terminalJobs = [] } = await getInflight({
-        kind: inflightKind,
-        sessionId: inflightSessionId,
-        includeTerminal: true,
-      });
+      const scopes = getInflightQueryScopes(get());
+      const { jobs, terminalJobs = [] } = await fetchInflightScopes(scopes);
       const serverById = new Map(jobs.map((j) => [j.requestId, j] as const));
       const terminalById = new Map((terminalJobs as ServerTerminalJob[]).map((j) => [j.requestId, j] as const));
       const terminalErrors: Array<Error & { code?: string; status?: number }> = [];
@@ -1529,12 +1569,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           const restored = toPersistedInFlightJob(serverJob);
           return [{ ...f, ...restored, prompt: f.prompt || restored.prompt }];
         }
-        const fKind = f.kind ?? "classic";
-        const matchesScope =
-          fKind === inflightKind &&
-          (inflightKind !== "node" ||
-            (f.sessionId ?? null) === (inflightSessionId ?? null));
-        if (!matchesScope) return [f];
+        if (!matchesInflightScope(f, scopes)) return [f];
         const terminal = terminalById.get(f.id);
         if (terminal) {
           if (terminal.status === "error") {
@@ -3095,16 +3130,16 @@ export const useAppStore = create<AppState>((set, get) => ({
             set((state) => {
               const current = state.multimodeSequences[flightId];
               if (!current) return {};
-              const exists = current.images.some((item) => item.filename && item.filename === image.filename);
-              if (exists) return {};
+              const images = mergeMultimodeImages(current.images, [image]);
+              if (images.length === current.images.length) return {};
               return {
                 multimodeSequences: {
                   ...state.multimodeSequences,
                   [flightId]: {
                     ...current,
                     sequenceId: image.sequenceId ?? current.sequenceId,
-                    returned: current.images.length + 1,
-                    images: [...current.images, image],
+                    returned: images.length,
+                    images,
                     status: "partial",
                   },
                 },
@@ -3132,16 +3167,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((state) => ({
         multimodeSequences: {
           ...state.multimodeSequences,
-          [flightId]: {
-            sequenceId: res.sequenceId,
-            requestId: flightId,
-            requested: res.requested,
-            returned: res.returned,
-            images: items,
-            partials: [],
-            status: res.status,
-            elapsed: res.elapsed,
-          },
+          [flightId]: (() => {
+            const current = state.multimodeSequences[flightId];
+            const images = mergeMultimodeImages(current?.images ?? [], items);
+            return {
+              sequenceId: res.sequenceId,
+              requestId: flightId,
+              requested: res.requested,
+              returned: images.length,
+              images,
+              partials: [],
+              status: res.status,
+              elapsed: res.elapsed,
+            };
+          })(),
         },
       }));
       const toastKey = res.status === "complete" ? "multimode.complete" : "multimode.partial";
@@ -3156,7 +3195,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               ...state.multimodeSequences,
               [flightId]: {
                 ...current,
-                status: current.images.length > 0 ? "partial" : "empty",
+                status: "canceled",
               },
             },
           };
@@ -3214,7 +3253,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           ...state.multimodeSequences,
           [flightId]: {
             ...current,
-            status: current.images.length > 0 ? "partial" : "empty",
+            status: "canceled",
           },
         },
       };

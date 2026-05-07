@@ -235,6 +235,8 @@ describe("API provider parity", () => {
       assert.match(text, /event: phase/);
       assert.match(text, /event: image/);
       assert.match(text, /event: done/);
+      assert.ok(text.indexOf("event: image") < text.indexOf("event: done"));
+      assert.equal((text.match(/event: image/g) || []).length, 2);
       assert.match(text, /"provider":"api"/);
       assert.match(text, /"requested":2/);
       assert.match(text, /"returned":2/);

@@ -65,7 +65,9 @@ assert.ok(
 
 assert.ok(
   storeSrc.includes("Keep out-of-scope entries because this") &&
-    storeSrc.includes("if (!matchesScope) return [f]"),
+    storeSrc.includes("if (!matchesInflightScope(f, scopes)) return [f]") &&
+    storeSrc.includes("if (!matchesInflightScope(f, scopes)) {") &&
+    storeSrc.includes("nextInflight.push(f)"),
   "inflight reconciliation should not drop other session jobs when querying a scoped session",
 );
 

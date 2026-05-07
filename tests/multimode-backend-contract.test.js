@@ -53,6 +53,12 @@ describe("multimode backend contract", () => {
     assert.match(adapter, /async function parseStream/);
     assert.match(adapter, /const images: ParsedImage\[\] = \[\]/);
     assert.match(adapter, /images\.push\(/);
+    assert.match(adapter, /onFinalImage/);
+    assert.match(adapter, /await onFinalImage\?\.\(image, index\)/);
+    assert.match(
+      adapter,
+      /export async function generateMultimodeViaResponses[\s\S]*?onPartialImage: options\.onPartialImage,[\s\S]*?onFinalImage: options\.onFinalImage,/,
+    );
     assert.match(adapter, /extraIgnored/);
     assert.match(adapter, /function tools\(webSearchEnabled/);
     assert.match(adapter, /\.\.\(webSearchEnabled \? \[\{ type: "web_search" \}\] : \[\]\)/);
@@ -73,5 +79,23 @@ describe("multimode backend contract", () => {
     }
     assert.match(route, /kind: "multimode-image"/);
     assert.match(route, /generationStrategy: "one-call-text-sequence"/);
+  });
+
+  it("saves multimode images incrementally and preserves partial timeout output", () => {
+    const route = readSource("routes/multimode.ts");
+
+    assert.match(route, /const persistedIndexes = new Set<number>\(\)/);
+    assert.match(route, /const persistAndSendImage = async/);
+    assert.match(route, /onFinalImage: async \(image, index\) =>/);
+    assert.match(route, /await persistAndSendImage\(/);
+    assert.match(route, /persistedIndexes\.has\(index\)/);
+    assert.match(route, /event: \$\{event\}/);
+    assert.match(route, /sendSse\(res, "image", item\)/);
+    assert.match(route, /fallbackCode === "RESPONSES_IMAGE_TIMEOUT"/);
+    assert.match(route, /images\.length > 0/);
+    assert.match(route, /finishHttpStatus = 206/);
+    assert.match(route, /partialErrorCode: "RESPONSES_IMAGE_TIMEOUT"/);
+    assert.match(route, /usage: latestUsage/);
+    assert.match(route, /extraIgnored: latestExtraIgnored/);
   });
 });
