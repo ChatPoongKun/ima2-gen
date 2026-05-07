@@ -10,11 +10,14 @@ import {
   DIRECT_PROMPT_FIDELITY_SUFFIX,
   EDIT_DEVELOPER_PROMPT,
   GENERATE_DEVELOPER_PROMPT,
+  MULTIMODE_DEVELOPER_PROMPT,
+  MULTIMODE_NO_SEARCH_DEVELOPER_PROMPT,
   PROMPT_FIDELITY_SUFFIX,
   buildEditTextPrompt,
   buildUserTextPrompt,
 } from "../lib/oauthProxy.ts";
 import { SAFETY_INTENT_POLICY } from "../lib/promptSafetyPolicy.ts";
+import { VISIBLE_TEXT_LANGUAGE_POLICY } from "../lib/visibleTextLanguagePolicy.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(__dirname, "..", "server.ts");
@@ -22,12 +25,14 @@ const historyListPath = join(__dirname, "..", "lib", "historyList.ts");
 const nodeRoutePath = join(__dirname, "..", "routes", "nodes.ts");
 const apiPath = join(__dirname, "..", "ui", "src", "lib", "api.ts");
 const nodeApiPath = join(__dirname, "..", "ui", "src", "lib", "nodeApi.ts");
+const responsesAdapterPath = join(__dirname, "..", "lib", "responsesImageAdapter.ts");
 
 const src = await readFile(serverPath, "utf8");
 const historySrc = await readFile(historyListPath, "utf8");
 const nodeSrc = await readFile(nodeRoutePath, "utf8");
 const apiSrc = await readFile(apiPath, "utf8");
 const nodeApiSrc = await readFile(nodeApiPath, "utf8");
+const responsesAdapterSrc = await readFile(responsesAdapterPath, "utf8");
 
 // Ensure both suffix constants and the builder exist
 assert.ok(src.includes("buildApp"), "buildApp export missing after server split");
@@ -49,6 +54,11 @@ assert.ok(AUTO_PROMPT_FIDELITY_SUFFIX.includes("pass it through unchanged"));
 assert.ok(!AUTO_PROMPT_FIDELITY_SUFFIX.includes("only append English clarifiers at the end when helpful"));
 assert.ok(!DIRECT_PROMPT_FIDELITY_SUFFIX.includes("append English clarifiers"));
 assert.ok(DIRECT_PROMPT_FIDELITY_SUFFIX.includes("Do not translate, summarize, restyle, add clarifiers"));
+assert.ok(AUTO_PROMPT_FIDELITY_SUFFIX.includes(VISIBLE_TEXT_LANGUAGE_POLICY));
+assert.ok(DIRECT_PROMPT_FIDELITY_SUFFIX.includes(VISIBLE_TEXT_LANGUAGE_POLICY));
+assert.ok(VISIBLE_TEXT_LANGUAGE_POLICY.includes("Korean text"));
+assert.ok(VISIBLE_TEXT_LANGUAGE_POLICY.includes("Japanese words"));
+assert.ok(VISIBLE_TEXT_LANGUAGE_POLICY.includes("Do not translate, romanize"));
 
 const generateDirect = buildUserTextPrompt("고양이 수채화", "direct");
 const generateAuto = buildUserTextPrompt("고양이 수채화", "auto");
@@ -77,6 +87,17 @@ for (const prompt of [GENERATE_DEVELOPER_PROMPT, EDIT_DEVELOPER_PROMPT]) {
   assert.ok(!prompt.includes("AT LEAST 3"), "real-person search should not force 3+ calls");
   assert.ok(!prompt.includes("4-5"), "real-person search should not prefer 4-5 calls");
   assert.ok(prompt.includes(SAFETY_INTENT_POLICY), "developer prompt should include safety intent policy");
+  assert.ok(prompt.includes(VISIBLE_TEXT_LANGUAGE_POLICY), "developer prompt should include visible text language policy");
 }
+
+for (const prompt of [MULTIMODE_DEVELOPER_PROMPT, MULTIMODE_NO_SEARCH_DEVELOPER_PROMPT]) {
+  assert.ok(prompt.includes("separate image_generation_call outputs"), "multimode prompt should require separate image calls");
+  assert.ok(prompt.includes(SAFETY_INTENT_POLICY), "multimode prompt should include safety intent policy");
+  assert.ok(prompt.includes(VISIBLE_TEXT_LANGUAGE_POLICY), "multimode prompt should include visible text language policy");
+}
+
+assert.match(responsesAdapterSrc, /MULTIMODE_DEVELOPER_PROMPT/);
+assert.match(responsesAdapterSrc, /MULTIMODE_NO_SEARCH_DEVELOPER_PROMPT/);
+assert.doesNotMatch(responsesAdapterSrc, /Create up to \$\{maxImages\} separate image_generation_call outputs/);
 
 console.log("prompt-fidelity: ok");

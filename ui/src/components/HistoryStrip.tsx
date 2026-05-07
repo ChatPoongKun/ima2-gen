@@ -17,10 +17,16 @@ export function HistoryStrip() {
   const thumbRefs = useRef<Record<string, HTMLImageElement | null>>({});
   const { t } = useI18n();
   const activeKey = currentImage ? getHistoryItemKey(currentImage) : null;
-  const visibleHistory = useMemo(
-    () => history.filter((item) => !item.canvasVersion),
-    [history],
-  );
+  const visibleHistory = useMemo(() => {
+    const seen = new Set<string>();
+    return history.filter((item) => {
+      if (item.canvasVersion) return false;
+      const key = getHistoryItemKey(item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [history]);
 
   useEffect(() => {
     if (!activeKey) return;
@@ -50,12 +56,12 @@ export function HistoryStrip() {
           <rect x="14" y="14" width="7" height="7" rx="1" />
         </svg>
       </button>
-      {visibleHistory.map((item, i) => {
+      {visibleHistory.map((item) => {
         const key = getHistoryItemKey(item);
         const active = activeKey === key;
         return (
           <img
-            key={item.filename ?? `${i}-${item.image}`}
+            key={key}
             ref={(node) => {
               thumbRefs.current[key] = node;
             }}

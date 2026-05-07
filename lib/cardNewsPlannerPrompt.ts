@@ -15,6 +15,8 @@ export function buildCardNewsPlannerMessages(input: any = {}) {
         "Role names such as cover/problem/cta are structural labels, not visible design text.",
         "Keep headline and body as UI/manifest text.",
         "Only textFields[].text with renderMode=\"in-image\" is intended to appear inside the image.",
+        "When visible text needs a specific language, textFields[].text must contain the exact words in that language/script.",
+        "Do not translate, romanize, summarize, or replace visible text.",
         "Create textFields only for text that should be readable inside the image.",
         "Prefer template slot ids and placements when assigning textFields.",
         "Use headline textFields for hook/cover cards, body or caption textFields for explanation cards, and cta textFields only for action cards.",

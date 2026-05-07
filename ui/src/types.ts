@@ -120,6 +120,7 @@ export type GenerateSingleResponse = {
   image: string;
   elapsed: number;
   filename: string;
+  requestId?: string | null;
   usage?: GenerateItem["usage"];
   provider: string;
   quality?: string;
@@ -134,6 +135,7 @@ export type GenerateMultiResponse = {
   images: Array<{ image: string; filename: string }>;
   elapsed: number;
   count: number;
+  requestId?: string | null;
   usage?: GenerateItem["usage"];
   provider: string;
   quality?: string;

@@ -12,6 +12,8 @@ import {
   EDIT_NO_SEARCH_DEVELOPER_PROMPT,
   GENERATE_DEVELOPER_PROMPT,
   GENERATE_NO_SEARCH_DEVELOPER_PROMPT,
+  MULTIMODE_DEVELOPER_PROMPT,
+  MULTIMODE_NO_SEARCH_DEVELOPER_PROMPT,
   buildEditTextPrompt,
   buildMultimodeSequencePrompt,
   buildUserTextPrompt,
@@ -406,7 +408,7 @@ export async function generateMultimodeViaResponses(provider: string | undefined
     payload: {
       model: options.model || ctx.config?.imageModels?.default || "gpt-5.4-mini",
       input: [
-        { role: "developer", content: `Create up to ${maxImages} separate image_generation_call outputs. Do not create a collage, grid, contact sheet, storyboard sheet, or multi-panel single image.` },
+        { role: "developer", content: webSearchEnabled ? MULTIMODE_DEVELOPER_PROMPT : MULTIMODE_NO_SEARCH_DEVELOPER_PROMPT },
         { role: "user", content: userContent },
       ],
       tools: tools(webSearchEnabled, { quality, size, moderation, ...(options.partialImages ? { partial_images: options.partialImages } : {}) }),

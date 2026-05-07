@@ -113,6 +113,7 @@ function formatRenderedTextInstruction(textFields: CardTextField[] = []) {
   if (!visible.length) {
     return [
       "Do not render readable text unless explicitly listed.",
+      "If visible text is required, it must be listed explicitly in textFields[].text in the target language/script.",
       "Do not render role labels, schema keys, placeholder labels, or untranslated summaries.",
     ].join("\n");
   }
@@ -123,6 +124,7 @@ function formatRenderedTextInstruction(textFields: CardTextField[] = []) {
       return `- ${field.kind} at ${field.placement}${slot}: "${field.text}"`;
     }),
     "Preserve the language and spelling of every listed text item.",
+    "Do not translate, romanize, summarize, substitute, or add unlisted readable text.",
     "Do not render role labels, schema keys, placeholder labels, or extra text.",
   ].join("\n");
 }

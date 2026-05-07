@@ -488,6 +488,36 @@ function historyKey(item: Pick<GenerateItem, "filename" | "image">): string {
   return item.filename ?? item.image;
 }
 
+function withoutHistoryDuplicate(
+  history: GenerateItem[],
+  item: Pick<GenerateItem, "filename" | "image">,
+): GenerateItem[] {
+  const key = historyKey(item);
+  return history.filter((existing) => historyKey(existing) !== key);
+}
+
+function findHistoryDuplicate(
+  history: GenerateItem[],
+  item: Pick<GenerateItem, "filename" | "image">,
+): GenerateItem | undefined {
+  const key = historyKey(item);
+  return history.find((existing) => historyKey(existing) === key);
+}
+
+function preserveHistoryMetadata(incoming: GenerateItem, existing?: GenerateItem): GenerateItem {
+  if (!existing) return incoming;
+  return {
+    ...existing,
+    ...incoming,
+    createdAt: incoming.createdAt ?? existing.createdAt,
+    requestId: incoming.requestId ?? existing.requestId,
+    sessionId: incoming.sessionId ?? existing.sessionId,
+    kind: incoming.kind ?? existing.kind,
+    refsCount: incoming.refsCount ?? existing.refsCount,
+    isFavorite: incoming.isFavorite ?? existing.isFavorite,
+  };
+}
+
 function mergeHistoryItems(current: GenerateItem[], incoming: GenerateItem[]): GenerateItem[] {
   const byKey = new Map(current.map((item) => [historyKey(item), item]));
   for (const item of incoming) byKey.set(historyKey(item), item);
@@ -1430,22 +1460,30 @@ export const useAppStore = create<AppState>((set, get) => ({
         );
         const { items } = await getHistory({ limit: HISTORY_LIMIT, since: lastKnown });
         const arr: GenerateItem[] = items.map(mapHistoryItem);
-        const existing = get().history;
-        const fresh = arr.filter(
-          (a) => !existing.some((e) => e.filename === a.filename),
-        );
-        if (fresh.length > 0) {
+        if (arr.length > 0) {
           set((s) => {
+            const seen = new Set(s.history.map(historyKey));
+            const fresh = arr.filter((item) => {
+              const key = historyKey(item);
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            if (fresh.length === 0) return {};
             const nextCurrent = s.currentImage ?? fresh[0];
             if (!s.currentImage && fresh[0]?.filename) {
               saveSelectedFilename(fresh[0].filename);
             }
             return {
-              history: [...fresh, ...s.history].slice(
-                0,
+              history: retainHistoryItems(
+                [...fresh, ...s.history],
                 Math.max(HISTORY_LIMIT, s.history.length + fresh.length),
               ),
               currentImage: nextCurrent,
+              loadedHistoryRetainLimit: Math.max(
+                s.loadedHistoryRetainLimit,
+                s.history.length + fresh.length,
+              ),
             };
           });
         }
@@ -2926,16 +2964,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addHistoryItem: (item) => {
     const s = get();
-    const exists = s.history.some(
-      (h) => item.filename && h.filename === item.filename,
-    );
-    if (exists) return;
     const withDefaults: GenerateItem = {
       ...item,
       createdAt: item.createdAt || Date.now(),
     };
+    const existing = findHistoryDuplicate(s.history, withDefaults);
+    const merged = preserveHistoryMetadata(withDefaults, existing);
+    const historyWithoutDuplicate = withoutHistoryDuplicate(s.history, merged);
     set({
-      history: retainHistoryItems([withDefaults, ...s.history], s.loadedHistoryRetainLimit + 1),
+      history: retainHistoryItems([merged, ...historyWithoutDuplicate], s.loadedHistoryRetainLimit + 1),
       loadedHistoryRetainLimit: Math.max(
         s.loadedHistoryRetainLimit,
         Math.min(s.history.length + 1, s.loadedHistoryRetainLimit + 1),
@@ -3084,6 +3121,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         elapsed: Number.parseFloat(res.elapsed),
         provider: res.provider,
         usage: res.usage,
+        requestId: image.requestId ?? res.requestId ?? flightId,
         quality: res.quality ?? s.quality,
         size: res.size ?? size,
         model: res.model ?? s.imageModel,
@@ -3233,6 +3271,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             elapsed: res.elapsed,
             provider: res.provider,
             usage: res.usage,
+            requestId: res.requestId ?? flightId,
             quality: res.quality ?? s.quality,
             size: res.size ?? size,
             model: res.model ?? s.imageModel,
@@ -3251,6 +3290,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             elapsed: res.elapsed,
             provider: res.provider,
             usage: res.usage,
+            requestId: res.requestId ?? flightId,
             quality: res.quality ?? s.quality,
             size: res.size ?? size,
             model: res.model ?? s.imageModel,
@@ -3263,6 +3303,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             elapsed: res.elapsed,
             provider: res.provider,
             usage: res.usage,
+            requestId: res.requestId ?? flightId,
             quality: res.quality ?? s.quality,
             size: res.size ?? size,
             model: res.model ?? s.imageModel,
@@ -3788,14 +3829,17 @@ async function addHistory(
     createdAt: item.createdAt || Date.now(),
   };
   const state = get();
+  const existing = findHistoryDuplicate(state.history, withThumb);
+  const merged = preserveHistoryMetadata(withThumb, existing);
+  const historyWithoutDuplicate = withoutHistoryDuplicate(state.history, merged);
   const history = retainHistoryItems(
-    [withThumb, ...state.history],
+    [merged, ...historyWithoutDuplicate],
     state.loadedHistoryRetainLimit + 1,
   );
-  saveSelectedFilename(withThumb.filename ?? null);
+  saveSelectedFilename(merged.filename ?? null);
   set({
     history,
-    currentImage: withThumb,
+    currentImage: merged,
     loadedHistoryRetainLimit: Math.max(
       state.loadedHistoryRetainLimit,
       Math.min(state.history.length + 1, state.loadedHistoryRetainLimit + 1),

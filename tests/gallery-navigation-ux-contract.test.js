@@ -79,7 +79,9 @@ describe("gallery navigation UX contract", () => {
     assert.match(gallery, /page\.loose\.filter\(isGalleryVisibleItem\)\.map\(toItem\)/);
     assert.match(gallery, /galleryHistory\.length === 0/);
     assert.match(historyStrip, /const visibleHistory = useMemo\(/);
-    assert.match(historyStrip, /history\.filter\(\(item\) => !item\.canvasVersion\)/);
+    assert.match(historyStrip, /if \(item\.canvasVersion\) return false/);
+    assert.match(historyStrip, /const seen = new Set<string>\(\)/);
+    assert.match(historyStrip, /seen\.has\(key\)/);
     assert.match(historyStrip, /visibleHistory\.map/);
   });
 
