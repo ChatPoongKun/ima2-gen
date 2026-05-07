@@ -255,7 +255,13 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
         sendSse(res, "image", item);
       }
 
-      finishMeta = { sequenceId, imageCount: returned, maxImages, status };
+      finishMeta = {
+        sequenceId,
+        filenames: images.map((image) => image.filename),
+        imageCount: returned,
+        maxImages,
+        status,
+      };
       finishHttpStatus = 200;
       sendSse(res, "done", {
         ok: true,

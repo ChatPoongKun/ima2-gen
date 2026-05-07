@@ -218,6 +218,7 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         format: "png",
         provider: activeProvider,
         kind: "edit",
+        requestId,
         createdAt: Date.now(),
         usage: usage || null,
         webSearchCalls,

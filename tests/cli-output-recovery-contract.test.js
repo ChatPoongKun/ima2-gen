@@ -97,6 +97,9 @@ describe("cli-output-recovery-contract: multimode.ts", () => {
 
 describe("cli-output-recovery-contract: recover-output.ts exports", () => {
   const src = readSrc("bin/lib/recover-output.ts");
+  const historyRoute = readSrc("routes/history.ts");
+  const editRoute = readSrc("routes/edit.ts");
+  const multimodeRoute = readSrc("routes/multimode.ts");
 
   it("exports createCliRequestId", () => {
     assert.match(src, /export function createCliRequestId/);
@@ -120,5 +123,32 @@ describe("cli-output-recovery-contract: recover-output.ts exports", () => {
 
   it("uses /api/history as fallback", () => {
     assert.match(src, /\/api\/history/);
+  });
+
+  it("recovers terminal jobs from singular filename and plural filenames", () => {
+    assert.match(src, /function filenamesFromMeta/);
+    assert.match(src, /Array\.isArray\(record\.filenames\)/);
+    assert.match(src, /typeof record\.filename === "string"/);
+  });
+
+  it("requests request-scoped history and recovers multiple matching files", () => {
+    assert.match(src, /requestId=\$\{encodeURIComponent\(requestId\)\}/);
+    assert.match(src, /\.filter\(\(it\) => it\.requestId === requestId/);
+    assert.match(src, /\.map\(\(it\) => String\(it\.filename\)\)/);
+    assert.doesNotMatch(src, /items\.find\(\(it\) => it\.requestId === requestId\)/);
+  });
+
+  it("history route can filter by requestId before pagination", () => {
+    assert.match(historyRoute, /const requestId = typeof req\.query\.requestId === "string"/);
+    assert.match(historyRoute, /if \(params\.requestId && row\.requestId !== params\.requestId\) return false/);
+  });
+
+  it("edit writes requestId metadata and terminal filename", () => {
+    assert.match(editRoute, /kind: "edit",\s*requestId,/s);
+    assert.match(editRoute, /finishMeta = \{ filename, imageChars: resultB64\.length \}/);
+  });
+
+  it("multimode terminal metadata includes all saved filenames", () => {
+    assert.match(multimodeRoute, /filenames: images\.map\(\(image\) => image\.filename\)/);
   });
 });

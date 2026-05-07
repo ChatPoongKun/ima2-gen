@@ -24,6 +24,7 @@ function matchesHistoryFilters(
     beforeTs: number;
     beforeFn: string | null;
     sessionId: string | null;
+    requestId: string | null;
     favoritesOnly: boolean;
     favoriteSet: Set<string>;
   },
@@ -36,6 +37,7 @@ function matchesHistoryFilters(
     }
   }
   if (params.sessionId && row.sessionId !== params.sessionId) return false;
+  if (params.requestId && row.requestId !== params.requestId) return false;
   if (params.favoritesOnly && !params.favoriteSet.has(row.filename)) return false;
   return true;
 }
@@ -75,6 +77,7 @@ export function registerHistoryRoutes(app: Express, ctxRaw: RouteRuntimeContext)
       const beforeFn = typeof req.query.beforeFilename === "string" ? req.query.beforeFilename : null;
       const sinceTs = parseInt(asStr(req.query.since));
       const sessionId = typeof req.query.sessionId === "string" ? req.query.sessionId : null;
+      const requestId = typeof req.query.requestId === "string" ? req.query.requestId : null;
       const groupBy = req.query.groupBy === "session" ? "session" : null;
       const favoritesOnly =
         req.query.favoritesOnly === "1" || req.query.favoritesOnly === "true";
@@ -97,6 +100,7 @@ export function registerHistoryRoutes(app: Express, ctxRaw: RouteRuntimeContext)
         beforeTs,
         beforeFn,
         sessionId,
+        requestId,
         favoritesOnly,
         favoriteSet,
       });
