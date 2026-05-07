@@ -1,8 +1,20 @@
-# Issue #24 — TypeScript Migration (tracking)
+# Issue #24 — TypeScript Migration (done)
 
-**Status:** primary migration MERGED to `main`. Tracking ticket for strict-mode cleanup only.
+**Status:** done / shipped on main. GitHub #24 is closed.
 **GitHub:** https://github.com/lidge-jun/ima2-gen/issues/24
 **Primary PRD (closed):** `devlog/_fin/260429_typescript-migration/` (phases 0–7).
+
+## STATUS 2026-05-08 — Closed
+
+Current `main` has root and UI TypeScript checks on strict mode:
+
+- `tsconfig.json`: `strict: true`
+- `ui/tsconfig.app.json`: `strict: true`
+- `ui/tsconfig.node.json`: `strict: true`
+- CI runs `npm run typecheck`, `npm run typecheck:tests`, `build:server`, `build:cli`, and UI build.
+
+The older notes below are preserved as historical context from the phased
+migration cleanup, but the original #24 planning/tracking issue is complete.
 
 ## STATUS 2026-04-30 — Partial / tracking
 

@@ -2,7 +2,7 @@
 
 **GitHub**: https://github.com/lidge-jun/ima2-gen/issues/53
 **Repo**: https://github.com/lidge-jun/ima2-gen
-**Status**: employee PASS / ready for implementation
+**Status**: done / shipped on main
 **Date**: 2026-05-07
 
 ## Context

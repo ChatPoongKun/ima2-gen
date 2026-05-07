@@ -1,6 +1,6 @@
 # Visible Text Language Prompt Plan
 
-Status: plan-draft-for-employee-review
+Status: done / shipped on main
 Date: 2026-05-07
 Parent context: Issue #57 planning folder, separate prompt-fidelity follow-up
 
