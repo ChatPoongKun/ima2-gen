@@ -1520,12 +1520,12 @@ body {
 .settings-section__body {
   display: grid;
   gap: 10px;
-  max-width: 760px;
+  max-width: 920px;
 }
 
 .settings-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(260px, 1fr) minmax(240px, min(420px, 44%));
   align-items: center;
   justify-content: space-between;
   gap: 18px;
@@ -1540,8 +1540,14 @@ body {
 }
 
 .settings-row__control {
+  width: 100%;
+  min-width: 0;
   display: flex;
   justify-content: flex-end;
+}
+
+.settings-row__control > * {
+  max-width: 100%;
 }
 
 .settings-row h4,
@@ -1671,6 +1677,7 @@ body {
 }
 
 .image-model-select--settings select {
+  width: 100%;
   min-width: 190px;
   padding: 10px 12px;
   border: 1px solid var(--border);

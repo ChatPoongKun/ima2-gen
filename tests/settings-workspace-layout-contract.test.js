@@ -32,3 +32,14 @@ test("settings workspace keeps mobile and desktop navigation from occupying the 
   assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.app\.app--settings-open \.sidebar,[\s\S]*?\.app\.app--settings-open \.history-strip\s*\{[\s\S]*?display:\s*none;/);
   assert.match(mobileToggle, /openComposeSheet\("controls"\)/);
 });
+
+test("desktop settings rows keep copy readable beside wide controls", () => {
+  assert.match(
+    css,
+    /\.settings-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(260px,\s*1fr\)\s+minmax\(240px,\s*min\(420px,\s*44%\)\);/,
+  );
+  assert.match(css, /\.settings-section__body\s*\{[\s\S]*?max-width:\s*920px;/);
+  assert.match(css, /\.settings-row__control\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;/);
+  assert.match(css, /\.settings-row__control > \*\s*\{[\s\S]*?max-width:\s*100%;/);
+  assert.match(css, /\.image-model-select--settings select\s*\{[\s\S]*?width:\s*100%;/);
+});
