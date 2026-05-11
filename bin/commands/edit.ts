@@ -8,6 +8,7 @@ import { createCliRequestId, recoverGeneratedOutputs, formatRecoveryHint } from 
 import { errInfo } from "../../lib/errInfo.js";
 const VALID_MODES = new Set(["auto", "direct"]);
 const VALID_MODERATION = new Set(["auto", "low"]);
+const VALID_PROVIDERS = new Set(["auto", "oauth", "api"]);
 const KNOWN_IMAGE_MODELS = new Set(["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex-spark"]);
 
 const SPEC = {
@@ -20,6 +21,7 @@ const SPEC = {
     timeout: {              type: "string", default: "180" },
     server:  {              type: "string" },
     model:   {              type: "string" },
+    provider: {             type: "string" },
     mode:    {              type: "string", default: "auto" },
     moderation: {            type: "string", default: "low" },
     session: {              type: "string" },
@@ -42,6 +44,7 @@ const HELP = `
     -o, --out <file>
         --json
         --model <gpt-5.5|gpt-5.4|gpt-5.4-mini>
+        --provider <auto|oauth|api>    Provider for this request; api requires a configured API key
         --mode <auto|direct>       Prompt handling mode. Default: auto
         --moderation <auto|low>    Default: low
         --session <id>             Apply session style sheet if enabled
@@ -57,6 +60,9 @@ export default async function editCmd(argv: string[]) {
   if (!args.prompt) die(2, "--prompt is required");
   if (!VALID_MODES.has(String(args.mode))) die(2, "--mode must be one of: auto, direct");
   if (!VALID_MODERATION.has(String(args.moderation))) die(2, "--moderation must be one of: auto, low");
+  if (args.provider && !VALID_PROVIDERS.has(String(args.provider))) {
+    die(2, "--provider must be one of: auto, oauth, api");
+  }
   if (args.model && !KNOWN_IMAGE_MODELS.has(String(args.model))) {
     die(2, "--model must be one of: gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark");
   }
@@ -97,6 +103,7 @@ export default async function editCmd(argv: string[]) {
       requestId,
     };
     if (args["reasoning-effort"]) editBody.reasoningEffort = args["reasoning-effort"];
+    if (args.provider) editBody.provider = args.provider;
     if (args["no-web-search"]) editBody.webSearchEnabled = false;
     else if (args["web-search"]) editBody.webSearchEnabled = true;
     resp = await request(server.base, "/api/edit", {

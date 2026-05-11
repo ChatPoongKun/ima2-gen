@@ -29,7 +29,8 @@ export default async function lsCmd(argv: string[]) {
   const limit = parseInt(String(args.count)) || 20;
   const qs = new URLSearchParams();
   if (args.session) qs.set("sessionId", String(args.session));
-  qs.set("limit", String(Math.max(limit, args.favorites ? 200 : limit)));
+  if (args.favorites) qs.set("favoritesOnly", "1");
+  qs.set("limit", String(limit));
   const path = `/api/history?${qs.toString()}`;
   let resp;
   try { resp = await request(server.base, path); }

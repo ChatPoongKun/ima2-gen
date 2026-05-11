@@ -15,7 +15,7 @@ const HELP = `
     oauth status [--json]                    OAuth proxy state
 
   Inflight jobs:
-    inflight ls [--kind <k>] [--session <id>] [--terminal] [--json]
+    inflight ls [--kind classic|node|multimode] [--session <id>] [--terminal] [--json]
     inflight rm <requestId> [--json]         Force-remove a stuck job
 
   Options:

@@ -9,8 +9,11 @@ const HELP = `
   ima2 node <subcommand> [options]
 
   Subcommands:
-    generate <prompt...> [--parent <nodeId>] [--ref <file>...] [--no-stream] [...gen-style flags]
+    generate <prompt...> [--parent <nodeId>] [--ref <file>...] [--provider <auto|oauth|api>] [--no-stream] [...gen-style flags]
     show <nodeId> [--json]
+
+  Generate options:
+        --provider <auto|oauth|api>    Provider for this request; api requires a configured API key
 `;
 
 const GEN_FLAGS = {
@@ -23,6 +26,7 @@ const GEN_FLAGS = {
   timeout: { type: "string", default: "600" },
   server:  { type: "string" },
   model:   { type: "string" },
+  provider: { type: "string" },
   parent:  { type: "string" },
   "reasoning-effort": { type: "string" },
   "web-search":    { type: "boolean" },
@@ -50,7 +54,11 @@ async function generateSub(argv: string[]) {
   const prompt = args.positional.join(" ");
   if (!prompt) die(2, "prompt required");
   const refs = (Array.isArray(args.ref) ? args.ref : []) as string[];
+  const VALID_PROVIDERS = new Set(["auto", "oauth", "api"]);
   const VALID_REASONING = new Set(["none", "low", "medium", "high", "xhigh"]);
+  if (args.provider && !VALID_PROVIDERS.has(String(args.provider))) {
+    die(2, "--provider must be one of: auto, oauth, api");
+  }
   if (args["reasoning-effort"] && !VALID_REASONING.has(String(args["reasoning-effort"]))) {
     die(2, "--reasoning-effort must be one of: none, low, medium, high, xhigh");
   }
@@ -69,6 +77,7 @@ async function generateSub(argv: string[]) {
     sessionId: args.session,
   };
   if (args.model) body.model = args.model;
+  if (args.provider) body.provider = args.provider;
   if (args.parent) body.parentNodeId = args.parent;
   if (args["reasoning-effort"]) body.reasoningEffort = args["reasoning-effort"];
   if (args["no-web-search"]) body.webSearchEnabled = false;

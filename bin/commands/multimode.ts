@@ -1,7 +1,7 @@
 import { parseArgs } from "../lib/args.js";
 import { resolveServer } from "../lib/client.js";
 import { streamSse } from "../lib/sse.js";
-import { dataUriToFile, defaultOutName } from "../lib/files.js";
+import { dataUriToFile, defaultOutName, fileToDataUri } from "../lib/files.js";
 import { out, die, color, json, exitCodeForError } from "../lib/output.js";
 import { config } from "../../config.js";
 import { createCliRequestId, recoverGeneratedOutputs, formatRecoveryHint } from "../lib/recover-output.js";
@@ -17,6 +17,9 @@ const SPEC = {
     timeout: { type: "string", default: "600" },
     server:  { type: "string" },
     model:   { type: "string" },
+    provider: { type: "string" },
+    mode: { type: "string", default: "auto" },
+    ref: { type: "string", repeatable: true },
     "reasoning-effort": { type: "string" },
     "web-search":    { type: "boolean" },
     "no-web-search": { type: "boolean" },
@@ -40,6 +43,9 @@ const HELP = `
     -d, --out-dir <dir>                 Output dir for multiple images
         --json
         --model <gpt-5.5|gpt-5.4|gpt-5.4-mini>
+        --provider <auto|oauth|api>     Provider for this request; api requires a configured API key
+        --mode <auto|direct>            Prompt handling mode. Default: auto
+        --ref <file>                    Attach reference image (repeatable, max 5)
         --reasoning-effort <none|low|medium|high|xhigh>
         --web-search / --no-web-search
         --moderation <auto|low>
@@ -54,7 +60,13 @@ export default async function multimodeCmd(argv: string[]) {
   const prompt = args.positional.join(" ");
   if (!prompt) die(2, "prompt required");
 
+  const VALID_PROVIDERS = new Set(["auto", "oauth", "api"]);
+  const VALID_MODES = new Set(["auto", "direct"]);
   const VALID_REASONING = new Set(["none", "low", "medium", "high", "xhigh"]);
+  if (args.provider && !VALID_PROVIDERS.has(String(args.provider))) {
+    die(2, "--provider must be one of: auto, oauth, api");
+  }
+  if (!VALID_MODES.has(String(args.mode))) die(2, "--mode must be one of: auto, direct");
   if (args["reasoning-effort"] && !VALID_REASONING.has(String(args["reasoning-effort"]))) {
     die(2, "--reasoning-effort must be one of: none, low, medium, high, xhigh");
   }
@@ -67,6 +79,9 @@ export default async function multimodeCmd(argv: string[]) {
   catch (e: any) { die(exitCodeForError(e), e.message); throw e; }
 
   const maxImages = Math.max(1, Math.min(8, parseInt(String(args["max-images"])) || 4));
+  const refs = (Array.isArray(args.ref) ? args.ref : []) as string[];
+  if (refs.length > 5) die(2, "max 5 --ref attachments");
+  const references = await Promise.all(refs.map((p: string) => fileToDataUri(p)));
   const outDir = args["out-dir"] ? String(args["out-dir"]) : null;
   const explicitOut = args.out ? String(args.out) : null;
   const requestId = createCliRequestId("req_cli_multimode");
@@ -77,11 +92,14 @@ export default async function multimodeCmd(argv: string[]) {
     quality: args.quality,
     size: args.size,
     maxImages,
+    mode: args.mode,
+    references,
     moderation: args.moderation,
     sessionId: args.session,
     requestId,
   };
   if (args.model) body.model = args.model;
+  if (args.provider) body.provider = args.provider;
   if (args["reasoning-effort"]) body.reasoningEffort = args["reasoning-effort"];
   if (args["no-web-search"]) body.webSearchEnabled = false;
   else if (args["web-search"]) body.webSearchEnabled = true;

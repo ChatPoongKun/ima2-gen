@@ -1,0 +1,94 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+function readSource(path) {
+  return readFileSync(path, "utf-8");
+}
+
+describe("CLI feature parity contract", () => {
+  it("gen exposes provider and preserves web-search request mapping", () => {
+    const src = readSource("bin/commands/gen.ts");
+
+    assert.match(src, /provider:\s*\{\s*type:\s*"string"\s*\}/);
+    assert.match(src, /VALID_PROVIDERS = new Set\(\["auto", "oauth", "api"\]\)/);
+    assert.match(src, /--provider must be one of: auto, oauth, api/);
+    assert.match(src, /if \(args\.provider\) body\.provider = args\.provider/);
+    assert.match(src, /body\.webSearchEnabled = false/);
+    assert.match(src, /body\.webSearchEnabled = true/);
+  });
+
+  it("edit exposes provider, preserves web-search mapping, and does not expose mask", () => {
+    const src = readSource("bin/commands/edit.ts");
+    const docs = readSource("docs/CLI.md");
+
+    assert.match(src, /provider:\s*\{\s*type:\s*"string"\s*\}/);
+    assert.match(src, /VALID_PROVIDERS = new Set\(\["auto", "oauth", "api"\]\)/);
+    assert.match(src, /--provider must be one of: auto, oauth, api/);
+    assert.match(src, /if \(args\.provider\) editBody\.provider = args\.provider/);
+    assert.match(src, /editBody\.webSearchEnabled = false/);
+    assert.match(src, /editBody\.webSearchEnabled = true/);
+    assert.doesNotMatch(src, /mask:\s*\{\s*type:/);
+    assert.doesNotMatch(src, /args\.mask/);
+    assert.match(docs, /edit --mask[\s\S]+deferred to #31/i);
+  });
+
+  it("multimode exposes provider, mode, repeatable refs, and forwards references", () => {
+    const src = readSource("bin/commands/multimode.ts");
+
+    assert.match(src, /fileToDataUri/);
+    assert.match(src, /provider:\s*\{\s*type:\s*"string"\s*\}/);
+    assert.match(src, /mode:\s*\{\s*type:\s*"string",\s*default:\s*"auto"\s*\}/);
+    assert.match(src, /ref:\s*\{\s*type:\s*"string",\s*repeatable:\s*true\s*\}/);
+    assert.match(src, /VALID_PROVIDERS = new Set\(\["auto", "oauth", "api"\]\)/);
+    assert.match(src, /VALID_MODES = new Set\(\["auto", "direct"\]\)/);
+    assert.match(src, /refs\.length > 5/);
+    assert.match(src, /refs\.map\(\(p: string\) => fileToDataUri\(p\)\)/);
+    assert.match(src, /mode: args\.mode/);
+    assert.match(src, /references,/);
+    assert.match(src, /if \(args\.provider\) body\.provider = args\.provider/);
+    assert.match(src, /body\.webSearchEnabled = false/);
+    assert.match(src, /body\.webSearchEnabled = true/);
+  });
+
+  it("node generate exposes provider and preserves web-search request mapping", () => {
+    const src = readSource("bin/commands/node.ts");
+
+    assert.match(src, /provider:\s*\{\s*type:\s*"string"\s*\}/);
+    assert.match(src, /VALID_PROVIDERS = new Set\(\["auto", "oauth", "api"\]\)/);
+    assert.match(src, /--provider must be one of: auto, oauth, api/);
+    assert.match(src, /if \(args\.provider\) body\.provider = args\.provider/);
+    assert.match(src, /body\.webSearchEnabled = false/);
+    assert.match(src, /body\.webSearchEnabled = true/);
+  });
+
+  it("inflight CLI help names multimode jobs", () => {
+    const ps = readSource("bin/commands/ps.ts");
+    const observability = readSource("bin/commands/observability.ts");
+
+    assert.match(ps, /classic\|node\|multimode/);
+    assert.match(observability, /classic\|node\|multimode/);
+  });
+
+  it("ls favorites uses server-side favorites filtering with defensive client filtering", () => {
+    const src = readSource("bin/commands/ls.ts");
+
+    assert.match(src, /qs\.set\("favoritesOnly", "1"\)/);
+    assert.match(src, /qs\.set\("limit", String\(limit\)\)/);
+    assert.match(src, /it\.isFavorite === true/);
+    assert.doesNotMatch(src, /Math\.max\(limit, args\.favorites \? 200 : limit\)/);
+  });
+
+  it("public CLI docs describe provider semantics and multimode parity", () => {
+    const docs = readSource("docs/CLI.md");
+
+    assert.match(docs, /--provider <auto\|oauth\|api>/);
+    assert.match(docs, /api` forces the API-key Responses path/);
+    assert.match(docs, /oauth` forces the local OAuth proxy path/);
+    assert.match(docs, /auto` preserves route default behavior/);
+    assert.match(docs, /multimode[\s\S]+--ref <file>/i);
+    assert.match(docs, /multimode[\s\S]+--mode <auto\|direct>/i);
+    assert.match(docs, /classic\\\|node\\\|multimode/);
+    assert.match(docs, /server-side favorites filtering/);
+  });
+});

@@ -114,6 +114,7 @@ describe("ima2 CLI commands (live server)", () => {
     assert.match(stdout, /ima2 gen/);
     assert.match(stdout, /--quality/);
     assert.match(stdout, /--model/);
+    assert.match(stdout, /--provider/);
     assert.match(stdout, /--mode/);
     assert.match(stdout, /--moderation/);
     assert.match(stdout, /--session/);
@@ -124,6 +125,7 @@ describe("ima2 CLI commands (live server)", () => {
     assert.strictEqual(code, 0);
     assert.match(stdout, /ima2 edit/);
     assert.match(stdout, /--model/);
+    assert.match(stdout, /--provider/);
     assert.match(stdout, /--mode/);
     assert.match(stdout, /--moderation/);
     assert.match(stdout, /--session/);
@@ -134,6 +136,21 @@ describe("ima2 CLI commands (live server)", () => {
     assert.strictEqual(code, 0);
     const obj = JSON.parse(stdout.trim());
     assert.ok(Array.isArray(obj.items));
+  });
+
+  it("ima2 multimode --help prints parity options", async () => {
+    const { stdout, code } = await runCLI(["multimode", "--help"]);
+    assert.strictEqual(code, 0);
+    assert.match(stdout, /ima2 multimode/);
+    assert.match(stdout, /--provider/);
+    assert.match(stdout, /--mode/);
+    assert.match(stdout, /--ref/);
+  });
+
+  it("ima2 ps --help documents multimode jobs", async () => {
+    const { stdout, code } = await runCLI(["ps", "--help"]);
+    assert.strictEqual(code, 0);
+    assert.match(stdout, /classic\|node\|multimode/);
   });
 
   it("ima2 gen with unreachable --server exits 3", async () => {
