@@ -59,16 +59,20 @@ Runtime responses expose configured and actual ports separately. The backend can
 
 | Method | Path | Body | Success response |
 |---|---|---|---|
-| `POST` | `/api/generate` | `{ prompt, quality?, size?, format?, moderation?, model?, provider?, n?, references?, sessionId?, clientNodeId?, requestId? }` | For `n=1`: `{ image, elapsed, filename, requestId, usage, provider, webSearchCalls, quality, size, moderation, model }` |
+| `POST` | `/api/generate` | `{ prompt, quality?, size?, format?, moderation?, model?, provider?, n?, references?, sessionId?, clientNodeId?, requestId?, reasoningEffort?, webSearchEnabled? }` | For `n=1`: `{ image, elapsed, filename, requestId, usage, provider, webSearchCalls, quality, size, moderation, model }` |
 | `POST` | `/api/generate` | same body | For `n>1`: `{ images, elapsed, count, requestId, usage, provider, webSearchCalls, quality, size, moderation }` |
-| `POST` | `/api/edit` | `{ prompt, image, mask?, quality?, size?, moderation?, model?, provider?, sessionId?, requestId? }` | `{ image, elapsed, filename, usage, provider, moderation, model }` |
-| `POST` | `/api/generate/multimode` | `{ prompt, modes, quality?, size?, moderation?, model?, sessionId?, requestId? }` | `{ status, images, returned, requested, elapsed, requestId }` |
+| `POST` | `/api/edit` | `{ prompt, image, mask?, quality?, size?, moderation?, model?, provider?, sessionId?, requestId?, reasoningEffort?, webSearchEnabled? }` | `{ image, elapsed, filename, usage, provider, moderation, model, requestId }` |
+| `POST` | `/api/generate/multimode` | `{ prompt, maxImages?, references?, quality?, size?, moderation?, model?, provider?, mode?, sessionId?, requestId?, reasoningEffort?, webSearchEnabled? }` | SSE events: `phase`, `partial`, `image`, `done`, `error` |
 
 `/api/generate` accepts up to 5 `references`. `n` is clamped from 1 to 8. Result files are written to the configured generated directory, usually `~/.ima2/generated`, and sidecar JSON stores prompt, quality, size, format, moderation, model, provider, usage, and web search counts.
 
 Image generation model selection is explicit. If omitted, the server defaults to `gpt-5.4-mini`. Supported image models are `gpt-5.4-mini`, `gpt-5.4`, and `gpt-5.5`. `gpt-5.3-codex-spark` can appear in OAuth model status, but it does not support the `image_generation` tool, so generation endpoints reject it with `IMAGE_MODEL_UNSUPPORTED` before calling OAuth.
 
 For `provider: "api"`, missing options use `config.apiProvider` defaults: `gpt-5.4-mini`, `low` reasoning effort, `1024x1024`, and web search enabled. These defaults are overridable via `apiProvider.*` config or the `IMA2_API_IMAGE_MODEL_DEFAULT`, `IMA2_API_REASONING_EFFORT`, `IMA2_API_IMAGE_SIZE`, and `IMA2_API_ALLOW_WEB_SEARCH` env vars (see `06-infra-operations`). Validated request options still pass through. The API-key path uses `lib/responsesImageAdapter.ts` to mirror the OAuth Responses payload, including reasoning-effort, web-search, and reference-image plumbing — `tests/api-provider-parity.test.ts` (#49) locks the parity contract for generate/edit/multimode/node.
+
+`webSearchEnabled` is a request-level toggle. `false` disables web-search tooling for that request. `true` asks for web search, but API-provider requests still respect the global `apiProvider.allowWebSearch` gate; a deployment that sets `IMA2_API_ALLOW_WEB_SEARCH=false` will not re-enable API web search for one request.
+
+Multimode is SSE-only. The route now saves and sends each final image as it arrives instead of buffering the full sequence before sending any `image` event. If the provider times out after at least one image was saved, the route sends a `done` event with `status: "partial"` and HTTP status metadata in the payload. If no image was saved before timeout, the route sends an error. JSON/non-stream fallback images from the adapter are saved only for indexes not already emitted by the final-image callback.
 
 Masked edits are sent as mask/selection guidance; callers should not treat them as pixel-perfect inpainting. The OAuth path additionally honours a feature flag, `config.oauth.maskedEditEnabled` (env: `IMA2_OAUTH_MASKED_EDIT_ENABLED`, default off) — when a mask is present and the flag is disabled, `lib/oauthProxy/generators.ts` rejects the request before calling upstream so masked edits stay opt-in until #31 ships in full. `tests/oauth-masked-edit-contract.test.js` covers the flag.
 
@@ -78,7 +82,7 @@ Prompt assembly for the OAuth path injects a short safety intent policy (`SAFETY
 
 | Method | Path | Query or body | Response |
 |---|---|---|---|
-| `GET` | `/api/history` | `limit`, `since`, `before`, `beforeFilename`, `sessionId` | `{ items, total, nextCursor }` |
+| `GET` | `/api/history` | `limit`, `since`, `before`, `beforeFilename`, `sessionId`, `favoritesOnly` | `{ items, total, nextCursor }` |
 | `GET` | `/api/history` | `groupBy=session` | `{ sessions, loose, total, nextCursor }` |
 | `DELETE` | `/api/history/:filename` | none | `{ ok, trashId, filename, unlinkAt, sessionsTouched, nodesTouched }` |
 | `DELETE` | `/api/history/:filename/permanent` | none | `{ ok, filename }` — bypasses soft-delete, removes the file (and any sidecar) immediately |
@@ -86,7 +90,7 @@ Prompt assembly for the OAuth path injects a short safety intent policy (`SAFETY
 | `POST` | `/api/history/favorite` | `{ filename, favorite }` | `{ ok, favorite }` |
 | `POST` | `/api/history/import-local` | raw body `image/png` \| `image/jpeg` \| `image/webp`; optional header `X-Ima2-Original-Filename` | `201 { item }` (GenerateItem with `kind: "imported"`) |
 
-History is reconstructed from image files and sidecar JSON under the configured generated directory. `DELETE /api/history/:filename` is a soft-delete into the OS trash via `lib/systemTrash.ts` (`trash` dependency); `lib/assetLifecycle.ts` returns a `trashId` so the UI can offer undo through `POST /api/history/:filename/restore`. `DELETE /api/history/:filename/permanent` skips the trash and removes the file plus any sidecar immediately — used by the gallery's permanent-delete affordance.
+History is reconstructed from image files and sidecar JSON under the configured generated directory. The current implementation uses a process-local history index/cache and applies browser-scoped favorites as an overlay for `/api/history`. `favoritesOnly=1` filters before pagination so older favorites can be reached with cursor paging. `DELETE /api/history/:filename` is a soft-delete into the OS trash via `lib/systemTrash.ts` (`trash` dependency); `lib/assetLifecycle.ts` returns a `trashId` so the UI can offer undo through `POST /api/history/:filename/restore`. `DELETE /api/history/:filename/permanent` skips the trash and removes the file plus any sidecar immediately — used by the gallery's permanent-delete affordance.
 
 `/api/history/import-local` accepts a single raw image body and writes it into `generated/` as `imported-<yyyymmddhhmmss>-<rand6>.<ext>` with embedded XMP metadata (`kind: "imported"`). Frontend uses this to drop external images directly onto the Canvas viewer area; the response item is appended to the in-memory history list and selected as the current image.
 
@@ -114,9 +118,9 @@ Canvas annotation and canvas-version routes are internal editor persistence surf
 |---|---|---|---|
 | `GET` | `/api/inflight` | `kind`, `sessionId` | `{ jobs }` |
 | `GET` | `/api/inflight` | `kind`, `sessionId`, `includeTerminal=1` | `{ jobs, terminalJobs }` |
-| `DELETE` | `/api/inflight/:requestId` | none | `204 No Content` |
+| `DELETE` | `/api/inflight/:requestId` | none | `{ requestId, active, aborted }` |
 
-The inflight registry tracks both classic and node jobs. The default response is active-only so the UI never renders completed jobs as still running. `includeTerminal=1` is an opt-in debug surface that keeps recent completed/error/canceled jobs briefly for request tracing.
+The inflight registry tracks classic, node, and multimode jobs. The default response is active-only so the UI never renders completed jobs as still running. `includeTerminal=1` is an opt-in debug surface that keeps recent completed/error/canceled jobs briefly for request tracing. Cancellation records a terminal `canceled` snapshot and aborts the upstream request when the active job still has a registered `AbortController`.
 
 ## Node Mode API
 

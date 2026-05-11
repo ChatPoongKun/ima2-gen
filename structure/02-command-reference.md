@@ -74,7 +74,7 @@ The CLI surface was expanded to near-feature-parity with the server API in #45 (
 | `ima2 oauth <subcommand>` | `/api/oauth*` | OAuth status and helpers |
 | `ima2 ls` | `GET /api/history` | History list (legacy alias of `history list`) |
 | `ima2 show <name>` | `GET /api/history` plus file path | Show or reveal one history item |
-| `ima2 ps` | `GET /api/inflight` | List running classic/node jobs (legacy alias of `inflight list`) |
+| `ima2 ps` | `GET /api/inflight` | List running classic/node/multimode jobs (legacy alias of `inflight list`) |
 | `ima2 cancel <requestId>` | `DELETE /api/inflight/:requestId` | Mark a running/known job as canceled (legacy alias of `inflight cancel`) |
 | `ima2 ping` | `GET /api/health` | Check server reachability and health |
 
@@ -95,11 +95,16 @@ The CLI surface was expanded to near-feature-parity with the server API in #45 (
 | `--timeout <sec>` | `180` | HTTP request timeout |
 | `--server <url>` | auto-discovered | Override server discovery |
 | `--model <id>` | server default | Image model: `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, or server-rejected `gpt-5.3-codex-spark` |
+| `--provider <auto|oauth|api>` | server default | Per-request provider override; `api` requires a configured API key |
 | `--mode <auto|direct>` | `auto` | Prompt handling mode |
 | `--moderation <auto|low>` | `low` | OAuth moderation level |
 | `--reasoning-effort <low|medium|high>` | server default | Reasoning effort hint for prompt-aware models |
 | `--web-search` / `--no-web-search` | server default | Toggle Responses-API web search for the request |
 | `--session <id>` | none | Apply enabled session style sheet |
+
+Web-search note: `--web-search` and `--no-web-search` set the request-level `webSearchEnabled` field. For `provider: "api"`, the request still respects the global API-provider gate (`IMA2_API_ALLOW_WEB_SEARCH` / `apiProvider.allowWebSearch`); a globally disabled API web-search setting cannot be re-enabled by one CLI call.
+
+Provider override semantics: `api` forces the API-key Responses path, `oauth` forces the local OAuth proxy path, and `auto` preserves route default behavior.
 
 ## `edit` Options
 
@@ -113,17 +118,31 @@ The CLI surface was expanded to near-feature-parity with the server API in #45 (
 | `--timeout <sec>` | `180` | HTTP request timeout |
 | `--server <url>` | auto-discovered | Target server URL |
 | `--model <id>` | server default | Image model: `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, or server-rejected `gpt-5.3-codex-spark` |
+| `--provider <auto|oauth|api>` | server default | Per-request provider override; `api` requires a configured API key |
 | `--mode <auto|direct>` | `auto` | Prompt handling mode |
 | `--moderation <auto|low>` | `low` | OAuth moderation level |
 | `--reasoning-effort <low|medium|high>` | server default | Reasoning effort hint for prompt-aware models |
 | `--web-search` / `--no-web-search` | server default | Toggle Responses-API web search for the request |
 | `--session <id>` | none | Apply enabled session style sheet |
 
+## `multimode` Options
+
+| Option | Default | Description |
+|---|---|---|
+| `--max-images <1..8>` | `4` | Maximum separate stage images |
+| `--provider <auto|oauth|api>` | server default | Per-request provider override |
+| `--mode <auto|direct>` | `auto` | Prompt handling mode |
+| `--ref <file>` | none | Attach a reference image; repeatable, max 5 |
+| `--web-search` / `--no-web-search` | server default | Toggle Responses-API web search for the request |
+| `--show-partial` | false | Print partial preview notices |
+
+CLI parity note (#61): `gen`, `edit`, `multimode`, and `node generate` expose request-level web-search toggles and provider overrides. `multimode` exposes references and prompt mode. `ima2 ls --favorites` uses `/api/history?favoritesOnly=1` so favorites are filtered before pagination. `ima2 edit --mask` remains deferred to #31 because the current mask path is guided edit, not guaranteed true masked/inpaint semantics.
+
 ## `ps` Options
 
 | Option | Default | Description |
 |---|---|---|
-| `--kind <classic|node>` | all | Filter running jobs by kind |
+| `--kind <classic|node|multimode>` | all | Filter running jobs by kind |
 | `--session <id>` | all | Filter running jobs by session |
 | `--terminal` | false | Include recently completed/error/canceled jobs |
 | `--json` | false | Print machine-readable JSON |
@@ -131,7 +150,26 @@ The CLI surface was expanded to near-feature-parity with the server API in #45 (
 
 ## `cancel`
 
-`ima2 cancel <requestId>` calls `DELETE /api/inflight/:requestId`. It marks the job as canceled in the local server registry; it does not guarantee that an upstream provider request was physically killed.
+`ima2 cancel <requestId>` calls `DELETE /api/inflight/:requestId`. When the server still has an active abort controller for the request, cancellation aborts the in-flight provider call and records a short-lived terminal `canceled` snapshot. If the process restarted or the request already finished, the command still records cancellation intent for the known request id, but it cannot retroactively stop upstream work.
+
+## CLI Parity Audit, 2026-05-10
+
+Issue #61 tracks the parity slice after the browser/server surface moved ahead of the CLI.
+
+Verified current behavior:
+
+- `ima2 gen`, `ima2 edit`, `ima2 multimode`, and `ima2 node generate` expose `--web-search` / `--no-web-search`.
+- Those commands expose `--provider <auto|oauth|api>` and pass it to matching server routes.
+- `ima2 multimode` exposes `--ref <file>` and `--mode <auto|direct>`.
+- `ima2 ps` / `ima2 inflight ls` document `classic|node|multimode`.
+- `ima2 ls --favorites` uses server-side `favoritesOnly=1` before its defensive client-side favorite filter.
+- Those flags map to `webSearchEnabled` in the request body.
+- Server routes normalize the request through `resolveProviderOptions(...)`.
+- API-provider web search still respects the global `apiProvider.allowWebSearch` gate.
+
+Deferred:
+
+- `ima2 edit --mask <png>` remains under #31 until provider-backed masked edit semantics are verified.
 
 ## Server Discovery Priority
 
@@ -170,6 +208,8 @@ The CLI surface was expanded to near-feature-parity with the server API in #45 (
 - 2026-04-26: Added classic CLI parity options, cancel command, terminal inflight listing, and actual-port discovery notes.
 - 2026-04-28: Documented the `serve --dev` verbose diagnostics flag and storage-doctor inclusion in `ima2 doctor`. Note that prompt-library, image-metadata, and card-news endpoints have no CLI client today; access them through the web UI or direct HTTP.
 - 2026-04-30: Captured the CLI feature-parity #45 surface (multimode, node, session, history, prompt, annotate, canvas-versions, metadata, comfy, cardnews, config, inflight, storage, billing, providers, oauth) and documented the new `--reasoning-effort` and `--web-search` / `--no-web-search` flags on `gen`/`edit`. Switched all `bin/*` path references from `.js` to `.ts` source.
+- 2026-05-10: Re-audited CLI parity for #61. Web-search flags are wired for `gen`, `edit`, `multimode`, and `node generate`; follow-up work was planned for provider override, multimode refs/mode, `ps` multimode help, server-side favorites listing, masked edit CLI decision, and dedicated CLI payload tests.
+- 2026-05-11: Implemented the #61 CLI parity slice: provider overrides for generation commands, multimode refs/mode, multimode inflight help, server-side `ls --favorites`, and CLI feature-parity contract tests. `edit --mask` remains deferred to #31.
 
 Previous document: `[[01-file-function-map]]`
 

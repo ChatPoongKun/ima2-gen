@@ -35,20 +35,28 @@ These work on most client commands:
 | `ima2 node generate` | Node-mode generate (SSE; supports `--no-stream`) |
 | `ima2 node show <nodeId>` | Read node metadata |
 
-Generation flags include `--reasoning-effort {none\|low\|medium\|high\|xhigh}`, `--web-search` / `--no-web-search`, `--model`, `--mode`, `--moderation`, `--ref <file>` (repeatable, up to 5), `-q low|medium|high`, `-n <count>`, `-o <file>`.
+Generation flags include `--provider <auto|oauth|api>`, `--reasoning-effort {none\|low\|medium\|high\|xhigh}`, `--web-search` / `--no-web-search`, `--model`, `--mode`, `--moderation`, `--ref <file>` (repeatable, up to 5 where supported), `-q low|medium|high`, `-n <count>`, `-o <file>`.
+
+Provider override semantics:
+
+- `api` forces the API-key Responses path and requires a configured API key.
+- `oauth` forces the local OAuth proxy path.
+- `auto` preserves route default behavior and currently resolves to OAuth unless server routing changes.
 
 ```bash
-ima2 gen "a poster of a samurai cat" --model gpt-5.4 --reasoning-effort high
-ima2 edit input.png --prompt "make it rainy" --web-search
-ima2 multimode "two cats playing" -n 2
+ima2 gen "a poster of a samurai cat" --model gpt-5.4 --provider api --reasoning-effort high
+ima2 edit input.png --prompt "make it rainy" --provider oauth --web-search
+ima2 multimode "two cats playing" --max-images 2 --ref cat.png --mode direct
 ima2 node generate --node n_abc --prompt "add neon lights" --no-stream
 ```
+
+Multimode-specific flags include `--max-images <1..8>`, `--ref <file>` (repeatable, max 5), `--mode <auto|direct>`, `--provider <auto|oauth|api>`, and `--show-partial`. `ima2 edit --mask` remains intentionally deferred to #31 because current mask plumbing is guided edit rather than guaranteed true masked/inpaint semantics.
 
 ## History and metadata
 
 | Command | Description |
 |---|---|
-| `ima2 ls [--session <id>] [--favorites]` | List recent history |
+| `ima2 ls [--session <id>] [--favorites]` | List recent history; `--favorites` uses server-side favorites filtering before pagination |
 | `ima2 show <name> [--metadata]` | Reveal a generated asset; optional embedded-metadata read |
 | `ima2 history rm <name> [--permanent]` | Soft-delete (default) or permanently delete |
 | `ima2 history restore --trash-id <id>` | Restore from trash |
@@ -115,7 +123,7 @@ Card News requires the server to be started with `IMA2_CARD_NEWS=1` (or `feature
 |---|---|
 | `ima2 ps` | Alias for `inflight ls` (kept for backward compatibility) |
 | `ima2 cancel <id>` | Alias for `inflight rm` |
-| `ima2 inflight ls [--kind classic\|node] [--session <id>] [--terminal]` | List active (and optionally terminal) jobs with phase / model / prompt |
+| `ima2 inflight ls [--kind classic\|node\|multimode] [--session <id>] [--terminal]` | List active (and optionally terminal) jobs with phase / model / prompt |
 | `ima2 inflight rm <requestId>` | Force-remove a stuck job |
 | `ima2 storage status` | Storage inspection (richer than `doctor`) |
 | `ima2 storage open` | Open the generated dir in the OS file manager (POST) |
@@ -168,7 +176,7 @@ The server writes `~/.ima2/server.json` on start. CLI commands read this file to
 # Generation with reasoning effort and web search
 ima2 gen "poster" --model gpt-5.4 --moderation low --reasoning-effort high
 ima2 edit input.png --prompt "make it rainy" --web-search
-ima2 multimode "two cats playing" -n 2 -o cat_{i}.png
+ima2 multimode "two cats playing" --max-images 2 --ref cat.png --mode direct -o cat.png
 
 # History and metadata
 ima2 ls --session sess_abc --favorites
