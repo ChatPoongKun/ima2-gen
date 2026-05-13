@@ -59,6 +59,45 @@ Use request-level overrides only for that one call:
 ima2 gen "cinematic mountain" --model gpt-5.5 --reasoning-effort high
 ```
 
+## Prompting Guidance
+
+GPT Image 2 can follow detailed visual instructions and can render visible text
+inside images, including labels, signs, posters, UI copy, speech bubbles, and
+product packaging text. Do not avoid text just because older image models were
+weak at it.
+
+When visible text matters, write the exact words in the target language and
+script:
+
+- Good: `A Korean poster with the exact headline "오늘 공연" and subtext "입장 무료".`
+- Bad: `A Korean poster with some Korean text.`
+
+Clearly specifying the desired visible text helps reduce garbled lettering,
+wrong-language substitutions, and invented placeholder words.
+
+For dense or important text, specify:
+
+- exact text;
+- language and script;
+- placement;
+- approximate size;
+- visual style;
+- whether extra readable text is forbidden.
+
+GPT Image 2 can generate both stylized and realistic outputs. State the style
+directly, for example:
+
+- `manga panel`
+- `webtoon style`
+- `children's book illustration`
+- `photorealistic product photo`
+- `realistic poster mockup`
+- `cinematic real-world scene`
+
+Text rendering is improved, but it is still not a typesetting engine. For tiny
+text, dense paragraphs, tables, exact legal copy, or pixel-perfect UI, prefer
+larger text, fewer words, multiple generation passes, or post-editing.
+
 ## Reference / I2I Workflows
 
 Reference generation:

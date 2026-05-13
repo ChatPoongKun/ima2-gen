@@ -17,6 +17,13 @@ describe("CLI packaged skill contract", () => {
     assert.match(skill, /--quality high/);
     assert.match(skill, /There is no `--parallel` flag/);
     assert.match(skill, /generic OpenAI image-generation/);
+    assert.match(skill, /GPT Image 2/);
+    assert.match(skill, /exact words in the target language/);
+    assert.match(skill, /reduce garbled lettering/);
+    assert.match(skill, /manga panel/);
+    assert.match(skill, /webtoon style/);
+    assert.match(skill, /photorealistic product photo/);
+    assert.match(skill, /not a typesetting engine/);
   });
 
   it("skill command wraps Markdown content instead of inventing a schema skill", () => {

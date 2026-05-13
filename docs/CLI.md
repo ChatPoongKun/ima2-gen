@@ -65,6 +65,22 @@ ima2 multimode "two cats playing" --max-images 2 --ref cat.png --mode direct
 ima2 node generate --node n_abc --prompt "add neon lights" --no-stream
 ```
 
+### Prompting with visible text
+
+GPT Image 2 can render visible text in generated images. If the output needs
+text, include the exact words in the target language and script instead of vague
+phrases like "Korean text" or "Japanese words".
+
+Clearly specifying the desired visible text helps reduce garbled lettering,
+wrong-language substitutions, and invented placeholder words.
+
+Use style words directly, such as `manga panel`, `webtoon style`, `children's
+book illustration`, `photorealistic product photo`, or `realistic packaging
+mockup`.
+
+For dense or critical text, keep the text large and explicit. Exact placement,
+small text, and pixel-perfect typography can still need iteration or post-editing.
+
 Multimode-specific flags include `--max-images <1..8>`, `--ref <file>` (repeatable, max 5), `--mode <auto|direct>`, `--provider <auto|oauth|api>`, and `--show-partial`. `ima2 edit --mask` remains intentionally deferred to #31 because current mask plumbing is guided edit rather than guaranteed true masked/inpaint semantics.
 
 ## History and metadata
