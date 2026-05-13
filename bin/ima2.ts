@@ -346,6 +346,9 @@ function showHelp() {
     providers      Configured providers
     oauth <sub>    OAuth proxy status              (ima2 oauth --help)
     config <sub>   Config get/set/ls/path/rm       (ima2 config --help)
+    defaults <sub> Inspect/change model defaults   (ima2 defaults --help)
+    capabilities   Agent capability metadata       (ima2 capabilities --help)
+    skill          Print packaged agent skill      (ima2 skill --help)
     ping           Ping running server / check health
 
   Options:
@@ -358,6 +361,9 @@ function showHelp() {
     ima2 gen "a shiba in space"      Generate from CLI
     ima2 gen "merge" --ref a.png --ref b.png -q high -o out.png
     ima2 ls -n 10                    Last 10 generations
+    ima2 skill                       Print agent usage skill
+    ima2 capabilities --json         Inspect supported models/options
+    ima2 defaults --json             Inspect running server defaults
     ima2 ping                        Health check
 `);
 }
@@ -372,7 +378,7 @@ if (args.includes("-v") || args.includes("--version")) {
 }
 
 if ((!command || args.includes("-h") || args.includes("--help"))
-    && !["gen", "edit", "ls", "show", "ps", "cancel", "session", "history", "prompt", "multimode", "node", "annotate", "canvas-versions", "metadata", "comfy", "cardnews", "inflight", "storage", "billing", "providers", "oauth", "config", "ping"].includes(command)) {
+    && !["gen", "edit", "ls", "show", "ps", "cancel", "session", "history", "prompt", "multimode", "node", "annotate", "canvas-versions", "metadata", "comfy", "cardnews", "inflight", "storage", "billing", "providers", "oauth", "config", "defaults", "capabilities", "skill", "ping"].includes(command)) {
   showHelp();
   process.exit(command ? 0 : 1);
 }
@@ -419,6 +425,9 @@ switch (command) {
   case "comfy":
   case "cardnews":
   case "config":
+  case "defaults":
+  case "capabilities":
+  case "skill":
   case "ping": {
     const { setCliVersion } = await import("./lib/client.js");
     setCliVersion(pkg.version);
