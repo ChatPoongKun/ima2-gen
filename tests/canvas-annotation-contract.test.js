@@ -48,6 +48,7 @@ describe("canvas annotation contract", () => {
   it("wires annotation tools inside Canvas", () => {
     const source = [
       "ui/src/components/canvas-mode/CanvasModeWorkspace.tsx",
+      "ui/src/components/canvas-mode/CanvasModeResultDetails.tsx",
       "ui/src/components/canvas-mode/CanvasModeStage.tsx",
       "ui/src/components/canvas-mode/CanvasModeFloatingToolbar.tsx",
     ].map(readSource).join("\n");
@@ -64,6 +65,7 @@ describe("canvas annotation contract", () => {
   it("scales the image annotation frame instead of the image element", () => {
     const source = [
       "ui/src/components/canvas-mode/CanvasModeWorkspace.tsx",
+      "ui/src/components/canvas-mode/CanvasModeResultDetails.tsx",
       "ui/src/components/canvas-mode/CanvasModeStage.tsx",
       "ui/src/components/canvas-mode/CanvasModeFloatingToolbar.tsx",
     ].map(readSource).join("\n");

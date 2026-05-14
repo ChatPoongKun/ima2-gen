@@ -2,6 +2,7 @@ import {
   lazy,
   Suspense,
   useCallback,
+  useRef,
   useState,
   type DragEvent as ReactDragEvent,
   type KeyboardEvent,
@@ -65,6 +66,7 @@ export function Canvas() {
   const { t } = useI18n();
   const [dropActive, setDropActive] = useState(false);
   const { creatingBlankCanvas, createBlankCanvas } = useCreateBlankCanvas();
+  const resultContainerRef = useRef<HTMLDivElement>(null);
 
   const copyPrompt = (): void => {
     if (!currentImage?.prompt) return;
@@ -107,6 +109,10 @@ export function Canvas() {
     markGeneratedResultsSeen();
     event.currentTarget.focus();
   };
+
+  const restoreResultFocus = useCallback((): void => {
+    window.requestAnimationFrame(() => resultContainerRef.current?.focus());
+  }, []);
 
   const handleCenterDragOver = useCallback((event: ReactDragEvent<HTMLElement>): void => {
     if (!Array.from(event.dataTransfer.types).includes("Files")) return;
@@ -163,6 +169,7 @@ export function Canvas() {
         <MultimodeSequencePreview />
       ) : currentImage && imageSrc ? (
         <div
+          ref={resultContainerRef}
           className="result-container visible"
           tabIndex={0}
           onMouseDown={handleViewerMouseDown}
@@ -195,7 +202,7 @@ export function Canvas() {
               .filter((value): value is string => Boolean(value))
               .join(" · ")}
           </div>
-          <ResultActions />
+          <ResultActions onAfterDeleteFocus={restoreResultFocus} />
           {currentImage.prompt ? (
             <div className="result-prompt" onClick={copyPrompt}>
               {currentImage.prompt}

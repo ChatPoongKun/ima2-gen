@@ -6,6 +6,7 @@ import type { GenerateItem } from "../types";
 
 interface ResultActionsProps {
   imageOverride?: GenerateItem | null;
+  onAfterDeleteFocus?: () => void;
 }
 
 const CANVAS_MODE_PROMPT_ID = "canvas-mode-context";
@@ -18,7 +19,10 @@ const CANVAS_MODE_PROMPT_TEXT = [
   "Infer the intended edit from the canvas marks and memo text. Preserve unrelated image content.",
 ].join("\n");
 
-export function ResultActions({ imageOverride = null }: ResultActionsProps) {
+export function ResultActions({
+  imageOverride = null,
+  onAfterDeleteFocus,
+}: ResultActionsProps) {
   const { t } = useI18n();
   const currentImage = useAppStore((s) => s.currentImage);
   const showToast = useAppStore((s) => s.showToast);
@@ -108,6 +112,22 @@ export function ResultActions({ imageOverride = null }: ResultActionsProps) {
     }
   };
 
+  const deleteToTrash = async () => {
+    try {
+      await trashHistoryItem(actionImage);
+    } finally {
+      onAfterDeleteFocus?.();
+    }
+  };
+
+  const deletePermanently = async () => {
+    try {
+      await permanentlyDeleteHistoryItemByClick(actionImage);
+    } finally {
+      onAfterDeleteFocus?.();
+    }
+  };
+
   return (
     <div className="result-actions">
       <button type="button" className="action-btn" onClick={download}>
@@ -145,7 +165,7 @@ export function ResultActions({ imageOverride = null }: ResultActionsProps) {
           <button
             type="button"
             className="action-btn action-btn--danger"
-            onClick={() => void trashHistoryItem(actionImage)}
+            onClick={() => void deleteToTrash()}
             title={t("result.deleteTitle")}
           >
             {t("result.delete")}
@@ -167,7 +187,7 @@ export function ResultActions({ imageOverride = null }: ResultActionsProps) {
               <button
                 type="button"
                 className="result-actions__menu-item result-actions__danger-item"
-                onClick={() => void permanentlyDeleteHistoryItemByClick(actionImage)}
+                onClick={() => void deletePermanently()}
               >
                 {t("result.permanentDelete")}
               </button>

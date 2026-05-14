@@ -8,7 +8,6 @@ import {
   type WheelEvent,
 } from "react";
 import { useAppStore } from "../../store/useAppStore";
-import { ResultActions } from "../ResultActions";
 import { MultimodeSequencePreview } from "../MultimodeSequencePreview";
 import { useI18n } from "../../i18n";
 import { isEditableTarget } from "../../lib/domEvents";
@@ -24,6 +23,7 @@ import { useCanvasAnnotations } from "../../hooks/useCanvasAnnotations";
 import { CanvasModeStage } from "./CanvasModeStage";
 import { CanvasBackgroundCleanupLayer } from "./CanvasBackgroundCleanupLayer";
 import { CanvasModeFloatingToolbar } from "./CanvasModeFloatingToolbar";
+import { CanvasModeResultDetails } from "./CanvasModeResultDetails";
 import { CanvasModeTopbar } from "./CanvasModeTopbar";
 import { CanvasViewportMiniMap } from "./CanvasViewportMiniMap";
 import {
@@ -86,6 +86,7 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
   const { creatingBlankCanvas, createBlankCanvas } = useCreateBlankCanvas();
   const annotationFrameRef = useRef<HTMLDivElement>(null);
   const imageElementRef = useRef<HTMLImageElement>(null);
+  const resultContainerRef = useRef<HTMLDivElement>(null);
   const previousImageKeyRef = useRef<string | null>(null);
   const loadedDraftKeyRef = useRef<string | null>(null);
   const draftSaveTimerRef = useRef<number | null>(null);
@@ -231,6 +232,10 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
     markGeneratedResultsSeen();
     event.currentTarget.focus();
   };
+
+  const restoreResultFocus = useCallback(() => {
+    window.requestAnimationFrame(() => resultContainerRef.current?.focus());
+  }, []);
 
   const handleViewerWheel = (event: WheelEvent<HTMLElement>) => {
     if (!canvasOpen) return;
@@ -381,6 +386,7 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
         <MultimodeSequencePreview />
       ) : currentImage ? (
         <div
+          ref={resultContainerRef}
           className="result-container visible"
           tabIndex={0}
           onMouseDown={handleViewerMouseDown}
@@ -475,22 +481,16 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
                   : t("canvas.version.failed")}
             </div>
           ) : null}
-          <div className="result-meta">
-            {[
-              currentImage.elapsed != null ? `${currentImage.elapsed}s` : null,
-              currentImage.usage
-                ? t("canvas.tokens", { n: currentImage.usage.total_tokens ?? "?" })
-                : null,
-              displayQuality,
-              displaySize,
-              displayModel,
-              currentImage.provider ?? null,
-            ]
-              .filter((v): v is string => Boolean(v))
-              .join(" · ")}
-          </div>
-          <ResultActions imageOverride={canvasOpen ? canvasDisplayImage : null} />
-          {currentImage.prompt ? <div className="result-prompt" onClick={copyPrompt}>{currentImage.prompt}</div> : null}
+          <CanvasModeResultDetails
+            currentImage={currentImage}
+            canvasDisplayImage={canvasDisplayImage}
+            canvasOpen={canvasOpen}
+            displayQuality={displayQuality}
+            displaySize={displaySize}
+            displayModel={displayModel}
+            onAfterDeleteFocus={restoreResultFocus}
+            onCopyPrompt={copyPrompt}
+          />
         </div>
       ) : null}
     </main>

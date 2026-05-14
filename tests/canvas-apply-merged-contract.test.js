@@ -59,7 +59,10 @@ describe("canvas apply merged contract", () => {
   it("keeps Continue Here on a compressed canvas reference path", () => {
     const actions = readSource("ui/src/components/ResultActions.tsx");
     const store = readSource("ui/src/store/useAppStore.ts");
-    const canvas = readSource("ui/src/components/canvas-mode/CanvasModeWorkspace.tsx");
+    const canvas = [
+      "ui/src/components/canvas-mode/CanvasModeWorkspace.tsx",
+      "ui/src/components/canvas-mode/CanvasModeResultDetails.tsx",
+    ].map(readSource).join("\n");
     assert.match(actions, /imageOverride\?: GenerateItem \| null/);
     assert.match(actions, /const actionImage = imageOverride \?\? currentImage/);
     assert.match(actions, /useImageAsReference\(actionImage\)/);
@@ -73,7 +76,8 @@ describe("canvas apply merged contract", () => {
     assert.match(actions, /user-drawn strokes/);
     assert.match(actions, /source content and preserve\/complete/);
     assert.match(actions, /edit instructions/);
-    assert.match(canvas, /<ResultActions imageOverride=\{canvasOpen \? canvasDisplayImage : null\} \/>/);
+    assert.match(canvas, /imageOverride=\{canvasOpen \? canvasDisplayImage : null\}/);
+    assert.match(canvas, /onAfterDeleteFocus=\{onAfterDeleteFocus\}/);
     assert.match(store, /compressReferenceSource\(cur\.image/);
     assert.match(store, /useImageAsReference: async \(item\)/);
     assert.match(store, /compressReferenceSource\(item\.image/);
