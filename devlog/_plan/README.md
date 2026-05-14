@@ -49,12 +49,15 @@ Deferred / 미래 항목은 `_plan/`이 아니라 `devlog/_future/`에 둔다. �
 | 10 | `260429_issue47-inflight-reload-reconcile/` | active | GitHub #47. Inflight reload reconcile. |
 | 11 | `260429_issue48-prompt-import-search-ux/` | planned | GitHub #48. Prompt import dialog 검색 결과 workspace 개선. |
 | 12 | `260430_issue24-typescript-strict-cleanup/` | observe | GitHub #24. TS strict-only cleanup 관찰 추적. |
-| 13 | `260430_issue27-canvas-svg-export/` | planned | GitHub #27. Canvas annotation SVG/vector 내보내기. |
-| 14 | `260430_issue28-canvas-pptx-export/` | planned | GitHub #28. Canvas LayerDocument → PPTX reconstruction. |
-| 15 | `260430_issue31-provider-masked-edit/` | planned | GitHub #31. Provider-backed masked edit gating. |
+| 13 | `260430_issue27-canvas-svg-export/` | planned / research attached | GitHub #27. Canvas annotation SVG/vector 내보내기. |
+| 14 | `260430_issue28-canvas-pptx-export/` | planned / research attached | GitHub #28. Canvas composition → PPTX export. |
+| 15 | `260430_issue31-provider-masked-edit/` | planned / research attached | GitHub #31. Provider-backed masked edit gating. |
 | 16 | `260430_issue49-api-provider-responses/` | planned | GitHub #49. `provider:"api"` Responses image_generation backend 재오픈. |
 | 17 | `260426_card-news-smoke-qa-harness/` | research | Card News dev-only smoke/QA reference. 단일 이슈 없음. |
 | 18 | `260428_censorship-bypass-research/` | research | GPT Image 2 moderation false-positive 우회 전략 연구. |
+| 19 | `260514_issue59-generate-as-first-node/` | planned / implementation notes | GitHub #59. Viewer/Canvas current image를 Node Mode 첫/root node로 보내기. |
+| 20 | `260514_canvas-library-research/` | research | Canvas 관련 라이브러리 후보(Fabric/Konva/PptxGenJS/MediaPipe 등) 공통 레퍼런스 맵. |
+| 21 | `260514_canvas-background-removal-library-research/` | research | Canvas Mode background cleanup/removal 개선을 위한 segmentation/library 옵션 분석. |
 
 > 2026-04-30 이동: `260429_issue46-blank-canvas-paint-to-ai/`는 size-aware blank canvas 패치(`#46`) 완료 후 `_fin/`으로 이동.
 
@@ -77,8 +80,8 @@ Oracle browser `gpt-5-pro`의 2026-04-29 감사 결과 기준으로, TypeScript 
 
 ## Stale assumptions corrected
 
-- GitHub #27 is not "annotation SVG export" as the main product. The active scope is logo/reference raster-to-vector packaging. Annotation SVG can be an optional overlay only.
-- GitHub #28 is not "dump SVG into PPTX". The active scope is `LayerDocument -> PptxGenJS` reconstruction with PNG-alpha fallback.
+- GitHub #27 current issue body scopes the first implementation to annotation SVG/vector export, not true raster vector tracing.
+- GitHub #28 current issue body scopes the first implementation to one-slide Canvas composition PPTX export with source image plus visible annotations.
 - GitHub #31 must not fake masked edit through prompt-only generation. Provider capability must be proven before enabling UI.
 - Gallery permanent delete should verify the existing `/api/history/:filename/permanent` route after #24 rather than assume the API is absent.
 
