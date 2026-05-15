@@ -6,6 +6,7 @@ import { create } from "zustand";
 import type { CanvasExportBackground, HexColor } from "../types/canvas";
 import type {
   Count,
+  ComposerInsertedPromptSnapshot,
   Format,
   GenerateItem,
   GenerateResponse,
@@ -268,6 +269,8 @@ type PersistedInFlight = {
   id: string;
   prompt: string;
   startedAt: number;
+  composerPrompt?: string;
+  composerInsertedPrompts?: InsertedPrompt[];
   phase?: string;
   sessionId?: string | null;
   parentNodeId?: string | null;
@@ -347,13 +350,66 @@ type InsertedPrompt = {
   id: string;
   name: string;
   text: string;
+  placement?: "before" | "after";
 };
 
 function composePrompt(mainPrompt: string, insertedPrompts: InsertedPrompt[]): string {
+  const before = insertedPrompts.filter((prompt) => prompt.placement !== "after");
+  const after = insertedPrompts.filter((prompt) => prompt.placement === "after");
   return [
-    ...insertedPrompts.map((prompt) => prompt.text.trim()).filter(Boolean),
+    ...before.map((prompt) => prompt.text.trim()).filter(Boolean),
     mainPrompt.trim(),
+    ...after.map((prompt) => prompt.text.trim()).filter(Boolean),
   ].filter(Boolean).join("\n\n");
+}
+
+function normalizeInsertedPrompt(value: unknown): InsertedPrompt | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  if (
+    typeof item.id !== "string" ||
+    typeof item.name !== "string" ||
+    typeof item.text !== "string"
+  ) {
+    return null;
+  }
+  return {
+    id: item.id,
+    name: item.name,
+    text: item.text,
+    placement: item.placement === "after" ? "after" : "before",
+  };
+}
+
+function normalizeInsertedPromptArray(value: unknown): InsertedPrompt[] | null {
+  if (!Array.isArray(value)) return null;
+  const prompts = value.map(normalizeInsertedPrompt);
+  return prompts.every((item): item is InsertedPrompt => item !== null) ? prompts : null;
+}
+
+function cloneInsertedPrompts(
+  prompts: InsertedPrompt[],
+): ComposerInsertedPromptSnapshot[] {
+  return prompts.map((prompt) => ({
+    id: prompt.id,
+    name: prompt.name,
+    text: prompt.text,
+    placement: prompt.placement === "after" ? "after" : "before",
+  }));
+}
+
+function getHistoryComposerPatch(
+  item: GenerateItem,
+): { prompt?: string; insertedPrompts?: InsertedPrompt[] } {
+  const restoredInsertedPrompts = normalizeInsertedPromptArray(item.composerInsertedPrompts);
+  if (typeof item.composerPrompt === "string") {
+    return {
+      prompt: item.composerPrompt,
+      insertedPrompts: restoredInsertedPrompts ?? [],
+    };
+  }
+  if (restoredInsertedPrompts) return { insertedPrompts: restoredInsertedPrompts };
+  return {};
 }
 
 function toPersistedInFlightJob(job: ServerInFlightJob): PersistedInFlight {
@@ -368,6 +424,8 @@ function toPersistedInFlightJob(job: ServerInFlightJob): PersistedInFlight {
     id: job.requestId,
     prompt: typeof job.prompt === "string" ? job.prompt : "",
     startedAt: job.startedAt,
+    composerPrompt: typeof meta.composerPrompt === "string" ? meta.composerPrompt : undefined,
+    composerInsertedPrompts: normalizeInsertedPromptArray(meta.composerInsertedPrompts) ?? undefined,
     phase: typeof job.phase === "string" ? job.phase : undefined,
     sessionId: typeof meta.sessionId === "string" ? meta.sessionId : null,
     parentNodeId: typeof meta.parentNodeId === "string" ? meta.parentNodeId : null,
@@ -424,6 +482,8 @@ function loadInFlight(): PersistedInFlight[] {
         id: x.id,
         prompt: x.prompt,
         startedAt: x.startedAt,
+        composerPrompt: typeof x.composerPrompt === "string" ? x.composerPrompt : undefined,
+        composerInsertedPrompts: normalizeInsertedPromptArray(x.composerInsertedPrompts) ?? undefined,
         phase: typeof x.phase === "string" ? x.phase : undefined,
         sessionId: typeof x.sessionId === "string" ? x.sessionId : null,
         parentNodeId: typeof x.parentNodeId === "string" ? x.parentNodeId : null,
@@ -503,12 +563,20 @@ function narrowGenerateKind(k?: string | null): GenerateItem["kind"] {
 }
 
 function mapHistoryItem(it: Awaited<ReturnType<typeof getHistory>>["items"][number]): GenerateItem {
+  const composerInsertedPrompts = normalizeInsertedPromptArray(it.composerInsertedPrompts);
   return {
     image: it.url,
     url: it.url,
     filename: it.filename,
     thumb: it.url,
     prompt: it.prompt ?? undefined,
+    userPrompt: it.userPrompt ?? null,
+    revisedPrompt: it.revisedPrompt ?? null,
+    promptMode: it.promptMode ?? null,
+    composerPrompt: it.composerPrompt ?? null,
+    composerInsertedPrompts: composerInsertedPrompts
+      ? cloneInsertedPrompts(composerInsertedPrompts)
+      : null,
     size: it.size ?? undefined,
     quality: it.quality ?? undefined,
     format: it.format as Format | undefined,
@@ -958,6 +1026,7 @@ type AppState = {
   insertedPrompts: InsertedPrompt[];
   insertPromptToComposer: (prompt: InsertedPrompt) => void;
   removeInsertedPromptFromComposer: (id: string) => void;
+  moveInsertedPromptInComposer: (id: string, direction: "up" | "down") => void;
   clearInsertedPrompts: () => void;
   selectHistory: (item: GenerateItem) => void;
   markGeneratedResultsSeen: () => void;
@@ -983,8 +1052,17 @@ type AppState = {
   dismissErrorCard: (id?: number) => void;
   getResolvedSize: () => string;
 
+  // Workspace Profile
+  workspaceProfile: import("../lib/workspaceProfile").WorkspaceProfile;
+  setWorkspaceProfile: (profile: import("../lib/workspaceProfile").WorkspaceProfile) => void;
+
+  // Prompt Builder panel toggle
+  promptBuilderOpen: boolean;
+  togglePromptBuilder: () => void;
+
   // Prompt Library (0.23)
   promptLibraryOpen: boolean;
+  setPromptLibraryOpen: (open: boolean) => void;
   togglePromptLibrary: () => void;
   promptLibrary: { prompts: import("../lib/api").PromptItem[]; folders: import("../lib/api").PromptFolder[] };
   promptLibraryLoading: boolean;
@@ -1074,15 +1152,6 @@ function isSizePreset(value: unknown): value is SizePreset {
   return typeof value === "string" && SIZE_PRESET_VALUES.has(value as SizePreset);
 }
 
-function isInsertedPromptArray(value: unknown): value is InsertedPrompt[] {
-  return Array.isArray(value) && value.every((item) =>
-    item &&
-    typeof item.id === "string" &&
-    typeof item.name === "string" &&
-    typeof item.text === "string",
-  );
-}
-
 type GenerationDefaults = Partial<{
   provider: Provider;
   quality: Quality;
@@ -1123,9 +1192,8 @@ function loadGenerationDefaults(): GenerationDefaults {
     }
     if (isPromptMode(parsed.promptMode)) out.promptMode = parsed.promptMode;
     if (typeof parsed.prompt === "string") out.prompt = parsed.prompt;
-    if (isInsertedPromptArray(parsed.insertedPrompts)) {
-      out.insertedPrompts = parsed.insertedPrompts;
-    }
+    const insertedPrompts = normalizeInsertedPromptArray(parsed.insertedPrompts);
+    if (insertedPrompts) out.insertedPrompts = insertedPrompts;
     return out;
   } catch {
     return {};
@@ -1210,6 +1278,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   insertedPrompts: storedGenerationDefaults.insertedPrompts ?? [],
   referenceImages: [],
   canvasReferenceImage: null,
+
+  // Workspace Profile
+  workspaceProfile: ((): import("../lib/workspaceProfile").WorkspaceProfile => {
+    try { const v = localStorage.getItem("ima2.workspaceProfile"); return v === "prompt-studio" ? "prompt-studio" : "default"; } catch { return "default"; }
+  })(),
+
+  // Prompt Builder panel
+  promptBuilderOpen: false,
 
   // Prompt Library state (0.23)
   promptLibraryOpen: false,
@@ -2908,9 +2984,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   insertPromptToComposer: (prompt) =>
     set((state) => {
       const exists = state.insertedPrompts.some((item) => item.id === prompt.id);
+      const nextPrompt: InsertedPrompt = {
+        ...prompt,
+        placement: prompt.placement === "after" ? "after" : "before",
+      };
       const insertedPrompts = exists
         ? state.insertedPrompts
-        : [...state.insertedPrompts, prompt];
+        : [...state.insertedPrompts, nextPrompt];
       saveGenerationDefaultsPatch({ insertedPrompts });
       return {
         insertedPrompts,
@@ -2919,6 +2999,33 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeInsertedPromptFromComposer: (id) =>
     set((state) => {
       const insertedPrompts = state.insertedPrompts.filter((prompt) => prompt.id !== id);
+      saveGenerationDefaultsPatch({ insertedPrompts });
+      return { insertedPrompts };
+    }),
+  moveInsertedPromptInComposer: (id, direction) =>
+    set((state) => {
+      const before = state.insertedPrompts.filter((prompt) => prompt.placement !== "after");
+      const after = state.insertedPrompts.filter((prompt) => prompt.placement === "after");
+      const visualOrder = [
+        ...before.map((prompt) => ({ kind: "prompt" as const, prompt })),
+        { kind: "main" as const },
+        ...after.map((prompt) => ({ kind: "prompt" as const, prompt })),
+      ];
+      const sourceIndex = visualOrder.findIndex(
+        (item) => item.kind === "prompt" && item.prompt.id === id,
+      );
+      if (sourceIndex < 0) return {};
+      const targetIndex = direction === "up" ? sourceIndex - 1 : sourceIndex + 1;
+      if (targetIndex < 0 || targetIndex >= visualOrder.length) return {};
+      const [moving] = visualOrder.splice(sourceIndex, 1);
+      visualOrder.splice(targetIndex, 0, moving);
+      const mainIndex = visualOrder.findIndex((item) => item.kind === "main");
+      const insertedPrompts = visualOrder
+        .filter((item): item is { kind: "prompt"; prompt: InsertedPrompt } => item.kind === "prompt")
+        .map((item, index): InsertedPrompt => ({
+          ...item.prompt,
+          placement: index < mainIndex ? "before" : "after",
+        }));
       saveGenerationDefaultsPatch({ insertedPrompts });
       return { insertedPrompts };
     }),
@@ -2933,7 +3040,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       ? resolveVisibleShortcutCurrent(history, item) ?? getVisibleGalleryItems(history)[0] ?? null
       : resolveVisibleShortcutCurrent(history, item) ?? item;
     saveSelectedFilename(target?.filename ?? null);
-    set({ currentImage: target, unseenGeneratedCount: 0 });
+    const composerPatch = target ? getHistoryComposerPatch(target) : {};
+    if (Object.keys(composerPatch).length > 0) {
+      saveGenerationDefaultsPatch(composerPatch);
+    }
+    set({
+      currentImage: target,
+      unseenGeneratedCount: 0,
+      ...composerPatch,
+    });
   },
 
   markGeneratedResultsSeen: () => set({ unseenGeneratedCount: 0 }),
@@ -3094,6 +3209,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (s.uiMode !== "classic") return;
     const prompt = composePrompt(s.prompt, s.insertedPrompts);
     if (!prompt) return;
+    const composerPrompt = s.prompt;
+    const composerInsertedPrompts = cloneInsertedPrompts(s.insertedPrompts);
     const size = sizeOverride ?? s.getResolvedSize();
     const flightId = `mm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const controller = new AbortController();
@@ -3101,7 +3218,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     const requested = normalizeCount(s.multimodeMaxImages);
     const nextInFlight: PersistedInFlight[] = [
       ...s.inFlight,
-      { id: flightId, prompt, startedAt, kind: "multimode" },
+      {
+        id: flightId,
+        prompt,
+        startedAt,
+        kind: "multimode",
+        composerPrompt,
+        composerInsertedPrompts,
+      },
     ];
     const initialSequence: MultimodeSequenceState = {
       sequenceId: flightId,
@@ -3137,6 +3261,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           webSearchEnabled: s.webSearchEnabled,
           requestId: flightId,
           mode: s.promptMode,
+          composerPrompt,
+          composerInsertedPrompts,
           ...(s.referenceImages.length
             ? { references: s.referenceImages.map(stripDataUrlPrefix) }
             : {}),
@@ -3191,6 +3317,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         provider: res.provider,
         usage: res.usage,
         requestId: image.requestId ?? res.requestId ?? flightId,
+        composerPrompt,
+        composerInsertedPrompts,
         quality: res.quality ?? s.quality,
         size: res.size ?? size,
         model: res.model ?? s.imageModel,
@@ -3298,6 +3426,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const s = get();
     const prompt = composePrompt(s.prompt, s.insertedPrompts);
     if (!prompt) return;
+    const composerPrompt = s.prompt;
+    const composerInsertedPrompts = cloneInsertedPrompts(s.insertedPrompts);
 
     const size = sizeOverride ?? s.getResolvedSize();
 
@@ -3305,7 +3435,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const startedAt = Date.now();
     const nextInFlight: PersistedInFlight[] = [
       ...s.inFlight,
-      { id: flightId, prompt, startedAt },
+      { id: flightId, prompt, startedAt, composerPrompt, composerInsertedPrompts },
     ];
     saveInFlight(nextInFlight);
     set({
@@ -3328,6 +3458,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         webSearchEnabled: s.webSearchEnabled,
         requestId: flightId,
         mode: s.promptMode,
+        composerPrompt,
+        composerInsertedPrompts,
         ...(s.referenceImages.length
           ? { references: s.referenceImages.map(stripDataUrlPrefix) }
           : {}),
@@ -3341,6 +3473,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             image: img.image,
             filename: img.filename,
             prompt,
+            composerPrompt,
+            composerInsertedPrompts,
             elapsed: res.elapsed,
             provider: res.provider,
             usage: res.usage,
@@ -3360,6 +3494,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             image: first.image,
             filename: first.filename,
             prompt,
+            composerPrompt,
+            composerInsertedPrompts,
             elapsed: res.elapsed,
             provider: res.provider,
             usage: res.usage,
@@ -3373,6 +3509,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             image: res.image,
             filename: res.filename,
             prompt,
+            composerPrompt,
+            composerInsertedPrompts,
             elapsed: res.elapsed,
             provider: res.provider,
             usage: res.usage,
@@ -3491,7 +3629,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
+  // ── Workspace Profile actions ──
+  setWorkspaceProfile(profile) {
+    set({ workspaceProfile: profile });
+    try { localStorage.setItem("ima2.workspaceProfile", profile); } catch { /* non-critical */ }
+  },
+  togglePromptBuilder() {
+    set((s) => ({ promptBuilderOpen: !s.promptBuilderOpen }));
+  },
+
   // ── Prompt Library actions (0.23) ──
+  setPromptLibraryOpen(open) {
+    set({ promptLibraryOpen: open });
+  },
   togglePromptLibrary() {
     set((s) => ({ promptLibraryOpen: !s.promptLibraryOpen }));
   },

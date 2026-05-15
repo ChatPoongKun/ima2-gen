@@ -248,6 +248,9 @@
     "directMode": "Direct",
     "directModeActive": "1:1 Direct on",
     "directModeTitle": "Pass prompt through verbatim (Direct mode)",
+    "moveBlockUp": "Move {name} up",
+    "moveBlockDown": "Move {name} down",
+    "afterBlocks": "After main prompt",
     "hint": "Ctrl + Enter to generate",
     "dropHere": "Drop to attach as reference (up to {max})"
   },
@@ -680,6 +683,10 @@
         "title": "Appearance",
         "hint": "Light and dark"
       },
+      "workspace": {
+        "title": "Workspace",
+        "hint": "Profile"
+      },
       "language": {
         "title": "Language",
         "hint": "Interface copy"
@@ -922,5 +929,49 @@
     "folderTooManyFiles": "Too many files; showing a limited set.",
     "folderNoSelection": "Select files to preview.",
     "folderUnsupported": "Only GitHub folders are supported."
+  },
+  "promptBuilder": {
+    "title": "Prompt Builder",
+    "subtitle": "Refine prompts through multi-turn context.",
+    "scopeDraft": "New work",
+    "scopeImage": "Selected image: {name}",
+    "scopeImageFallback": "Current image",
+    "newWorkTitle": "Start a new work without image context",
+    "model": "Builder model",
+    "empty": "Describe the direction you want. I will include your current prompt and settings as context.",
+    "user": "You",
+    "assistant": "Builder",
+    "placeholder": "What kind of image should we make?",
+    "send": "Send",
+    "sending": "Writing",
+    "thinking": "Refining the prompt...",
+    "clear": "Clear",
+    "applyToPrompt": "Apply to prompt",
+    "insertAsBlock": "Insert block",
+    "finalKoreanPrompt": "Korean prompt",
+    "finalEnglishPrompt": "English prompt",
+    "blockName": "Builder suggestion",
+    "applied": "Builder suggestion applied to the main prompt",
+    "inserted": "Builder suggestion inserted as a prompt block",
+    "failed": "Prompt builder request failed",
+    "removeScopeImage": "Remove selected image from builder context",
+    "removeAttachment": "Remove attachment {name}",
+    "attach": "Attach file",
+    "attachmentOnlyMessage": "Use the attached file as context and help with the prompt"
+  },
+  "workspace": {
+    "sectionTitle": "Workspace",
+    "sectionBody": "Choose a workspace layout profile.",
+    "profileLabel": "Workspace profile",
+    "defaultLabel": "Default",
+    "defaultDesc": "Standard generation workflow with sidebar composer.",
+    "promptStudioLabel": "Prompt Studio",
+    "promptStudioDesc": "Prompt builder panel, grouped history, and enhanced viewer."
+  },
+  "viewer": {
+    "controls": "Image zoom controls",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "reset": "Reset zoom"
   }
 }

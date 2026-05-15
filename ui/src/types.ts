@@ -1,5 +1,5 @@
 export type UIMode = "classic" | "node" | "card-news";
-export type SettingsSection = "account" | "generation" | "appearance" | "language" | "future";
+export type SettingsSection = "account" | "generation" | "appearance" | "workspace" | "language" | "future";
 export type HistoryStripLayout = "rail" | "horizontal" | "sidebar";
 export type ThemePreference = "system" | "dark" | "light";
 export type ResolvedTheme = "dark" | "light";
@@ -19,6 +19,13 @@ export type Moderation = "low" | "auto";
 export type ImageModel = "gpt-5.5" | "gpt-5.4" | "gpt-5.4-mini";
 export type UnsupportedImageModel = "gpt-5.3-codex-spark";
 export type Count = number;
+
+export type ComposerInsertedPromptSnapshot = {
+  id: string;
+  name: string;
+  text: string;
+  placement: "before" | "after";
+};
 
 export type SizePreset =
   | "1024x1024"
@@ -48,6 +55,8 @@ export type GenerateItem = {
   userPrompt?: string | null;
   revisedPrompt?: string | null;
   promptMode?: "auto" | "direct" | null;
+  composerPrompt?: string | null;
+  composerInsertedPrompts?: ComposerInsertedPromptSnapshot[] | null;
   elapsed?: number;
   provider?: string;
   quality?: string;
@@ -101,6 +110,8 @@ export type EmbeddedGenerationMetadata = {
   userPrompt?: string | null;
   revisedPrompt?: string | null;
   promptMode?: "auto" | "direct" | null;
+  composerPrompt?: string | null;
+  composerInsertedPrompts?: ComposerInsertedPromptSnapshot[] | null;
   quality?: string | null;
   size?: string | null;
   format?: string | null;
@@ -168,6 +179,8 @@ export type GenerateRequest = {
   requestId?: string;
   mode?: "auto" | "direct";
   webSearchEnabled?: boolean;
+  composerPrompt?: string;
+  composerInsertedPrompts?: ComposerInsertedPromptSnapshot[];
 };
 
 export type MultimodeGenerateRequest = Omit<GenerateRequest, "n"> & {

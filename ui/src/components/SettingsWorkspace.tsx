@@ -7,6 +7,7 @@ import { WebSearchToggle } from "./WebSearchToggle";
 import { LanguageToggle } from "./LanguageToggle";
 import { ThemeToggle } from "./ThemeToggle";
 import { HistoryStripLayoutToggle } from "./HistoryStripLayoutToggle";
+import { WorkspaceProfileSettings } from "./settings/WorkspaceProfileSettings";
 import { useAppStore } from "../store/useAppStore";
 import type { GalleryScope } from "../store/useAppStore";
 import { useI18n } from "../i18n";
@@ -16,6 +17,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
   "account",
   "generation",
   "appearance",
+  "workspace",
   "language",
   "future",
 ];
@@ -64,6 +66,7 @@ export function SettingsWorkspace() {
     account: null,
     generation: null,
     appearance: null,
+    workspace: null,
     language: null,
     future: null,
   });
@@ -267,6 +270,18 @@ export function SettingsWorkspace() {
                 </div>
                 <div className="settings-row__control">
                   <HistoryStripLayoutToggle />
+                </div>
+              </article>
+            </SettingsSectionBlock>
+
+            <SettingsSectionBlock id="workspace" setRef={setSectionRef}>
+              <article className="settings-row">
+                <div className="settings-row__copy">
+                  <h4>{t("workspace.sectionTitle")}</h4>
+                  <p>{t("workspace.sectionBody")}</p>
+                </div>
+                <div className="settings-row__control">
+                  <WorkspaceProfileSettings />
                 </div>
               </article>
             </SettingsSectionBlock>

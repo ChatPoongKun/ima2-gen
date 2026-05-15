@@ -11,6 +11,7 @@ export function PromptComposer() {
   const setPrompt = useAppStore((s) => s.setPrompt);
   const insertedPrompts = useAppStore((s) => s.insertedPrompts);
   const removeInsertedPrompt = useAppStore((s) => s.removeInsertedPromptFromComposer);
+  const moveInsertedPrompt = useAppStore((s) => s.moveInsertedPromptInComposer);
   const generate = useAppStore((s) => s.generate);
   const { t } = useI18n();
 
@@ -30,6 +31,13 @@ export function PromptComposer() {
   const multimode = useAppStore((s) => s.multimode);
   const multimodeMaxImages = useAppStore((s) => s.multimodeMaxImages);
   const isDirectMode = promptMode === "direct";
+  const beforePrompts = insertedPrompts.filter((item) => item.placement !== "after");
+  const afterPrompts = insertedPrompts.filter((item) => item.placement === "after");
+  const visualPromptIds = [
+    ...beforePrompts.map((item) => item.id),
+    "__main_prompt__",
+    ...afterPrompts.map((item) => item.id),
+  ];
 
   const canAddMore = refs.length < MAX_REFS;
   const placeholder = multimode
@@ -112,6 +120,51 @@ export function PromptComposer() {
     return () => window.removeEventListener("paste", handler);
   }, [refs.length, addReferences]);
 
+  const canMovePromptBlock = (id: string, direction: "up" | "down"): boolean => {
+    const index = visualPromptIds.indexOf(id);
+    if (index < 0) return false;
+    return direction === "up" ? index > 0 : index < visualPromptIds.length - 1;
+  };
+
+  const renderPromptChip = (item: typeof insertedPrompts[number]) => (
+    <div key={item.id} className="composer__prompt-chip" title={item.name}>
+      <span className="composer__prompt-chip-plus" aria-hidden="true">
+        +
+      </span>
+      <span className="composer__prompt-chip-title">{item.name}</span>
+      <div className="composer__prompt-chip-actions">
+        <button
+          type="button"
+          className="composer__prompt-chip-move"
+          onClick={() => moveInsertedPrompt(item.id, "up")}
+          disabled={!canMovePromptBlock(item.id, "up")}
+          aria-label={t("prompt.moveBlockUp", { name: item.name })}
+          title={t("prompt.moveBlockUp", { name: item.name })}
+        >
+          ^
+        </button>
+        <button
+          type="button"
+          className="composer__prompt-chip-move"
+          onClick={() => moveInsertedPrompt(item.id, "down")}
+          disabled={!canMovePromptBlock(item.id, "down")}
+          aria-label={t("prompt.moveBlockDown", { name: item.name })}
+          title={t("prompt.moveBlockDown", { name: item.name })}
+        >
+          v
+        </button>
+        <button
+          type="button"
+          className="composer__prompt-chip-remove"
+          onClick={() => removeInsertedPrompt(item.id)}
+          aria-label={t("promptLibrary.removeInserted", { name: item.name })}
+        >
+          x
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div
       className={`composer${dragOver ? " composer--drag" : ""}${isDirectMode && !multimode ? " composer--direct" : ""}${multimode ? " composer--multimode" : ""}`}
@@ -165,22 +218,9 @@ export function PromptComposer() {
         </div>
       )}
 
-      {insertedPrompts.length > 0 && (
+      {beforePrompts.length > 0 && (
         <div className="composer__prompt-chips">
-          {insertedPrompts.map((item) => (
-            <div key={item.id} className="composer__prompt-chip" title={item.name}>
-              <span className="composer__prompt-chip-plus" aria-hidden="true">+</span>
-              <span className="composer__prompt-chip-title">{item.name}</span>
-              <button
-                type="button"
-                className="composer__prompt-chip-remove"
-                onClick={() => removeInsertedPrompt(item.id)}
-                aria-label={t("promptLibrary.removeInserted", { name: item.name })}
-              >
-                ×
-              </button>
-            </div>
-          ))}
+          {beforePrompts.map(renderPromptChip)}
         </div>
       )}
 
@@ -197,6 +237,13 @@ export function PromptComposer() {
           }
         }}
       />
+
+      {afterPrompts.length > 0 && (
+        <div className="composer__prompt-chips composer__prompt-chips--after">
+          <span className="composer__prompt-chips-label">{t("prompt.afterBlocks")}</span>
+          {afterPrompts.map(renderPromptChip)}
+        </div>
+      )}
 
       <div className="composer__toolbar">
         <button

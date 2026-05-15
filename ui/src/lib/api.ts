@@ -218,6 +218,8 @@ export type HistoryItem = {
   userPrompt?: string | null;
   revisedPrompt?: string | null;
   promptMode?: "auto" | "direct" | null;
+  composerPrompt?: string | null;
+  composerInsertedPrompts?: import("../types").ComposerInsertedPromptSnapshot[] | null;
   quality: string | null;
   size: string | null;
   moderation?: string | null;
@@ -1003,4 +1005,43 @@ export async function importLocalImage(file: File): Promise<GenerateItem> {
   }
   const json = (await res.json()) as { item: GenerateItem };
   return json.item;
+}
+
+export type PromptBuilderChatRequest = {
+  model?: string;
+  messages: Array<{
+    role: string;
+    content: string;
+    attachments?: Array<{
+      kind: "image" | "text" | "file";
+      name: string;
+      mimeType: string;
+      size: number;
+      dataUrl?: string;
+      text?: string;
+    }>;
+  }>;
+  context?: {
+    currentPrompt?: string;
+    insertedPrompts?: Array<{ name?: string; text?: string }>;
+    settings?: Record<string, unknown>;
+    currentResultPrompt?: string | null;
+  };
+};
+
+export type PromptBuilderChatResponse = {
+  provider: string;
+  model: string;
+  message: { role: "assistant"; content: string };
+  usage: Record<string, unknown> | null;
+};
+
+export function postPromptBuilderChat(
+  body: PromptBuilderChatRequest,
+): Promise<PromptBuilderChatResponse> {
+  return jsonFetch<PromptBuilderChatResponse>("/api/prompt-builder/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
