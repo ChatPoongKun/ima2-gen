@@ -16,6 +16,10 @@ import {
 import { logEvent, logError } from "../lib/logger.js";
 import { embedImageMetadataBestEffort } from "../lib/imageMetadataStore.js";
 import { invalidateHistoryIndex } from "../lib/historyIndex.js";
+import {
+  normalizeComposerInsertedPrompts,
+  normalizeComposerPrompt,
+} from "../lib/composerSnapshot.js";
 
 import { errInfo } from "../lib/errInfo.js";
 import { requireRuntimeContext, type RouteRuntimeContext, type RuntimeContext } from "../lib/runtimeContext.js";
@@ -80,6 +84,8 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
     let routeWebSearchEnabled = true;
     let routePromptMode: "auto" | "direct" = "auto";
     let routeQualityWarnings: unknown[] = [];
+    let routeComposerPrompt: string | null = null;
+    let routeComposerInsertedPrompts: ReturnType<typeof normalizeComposerInsertedPrompts> = [];
     let latestUsage: Record<string, number> | null = null;
     let latestWebSearchCalls = 0;
     let latestExtraIgnored = 0;
@@ -103,6 +109,10 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
         reasoningEffort: rawReasoningEffort,
         webSearchEnabled: rawWebSearchEnabled = true,
       } = req.body;
+      const composerPrompt = normalizeComposerPrompt(req.body?.composerPrompt);
+      const composerInsertedPrompts = normalizeComposerInsertedPrompts(
+        req.body?.composerInsertedPrompts,
+      );
       const maxImages = normalizeMaxImages(req.body?.maxImages);
       const normalizedPromptMode = promptMode === "direct" ? "direct" : "auto";
       const { quality, warnings: qualityWarnings } = normalizeOAuthParams({ provider, quality: rawQuality });
@@ -164,6 +174,8 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
           refsCount: referencePayload.refsCount,
           referenceBytes: referencePayload.referenceBytes,
           referenceB64Chars: referencePayload.referenceB64Chars,
+          composerPrompt,
+          composerInsertedPrompts,
         },
       });
       registerJobAbortController(requestId, cancelController);
@@ -196,6 +208,8 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
       routeWebSearchEnabled = webSearchEnabled ?? false;
       routePromptMode = normalizedPromptMode;
       routeQualityWarnings = qualityWarnings;
+      routeComposerPrompt = composerPrompt;
+      routeComposerInsertedPrompts = composerInsertedPrompts;
       await mkdir(ctx.config.storage.generatedDir, { recursive: true });
 
       const persistAndSendImage = async (
@@ -222,6 +236,8 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
           userPrompt: prompt,
           revisedPrompt: image.revisedPrompt || null,
           promptMode: normalizedPromptMode,
+          composerPrompt,
+          composerInsertedPrompts,
           quality,
           size: effectiveSize,
           format,
@@ -316,6 +332,8 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
         imageCount: returned,
         maxImages,
         status,
+        composerPrompt: routeComposerPrompt,
+        composerInsertedPrompts: routeComposerInsertedPrompts,
       };
       finishHttpStatus = 200;
       sendSse(res, "done", {
@@ -376,6 +394,8 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
           maxImages: routeMaxImages,
           status,
           partialErrorCode: "RESPONSES_IMAGE_TIMEOUT",
+          composerPrompt: routeComposerPrompt,
+          composerInsertedPrompts: routeComposerInsertedPrompts,
         };
         sendSse(res, "done", {
           ok: true,

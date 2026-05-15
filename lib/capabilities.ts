@@ -84,11 +84,19 @@ export function buildIma2Capabilities({
         note: "advisory client-side queue guidance only; server-side semaphore is not enforced",
       },
     },
+    promptBuilder: {
+      available: true,
+      route: "/api/prompt-builder/chat",
+      cliCommand: "ima2 prompt build",
+      structuredOutput: ["intentSummary", "finalPrompt.ko", "finalPrompt.en", "notes"],
+      uiOnly: false,
+    },
     guidance: {
       highQuality: "Use --quality high for requests where output fidelity matters.",
       parallelGeneration: "Run multiple ima2 gen commands as separate queued jobs; no --parallel flag is required.",
       i2i: "Use --ref for reference generation, or ima2 edit <file> --prompt \"<text>\" for image edits.",
       defaults: "Use ima2 defaults set model/reasoning for persistent defaults; request flags remain per-call overrides.",
+      promptBuilder: "Use ima2 prompt build --message \"...\" to refine prompt intent. Use ima2 gen / ima2 multimode to generate images. Workspace profile settings are UI-only.",
     },
   };
 }

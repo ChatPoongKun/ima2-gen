@@ -16,6 +16,10 @@ const HELP = `
     favorite <id>
     export [-o <file>]                       Dump all non-trash prompts + folders
 
+  Builder:
+    build --message "<text>" [--ref <image>] [--model <m>] [--json]
+    build --messages <file|@file|-> [--json]
+
   Folders:
     folder ls
     folder create <name>
@@ -461,6 +465,11 @@ async function importPreview(argv: string[]) {
   out(JSON.stringify(resp, null, 2));
 }
 
+async function buildSub(argv: string[]) {
+  const mod = await import("./prompt-sub/build.js");
+  return mod.default(argv);
+}
+
 const SUB: Record<string, (argv: any[]) => Promise<void>> = {
   ls: lsSub,
   show: showSub,
@@ -471,6 +480,7 @@ const SUB: Record<string, (argv: any[]) => Promise<void>> = {
   export: exportSub,
   folder: folderSub,
   import: importSub,
+  build: buildSub,
 };
 
 export default async function promptCmd(argv: string[]) {
