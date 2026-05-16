@@ -59,10 +59,10 @@ test("stale inflight jobs are purged by ttl", () => {
   assert.equal(inflight.listJobs({ kind: "classic" }).length, 0);
 });
 
-test("migration records schema version 4", () => {
+test("migration records schema version 5", () => {
   const row = db
     .getDb()
     .prepare("SELECT value FROM _meta WHERE key = 'schema_version'")
     .get() as { value: string } | undefined;
-  assert.equal(row?.value, "4");
+  assert.equal(row?.value, "5");
 });

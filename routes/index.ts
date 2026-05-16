@@ -17,6 +17,7 @@ import { registerCanvasVersionRoutes } from "./canvasVersions.js";
 import { registerComfyRoutes } from "./comfy.js";
 import { registerImageImportRoutes } from "./imageImport.js";
 import { registerPromptBuilderRoutes } from "./promptBuilder.js";
+import { registerAgentRoutes } from "./agent.js";
 import { type RouteRuntimeContext, requireRuntimeContext } from "../lib/runtimeContext.js";
 
 export function configureRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
@@ -36,6 +37,7 @@ export function configureRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
   if (ctx.config.features.cardNews) registerCardNewsRoutes(app, ctx);
   registerMultimodeRoutes(app, ctx);
   registerGenerateRoutes(app, ctx);
+  registerAgentRoutes(app, ctx);
   registerPromptBuilderRoutes(app, ctx);
   registerPromptRoutes(app, ctx);
   registerPromptImportRoutes(app, ctx);

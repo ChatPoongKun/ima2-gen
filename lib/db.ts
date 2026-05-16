@@ -76,6 +76,79 @@ function migrate(database: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_inflight_started ON inflight(started_at);
     CREATE INDEX IF NOT EXISTS idx_inflight_kind ON inflight(kind);
     CREATE INDEX IF NOT EXISTS idx_inflight_session ON inflight(session_id);
+
+    CREATE TABLE IF NOT EXISTS agent_sessions (
+      id                 TEXT PRIMARY KEY,
+      title              TEXT NOT NULL DEFAULT 'New Agent',
+      codex_thread_id    TEXT,
+      last_turn_id       TEXT,
+      current_image_id   TEXT,
+      compacted          INTEGER NOT NULL DEFAULT 0,
+      web_search_enabled INTEGER NOT NULL DEFAULT 1,
+      style_locks        TEXT NOT NULL DEFAULT '[]',
+      subject_locks      TEXT NOT NULL DEFAULT '[]',
+      created_at         INTEGER NOT NULL,
+      updated_at         INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_turns (
+      id              TEXT PRIMARY KEY,
+      session_id      TEXT NOT NULL,
+      role            TEXT NOT NULL,
+      text            TEXT NOT NULL DEFAULT '',
+      status          TEXT NOT NULL DEFAULT 'complete',
+      image_ids       TEXT NOT NULL DEFAULT '[]',
+      web_finding_ids TEXT NOT NULL DEFAULT '[]',
+      raw             TEXT NOT NULL DEFAULT '{}',
+      created_at      INTEGER NOT NULL,
+      FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_images (
+      id             TEXT PRIMARY KEY,
+      session_id     TEXT NOT NULL,
+      filename       TEXT NOT NULL,
+      url            TEXT NOT NULL,
+      thumb_url      TEXT,
+      prompt         TEXT,
+      revised_prompt TEXT,
+      width          INTEGER,
+      height         INTEGER,
+      created_at     INTEGER NOT NULL,
+      FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_references (
+      id         TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      role       TEXT NOT NULL DEFAULT 'source',
+      image_id   TEXT,
+      filename   TEXT,
+      url        TEXT,
+      prompt     TEXT,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_web_findings (
+      id         TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      query      TEXT NOT NULL DEFAULT '',
+      url        TEXT,
+      title      TEXT,
+      snippet    TEXT,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_sessions_updated
+      ON agent_sessions(updated_at);
+    CREATE INDEX IF NOT EXISTS idx_agent_turns_session
+      ON agent_turns(session_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_agent_images_session
+      ON agent_images(session_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_agent_web_findings_session
+      ON agent_web_findings(session_id, created_at);
   `);
 
   const sessionColumns = (database
@@ -150,10 +223,10 @@ function migrate(database: Database.Database) {
 
   const row = database.prepare("SELECT value FROM _meta WHERE key = 'schema_version'").get() as { value?: string } | undefined;
   if (!row) {
-    database.prepare("INSERT INTO _meta (key, value) VALUES ('schema_version', '4')").run();
-  } else if (row.value !== "4") {
+    database.prepare("INSERT INTO _meta (key, value) VALUES ('schema_version', '5')").run();
+  } else if (row.value !== "5") {
     database
-      .prepare("UPDATE _meta SET value = '4' WHERE key = 'schema_version'")
+      .prepare("UPDATE _meta SET value = '5' WHERE key = 'schema_version'")
       .run();
   }
 }

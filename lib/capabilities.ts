@@ -19,6 +19,7 @@ const AGENT_COMMANDS = [
   "inflight ls",
   "providers",
   "oauth status",
+  "agent",
 ];
 
 function toArray<T>(value: Iterable<T> | T[] | undefined): T[] {
@@ -90,6 +91,12 @@ export function buildIma2Capabilities({
       cliCommand: "ima2 prompt build",
       structuredOutput: ["intentSummary", "finalPrompt.ko", "finalPrompt.en", "notes"],
       uiOnly: false,
+    },
+    agentMode: {
+      available: true,
+      route: "/api/agent/sessions",
+      allowedTools: ["ima2.get_image_context", "ima2.web_search", "ima2.generate_image"],
+      finalArtifact: "image",
     },
     guidance: {
       highQuality: "Use --quality high for requests where output fidelity matters.",
