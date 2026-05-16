@@ -1,0 +1,319 @@
+.app[data-ui-mode="agent"],
+.app[data-ui-mode="agent"].app--history-horizontal,
+.app[data-ui-mode="agent"].app--history-sidebar {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app[data-ui-mode="agent"] .sidebar {
+  display: none;
+}
+
+.agent-workspace {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.agent-workspace:not(.agent-workspace--desktop-three-pane) {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.agent-workspace__body {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 280px minmax(420px, 0.95fr) minmax(520px, 1.05fr);
+  overflow: hidden;
+}
+
+.agent-workspace--desktop-rail .agent-workspace__body {
+  grid-template-columns: 64px minmax(420px, 1fr) minmax(440px, 1fr);
+}
+
+.agent-workspace--tablet-stacked .agent-workspace__body {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(300px, 44dvh) minmax(0, 1fr);
+  grid-template-areas: "image" "chat";
+}
+
+.agent-workspace--mobile-chat-image-sheet .agent-workspace__body {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.agent-topbar {
+  min-width: 0;
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.agent-topbar__icon,
+.agent-topbar__image,
+.agent-rail button,
+.agent-session-row__actions button,
+.agent-image-sheet header button,
+.agent-session-drawer header button,
+.agent-composer__actions button {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.agent-topbar__icon,
+.agent-topbar__image,
+.agent-rail button {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+}
+
+.agent-topbar__image img,
+.agent-rail img,
+.agent-session-row__thumb img,
+.agent-message__images img,
+.agent-image__variants img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.agent-topbar__title,
+.agent-sessions__brand div,
+.agent-pane-header div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.agent-topbar__title span,
+.agent-sessions__brand span,
+.agent-pane-header span {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.agent-topbar__title strong,
+.agent-sessions__brand strong,
+.agent-pane-header strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.agent-sessions,
+.agent-rail,
+.agent-chat,
+.agent-image {
+  min-width: 0;
+  min-height: 0;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.agent-sessions {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border-right: 1px solid var(--border);
+}
+
+.agent-sessions__brand {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-sessions__create {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.agent-sessions__search {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-dim);
+}
+
+.agent-sessions__search input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.agent-session-list {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.agent-session-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.agent-session-row.is-active {
+  border-color: var(--border-strong);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.agent-session-row > button:first-child {
+  min-width: 0;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-session-row__thumb {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text-faint);
+}
+
+.agent-session-row__body {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.agent-session-row__body strong,
+.agent-session-row__body span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-session-row__body strong {
+  font-size: 13px;
+}
+
+.agent-session-row__body span,
+.agent-session-row__badges {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.agent-session-row__badges {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.agent-session-row__badges em {
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--control-bg);
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.agent-session-row__actions {
+  display: grid;
+  gap: 4px;
+  padding-right: 6px;
+}
+
+.agent-session-row__actions button {
+  width: 28px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+}
+
+.agent-rail {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px;
+  border-right: 1px solid var(--border);
+}
+
+.agent-rail__sessions {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.agent-rail__sessions button {
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-rail__sessions button.is-active {
+  border-color: var(--accent);
+}
+
+.agent-rail__sessions span {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--amber);
+}

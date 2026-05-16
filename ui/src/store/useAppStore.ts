@@ -123,7 +123,7 @@ import type { Node as FlowNode, Edge as FlowEdge } from "@xyflow/react";
 import { t, loadLocale, saveLocale, type Locale } from "../i18n";
 import type { ImaErrorCode } from "../lib/errorCodes";
 import { handleError } from "../lib/errorHandler";
-import { ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "../lib/devMode";
+import { ENABLE_AGENT_MODE, ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "../lib/devMode";
 import {
   getNeighborAfterRemoval,
   getShortcutTarget,
@@ -148,6 +148,7 @@ function loadRightPanelOpen(): boolean {
 function loadUIMode(): UIMode {
   try {
     const raw = localStorage.getItem(UI_MODE_STORAGE_KEY);
+    if (raw === "agent") return ENABLE_AGENT_MODE ? raw : "classic";
     if (raw === "card-news") return ENABLE_CARD_NEWS_MODE ? raw : "classic";
     if (raw === "node") return ENABLE_NODE_MODE ? raw : "classic";
     if (raw === "classic") return raw;
@@ -1894,7 +1895,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   uiMode: loadUIMode(),
   setUIMode: (m) => {
     const next =
-      m === "card-news" && !ENABLE_CARD_NEWS_MODE ? "classic" :
+      m === "agent" && !ENABLE_AGENT_MODE ? "classic" :
+        m === "card-news" && !ENABLE_CARD_NEWS_MODE ? "classic" :
         m === "node" && !ENABLE_NODE_MODE ? "classic" :
           m;
     try { localStorage.setItem(UI_MODE_STORAGE_KEY, next); } catch {}

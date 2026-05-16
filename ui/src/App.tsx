@@ -15,7 +15,7 @@ import { MobileSettingsToggle } from "./components/MobileSettingsToggle";
 import { MobileAppBar } from "./components/MobileAppBar";
 import { MobileComposeSheet } from "./components/MobileComposeSheet";
 import { useAppStore, flushGraphSaveBeacon } from "./store/useAppStore";
-import { ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "./lib/devMode";
+import { ENABLE_AGENT_MODE, ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "./lib/devMode";
 import { useGalleryViewerNavigation } from "./hooks/useGalleryViewerNavigation";
 import { useBrowserAttentionBadge } from "./hooks/useBrowserAttentionBadge";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -30,6 +30,9 @@ const LazySettingsWorkspace = lazy(() =>
 );
 const LazyCardNewsWorkspace = lazy(() =>
   import("./components/card-news/CardNewsWorkspace").then((module) => ({ default: module.CardNewsWorkspace })),
+);
+const LazyAgentWorkspace = lazy(() =>
+  import("./components/agent/AgentWorkspace").then((module) => ({ default: module.AgentWorkspace })),
 );
 const LazyPromptLibraryPanel = lazy(() =>
   import("./components/PromptLibraryPanel").then((module) => ({ default: module.PromptLibraryPanel })),
@@ -59,9 +62,11 @@ export default function App() {
   const refreshResolvedTheme = useAppStore((s) => s.refreshResolvedTheme);
   const uiModeRaw = useAppStore((s) => s.uiMode);
   const uiMode =
-    uiModeRaw === "card-news" && ENABLE_CARD_NEWS_MODE ? "card-news" :
+    uiModeRaw === "agent" && ENABLE_AGENT_MODE ? "agent" :
+      uiModeRaw === "card-news" && ENABLE_CARD_NEWS_MODE ? "card-news" :
       uiModeRaw === "node" && ENABLE_NODE_MODE ? "node" :
         "classic";
+  const isAgentMode = uiMode === "agent";
   const isMobile = useIsMobile();
   const workspaceSettings = resolveWorkspaceSettings(workspaceProfile);
   const promptStudioClassic =
@@ -69,7 +74,7 @@ export default function App() {
     uiMode === "classic" &&
     workspaceSettings.composerPlacement === "bottom" &&
     workspaceSettings.multimodeHistoryGrouping === "sequence";
-  const showHistoryStrip = !promptStudioClassic;
+  const showHistoryStrip = !promptStudioClassic && !isAgentMode;
 
   useBrowserAttentionBadge(unseenGeneratedCount);
 
@@ -146,11 +151,13 @@ export default function App() {
             <LazyNodeCanvas />
           ) : uiMode === "card-news" ? (
             <LazyCardNewsWorkspace />
+          ) : uiMode === "agent" ? (
+            <LazyAgentWorkspace />
           ) : (
             <Canvas />
           )}
         </Suspense>
-        {uiMode === "card-news" ? null : <RightPanel />}
+        {uiMode === "agent" ? null : uiMode === "card-news" ? null : <RightPanel />}
       </div>
       <CustomSizeConfirmModal />
       <TrashUndoToast />

@@ -1,4 +1,4 @@
-export type UIMode = "classic" | "node" | "card-news";
+export type UIMode = "classic" | "node" | "card-news" | "agent";
 export type SettingsSection = "account" | "generation" | "appearance" | "workspace" | "language" | "future";
 export type HistoryStripLayout = "rail" | "horizontal" | "sidebar";
 export type ThemePreference = "system" | "dark" | "light";

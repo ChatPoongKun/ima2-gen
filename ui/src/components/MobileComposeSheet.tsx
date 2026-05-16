@@ -6,7 +6,7 @@ import { PromptComposer } from "./PromptComposer";
 import { GenerateButton } from "./GenerateButton";
 import { InFlightList } from "./InFlightList";
 import { GenerationControlsPanel } from "./GenerationControlsPanel";
-import { ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "../lib/devMode";
+import { ENABLE_AGENT_MODE, ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "../lib/devMode";
 import type { ComposeSheetTab } from "../store/useAppStore";
 
 const LazyPromptLibraryPanel = lazy(() =>
@@ -24,7 +24,8 @@ export function MobileComposeSheet() {
   const settingsOpen = useAppStore((s) => s.settingsOpen);
   const uiModeRaw = useAppStore((s) => s.uiMode);
   const uiMode =
-    uiModeRaw === "card-news" && ENABLE_CARD_NEWS_MODE ? "card-news" :
+    uiModeRaw === "agent" && ENABLE_AGENT_MODE ? "agent" :
+      uiModeRaw === "card-news" && ENABLE_CARD_NEWS_MODE ? "card-news" :
       uiModeRaw === "node" && ENABLE_NODE_MODE ? "node" :
         "classic";
   const isMobile = useIsMobile();

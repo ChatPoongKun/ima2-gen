@@ -9,6 +9,8 @@ import "./styles/prompt-builder.css";
 import "./styles/prompt-builder-messages.css";
 import "./styles/sidebar-history.css";
 import "./styles/viewer-workflow.css";
+import "./styles/agent-workspace.css";
+import "./styles/agent-workspace-panels.css";
 import App from "./App";
 
 createRoot(document.getElementById("root")!).render(

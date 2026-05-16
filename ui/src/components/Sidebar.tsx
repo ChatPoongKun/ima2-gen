@@ -8,7 +8,7 @@ import { ImageModelSelect } from "./ImageModelSelect";
 import { CardNewsComposer } from "./card-news/CardNewsComposer";
 import { SidebarHistory } from "./history/SidebarHistory";
 import { useAppStore } from "../store/useAppStore";
-import { ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "../lib/devMode";
+import { ENABLE_AGENT_MODE, ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "../lib/devMode";
 import { useI18n } from "../i18n";
 import { resolveWorkspaceSettings } from "../lib/workspaceProfile";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -21,7 +21,8 @@ export function SidebarStack() {
   const clearReferences = useAppStore((s) => s.clearReferences);
   const isMobile = useIsMobile();
   const uiMode =
-    uiModeRaw === "card-news" && ENABLE_CARD_NEWS_MODE ? "card-news" :
+    uiModeRaw === "agent" && ENABLE_AGENT_MODE ? "agent" :
+      uiModeRaw === "card-news" && ENABLE_CARD_NEWS_MODE ? "card-news" :
       uiModeRaw === "node" && ENABLE_NODE_MODE ? "node" :
         "classic";
   const workspaceSettings = resolveWorkspaceSettings(workspaceProfile);
@@ -63,7 +64,7 @@ export function SidebarStack() {
         <>
           <CardNewsComposer />
         </>
-      ) : (
+      ) : uiMode === "node" ? (
         <>
           <SessionPicker />
           {referenceImages.length > 0 ? (
@@ -80,7 +81,7 @@ export function SidebarStack() {
           </div>
           <InFlightList />
         </>
-      )}
+      ) : null}
     </>
   );
 }

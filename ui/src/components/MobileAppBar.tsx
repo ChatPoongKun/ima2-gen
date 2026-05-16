@@ -2,7 +2,7 @@ import { useAppStore } from "../store/useAppStore";
 import { ImageModelSelect } from "./ImageModelSelect";
 import { useI18n } from "../i18n";
 import { useIsMobile } from "../hooks/useIsMobile";
-import { ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "../lib/devMode";
+import { ENABLE_AGENT_MODE, ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "../lib/devMode";
 
 export function MobileAppBar() {
   const { t } = useI18n();
@@ -10,7 +10,8 @@ export function MobileAppBar() {
   const settingsOpen = useAppStore((s) => s.settingsOpen);
   const uiModeRaw = useAppStore((s) => s.uiMode);
   const uiMode =
-    uiModeRaw === "card-news" && ENABLE_CARD_NEWS_MODE ? "card-news" :
+    uiModeRaw === "agent" && ENABLE_AGENT_MODE ? "agent" :
+      uiModeRaw === "card-news" && ENABLE_CARD_NEWS_MODE ? "card-news" :
       uiModeRaw === "node" && ENABLE_NODE_MODE ? "node" :
         "classic";
   const isMobile = useIsMobile();

@@ -1,5 +1,5 @@
 import { useAppStore } from "../store/useAppStore";
-import { ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "../lib/devMode";
+import { ENABLE_AGENT_MODE, ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "../lib/devMode";
 import { useI18n } from "../i18n";
 
 export function UIModeSwitch() {
@@ -7,7 +7,7 @@ export function UIModeSwitch() {
   const uiMode = useAppStore((s) => s.uiMode);
   const setUIMode = useAppStore((s) => s.setUIMode);
 
-  if (!ENABLE_NODE_MODE && !ENABLE_CARD_NEWS_MODE) return null;
+  if (!ENABLE_NODE_MODE && !ENABLE_CARD_NEWS_MODE && !ENABLE_AGENT_MODE) return null;
 
   return (
     <div className="ui-mode-switch" role="tablist" aria-label={t("uiMode.ariaLabel")}>
@@ -40,6 +40,17 @@ export function UIModeSwitch() {
           onClick={() => setUIMode("card-news")}
         >
           {t("uiMode.cardNews")}
+        </button>
+      ) : null}
+      {ENABLE_AGENT_MODE ? (
+        <button
+          type="button"
+          role="tab"
+          aria-selected={uiMode === "agent"}
+          className={`ui-mode-switch__tab${uiMode === "agent" ? " active" : ""}`}
+          onClick={() => setUIMode("agent")}
+        >
+          {t("uiMode.agent")}
         </button>
       ) : null}
     </div>
