@@ -1,5 +1,6 @@
 import { useI18n } from "../../i18n";
 import { EditIcon, ImageIcon, TrashIcon } from "./AgentIcons";
+import { AgentSafeImage } from "./AgentSafeImage";
 import type { AgentImageHandle, AgentSessionSummary } from "./agentTypes";
 
 type Props = {
@@ -29,7 +30,7 @@ export function AgentSessionList({ sessions, selectedId, imagesById, onSelect, o
           <div key={session.id} className={`agent-session-row${session.id === selectedId ? " is-active" : ""}`}>
             <button type="button" aria-current={session.id === selectedId ? "page" : undefined} onClick={() => onSelect(session.id)}>
               <span className="agent-session-row__thumb">
-                {image ? <img src={image.thumbUrl ?? image.url} alt="" /> : <ImageIcon size={17} />}
+                {image ? <AgentSafeImage src={image.thumbUrl ?? image.url} alt="" iconSize={17} /> : <ImageIcon size={17} />}
               </span>
               <span className="agent-session-row__body">
                 <strong>{session.title}</strong>

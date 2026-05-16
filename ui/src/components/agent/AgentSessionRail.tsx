@@ -1,5 +1,6 @@
 import { useI18n } from "../../i18n";
 import { ImageIcon, MenuIcon, PlusIcon } from "./AgentIcons";
+import { AgentSafeImage } from "./AgentSafeImage";
 import type { AgentImageHandle, AgentSessionSummary } from "./agentTypes";
 
 type Props = {
@@ -27,7 +28,7 @@ export function AgentSessionRail({ sessions, selectedId, imagesById, onCreate, o
           const image = session.lastImageId ? imagesById[session.lastImageId] : null;
           return (
             <button key={session.id} type="button" className={session.id === selectedId ? "is-active" : ""} onClick={() => onSelect(session.id)} title={session.title}>
-              {image ? <img src={image.thumbUrl ?? image.url} alt="" /> : <ImageIcon size={17} />}
+              {image ? <AgentSafeImage src={image.thumbUrl ?? image.url} alt="" iconSize={17} /> : <ImageIcon size={17} />}
               {session.compacted ? <span aria-label={t("agent.compacted")} /> : null}
             </button>
           );

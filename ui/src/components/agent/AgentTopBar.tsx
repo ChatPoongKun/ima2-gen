@@ -1,6 +1,7 @@
 import { useI18n } from "../../i18n";
 import { UIModeSwitch } from "../UIModeSwitch";
 import { ImageIcon, MenuIcon } from "./AgentIcons";
+import { AgentSafeImage } from "./AgentSafeImage";
 import type { AgentImageHandle, AgentLayoutMode, AgentSessionSummary } from "./agentTypes";
 
 type Props = {
@@ -27,7 +28,7 @@ export function AgentTopBar({ layoutMode, session, currentImage, onOpenSessions,
       <UIModeSwitch />
       {mobile ? (
         <button type="button" className="agent-topbar__image" onClick={onOpenImage} aria-label={t("agent.openImage")} title={t("agent.openImage")}>
-          {currentImage ? <img src={currentImage.thumbUrl ?? currentImage.url} alt="" /> : <ImageIcon size={18} />}
+          {currentImage ? <AgentSafeImage src={currentImage.thumbUrl ?? currentImage.url} alt="" iconSize={18} /> : <ImageIcon size={18} />}
         </button>
       ) : null}
     </header>

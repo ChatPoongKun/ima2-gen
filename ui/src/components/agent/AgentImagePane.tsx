@@ -1,6 +1,7 @@
 import { useI18n } from "../../i18n";
 import { AgentContextTabs } from "./AgentContextTabs";
 import { ImageIcon } from "./AgentIcons";
+import { AgentSafeImage } from "./AgentSafeImage";
 import type { AgentContextTab, AgentImageHandle } from "./agentTypes";
 
 type Props = {
@@ -42,12 +43,19 @@ export function AgentImagePane({ currentImage, images, activeTab, onTabChange }:
         </div>
       </header>
       <div className="agent-image__preview">
-        {currentImage ? <img src={currentImage.url} alt={currentImage.prompt ?? t("agent.imageAlt")} /> : <div className="agent-image__empty"><ImageIcon size={34} /><span>{t("agent.noImage")}</span></div>}
+        {currentImage ? (
+          <AgentSafeImage
+            src={currentImage.url}
+            alt={currentImage.prompt ?? t("agent.imageAlt")}
+            fallbackClassName="agent-image__empty"
+            iconSize={34}
+          />
+        ) : <div className="agent-image__empty"><ImageIcon size={34} /><span>{t("agent.noImage")}</span></div>}
       </div>
       <div className="agent-image__variants" aria-label={t("agent.variants")}>
         {images.map((image) => (
           <button key={image.id} type="button" className={image.id === currentImage?.id ? "active" : ""}>
-            <img src={image.thumbUrl ?? image.url} alt={image.prompt ?? t("agent.imageAlt")} />
+            <AgentSafeImage src={image.thumbUrl ?? image.url} alt={image.prompt ?? t("agent.imageAlt")} iconSize={18} />
           </button>
         ))}
       </div>

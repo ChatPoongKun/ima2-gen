@@ -1,4 +1,5 @@
 import { useI18n } from "../../i18n";
+import { AgentSafeImage } from "./AgentSafeImage";
 import type { AgentImageHandle, AgentTurn } from "./agentTypes";
 
 type Props = {
@@ -23,7 +24,14 @@ export function AgentMessage({ turn, imagesById }: Props) {
         <div className="agent-message__images">
           {turn.imageIds.map((imageId) => {
             const image = imagesById[imageId];
-            return image ? <img key={imageId} src={image.thumbUrl ?? image.url} alt={image.prompt ?? t("agent.imageAlt")} /> : null;
+            return image ? (
+              <AgentSafeImage
+                key={imageId}
+                src={image.thumbUrl ?? image.url}
+                alt={image.prompt ?? t("agent.imageAlt")}
+                iconSize={18}
+              />
+            ) : null;
           })}
         </div>
       ) : null}

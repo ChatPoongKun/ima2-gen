@@ -105,6 +105,14 @@
   border-radius: 7px;
 }
 
+.agent-image-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+}
+
 .agent-composer {
   display: grid;
   gap: 8px;
