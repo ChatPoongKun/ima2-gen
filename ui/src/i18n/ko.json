@@ -581,6 +581,7 @@
     "currentImage": "현재 이미지",
     "openImage": "이미지 열기",
     "closeImage": "이미지 닫기",
+    "selectImage": "이미지 포커스",
     "variants": "변형",
     "contextTabs": "이미지 컨텍스트",
     "imageTab": "이미지",

@@ -58,6 +58,7 @@ export interface AgentWorkspacePayload {
   sessions: AgentSessionSummary[];
   turnsBySession: Record<string, AgentTurn[]>;
   imagesById: Record<string, AgentImageHandle>;
+  imageIdsBySession: Record<string, string[]>;
   selectedSessionId: string | null;
   currentImageId: string | null;
   allowedTools: readonly AgentToolName[];

@@ -16,7 +16,7 @@ import { AgentSessionDrawer } from "./AgentSessionDrawer";
 import { AgentSessionRail } from "./AgentSessionRail";
 import { AgentSessionSidebar } from "./AgentSessionSidebar";
 import { AgentTopBar } from "./AgentTopBar";
-import type { AgentContextTab, AgentRuntimeStatus, AgentTurn, AgentWorkspacePayload } from "./agentTypes";
+import type { AgentContextTab, AgentImageHandle, AgentRuntimeStatus, AgentTurn, AgentWorkspacePayload } from "./agentTypes";
 
 const LOCAL_TURN_PREFIX = "agent-local-";
 let localTurnSequence = 0;
@@ -26,6 +26,7 @@ function emptyWorkspace(): AgentWorkspacePayload {
     sessions: [],
     turnsBySession: {},
     imagesById: {},
+    imageIdsBySession: {},
     selectedSessionId: null,
     currentImageId: null,
     allowedTools: ["ima2.get_image_context", "ima2.web_search", "ima2.generate_image"],
@@ -184,7 +185,9 @@ export function AgentWorkspace() {
 
   const selectedSession = workspace.sessions.find((session) => session.id === selectedSessionId) ?? null;
   const currentImage = workspace.currentImageId ? workspace.imagesById[workspace.currentImageId] ?? null : null;
-  const images = Object.values(workspace.imagesById);
+  const images = selectedSessionId
+    ? (workspace.imageIdsBySession[selectedSessionId] ?? []).map((imageId) => workspace.imagesById[imageId]).filter((image): image is AgentImageHandle => !!image)
+    : [];
   const turns = selectedSession ? workspace.turnsBySession[selectedSession.id] ?? [] : [];
   const showRail = layoutMode === "desktop-rail";
   const showSidebar = layoutMode === "desktop-three-pane";
@@ -214,6 +217,12 @@ export function AgentWorkspace() {
     if (!selectedSessionId) return;
     void updateAgentSession(selectedSessionId, { webSearchEnabled: enabled }).then(applyWorkspace).catch(console.error);
   };
+  const selectImage = (imageId: string) => {
+    if (!selectedSessionId || workspace.currentImageId === imageId) return;
+    const sessionId = selectedSessionId;
+    setWorkspace((current) => ({ ...current, currentImageId: imageId }));
+    void updateAgentSession(sessionId, { currentImageId: imageId }).then(applyWorkspace).catch(console.error);
+  };
   const sendMessage = (text: string) => {
     if (!selectedSessionId) return;
     const sessionId = selectedSessionId;
@@ -239,11 +248,11 @@ export function AgentWorkspace() {
       <div className="agent-workspace__body">
         {showSidebar ? <AgentSessionSidebar sessions={workspace.sessions} selectedId={selectedSessionId ?? ""} imagesById={workspace.imagesById} onCreate={createSession} onSelect={selectSession} onRename={renameSession} onDelete={deleteSession} /> : null}
         {showRail ? <AgentSessionRail sessions={workspace.sessions} selectedId={selectedSessionId ?? ""} imagesById={workspace.imagesById} onCreate={createSession} onSelect={selectSession} onOpenDrawer={() => setDrawerOpen(true)} /> : null}
-        <AgentChatPane session={selectedSession} turns={turns} imagesById={workspace.imagesById} runtimeStatus={runtimeStatus} onWebSearchChange={setSessionWebSearch} onSend={sendMessage} />
-        {showInlineImage ? <AgentImagePane currentImage={currentImage} images={images} activeTab={activeTab} onTabChange={setActiveTab} /> : null}
+        <AgentChatPane session={selectedSession} turns={turns} imagesById={workspace.imagesById} currentImageId={workspace.currentImageId} runtimeStatus={runtimeStatus} onWebSearchChange={setSessionWebSearch} onImageSelect={selectImage} onSend={sendMessage} />
+        {showInlineImage ? <AgentImagePane currentImage={currentImage} images={images} activeTab={activeTab} onTabChange={setActiveTab} onImageSelect={selectImage} /> : null}
       </div>
       <AgentSessionDrawer open={drawerOpen} sessions={workspace.sessions} selectedId={selectedSessionId ?? ""} imagesById={workspace.imagesById} onClose={() => setDrawerOpen(false)} onCreate={createSession} onSelect={selectSession} onRename={renameSession} onDelete={deleteSession} />
-      <AgentImageSheet open={imageSheetOpen} currentImage={currentImage} images={images} activeTab={activeTab} onTabChange={setActiveTab} onClose={() => setImageSheetOpen(false)} />
+      <AgentImageSheet open={imageSheetOpen} currentImage={currentImage} images={images} activeTab={activeTab} onTabChange={setActiveTab} onImageSelect={selectImage} onClose={() => setImageSheetOpen(false)} />
     </main>
   );
 }

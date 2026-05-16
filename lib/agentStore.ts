@@ -202,6 +202,19 @@ export function setAgentLocks(id: string, locks: { styleLocks?: unknown; subject
   return res.changes > 0;
 }
 
+export function setAgentCurrentImage(sessionId: string, imageIdValue: unknown) {
+  const imageId = cleanString(imageIdValue);
+  if (!imageId) return false;
+  const image = getDb()
+    .prepare("SELECT id FROM agent_images WHERE session_id = ? AND id = ?")
+    .get(sessionId, imageId) as { id: string } | undefined;
+  if (!image) return false;
+  const res = getDb()
+    .prepare("UPDATE agent_sessions SET current_image_id = ?, updated_at = ? WHERE id = ?")
+    .run(imageId, now(), sessionId);
+  return res.changes > 0;
+}
+
 export function deleteAgentSession(id: string) {
   const res = getDb().prepare("DELETE FROM agent_sessions WHERE id = ?").run(id);
   return res.changes > 0;
@@ -321,15 +334,19 @@ export function getAgentWorkspacePayload(selectedSessionId?: string | null): Age
     : sessions[0]?.id ?? null;
   const turnsBySession: Record<string, AgentTurn[]> = {};
   const imagesById: Record<string, AgentImageHandle> = {};
+  const imageIdsBySession: Record<string, string[]> = {};
   for (const session of sessions) {
     turnsBySession[session.id] = getAgentTurns(session.id);
-    for (const image of getAgentImages(session.id)) imagesById[image.id] = image;
+    const images = getAgentImages(session.id);
+    imageIdsBySession[session.id] = images.map((image) => image.id);
+    for (const image of images) imagesById[image.id] = image;
   }
   const currentImageId = selected ? getCurrentImageId(selected) : null;
   return {
     sessions,
     turnsBySession,
     imagesById,
+    imageIdsBySession,
     selectedSessionId: selected,
     currentImageId,
     allowedTools: AGENT_ALLOWED_TOOLS,

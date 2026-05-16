@@ -47,6 +47,7 @@ export type AgentWorkspaceSeed = {
   sessions: AgentSessionSummary[];
   turnsBySession: Record<string, AgentTurn[]>;
   imagesById: Record<string, AgentImageHandle>;
+  imageIdsBySession: Record<string, string[]>;
   selectedSessionId: string;
   currentImageId: string | null;
   allowedTools?: AgentToolName[];

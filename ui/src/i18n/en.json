@@ -581,6 +581,7 @@
     "currentImage": "Current image",
     "openImage": "Open image",
     "closeImage": "Close image",
+    "selectImage": "Focus image",
     "variants": "Variants",
     "contextTabs": "Image context",
     "imageTab": "Image",

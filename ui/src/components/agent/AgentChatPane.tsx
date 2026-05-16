@@ -8,12 +8,14 @@ type Props = {
   session: AgentSessionSummary | null;
   turns: AgentTurn[];
   imagesById: Record<string, AgentImageHandle>;
+  currentImageId: string | null;
   runtimeStatus: AgentRuntimeStatus;
   onWebSearchChange: (enabled: boolean) => void;
+  onImageSelect: (imageId: string) => void;
   onSend: (text: string) => void;
 };
 
-export function AgentChatPane({ session, turns, imagesById, runtimeStatus, onWebSearchChange, onSend }: Props) {
+export function AgentChatPane({ session, turns, imagesById, currentImageId, runtimeStatus, onWebSearchChange, onImageSelect, onSend }: Props) {
   const { t } = useI18n();
 
   return (
@@ -25,7 +27,7 @@ export function AgentChatPane({ session, turns, imagesById, runtimeStatus, onWeb
         </div>
         <AgentStatusBadge status={runtimeStatus} compacted={session?.compacted} />
       </header>
-      <AgentMessageList turns={turns} imagesById={imagesById} />
+      <AgentMessageList turns={turns} imagesById={imagesById} currentImageId={currentImageId} onImageSelect={onImageSelect} />
       <AgentComposer webSearchEnabled={session?.webSearchEnabled ?? false} onWebSearchChange={onWebSearchChange} onSend={onSend} />
     </section>
   );

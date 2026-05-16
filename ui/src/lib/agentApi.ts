@@ -7,6 +7,7 @@ import type {
 type AgentSessionPatch = {
   title?: string;
   webSearchEnabled?: boolean;
+  currentImageId?: string;
 };
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {

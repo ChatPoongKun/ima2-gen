@@ -42,7 +42,7 @@
 
 .agent-workspace--tablet-stacked .agent-workspace__body {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(300px, 44dvh) minmax(0, 1fr);
+  grid-template-rows: minmax(280px, min(46dvh, 420px)) minmax(0, 1fr);
   grid-template-areas: "image" "chat";
 }
 

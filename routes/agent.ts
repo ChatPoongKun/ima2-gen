@@ -6,6 +6,7 @@ import {
   getAgentSession,
   getAgentWorkspacePayload,
   renameAgentSession,
+  setAgentCurrentImage,
   setAgentLocks,
   setAgentWebSearch,
 } from "../lib/agentStore.js";
@@ -17,6 +18,7 @@ type AgentSessionBody = {
   title?: unknown;
   currentImage?: unknown;
   webSearchEnabled?: unknown;
+  currentImageId?: unknown;
   styleLocks?: unknown;
   subjectLocks?: unknown;
 };
@@ -70,6 +72,10 @@ export function registerAgentRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       const body = (req.body ?? {}) as AgentSessionBody;
       if (Object.prototype.hasOwnProperty.call(body, "title")) renameAgentSession(req.params.sessionId, body.title);
       if (typeof body.webSearchEnabled === "boolean") setAgentWebSearch(req.params.sessionId, body.webSearchEnabled);
+      if (Object.prototype.hasOwnProperty.call(body, "currentImageId")) {
+        const ok = setAgentCurrentImage(req.params.sessionId, body.currentImageId);
+        if (!ok) throw imageNotFound(req.params.sessionId);
+      }
       if (Array.isArray(body.styleLocks) || Array.isArray(body.subjectLocks)) setAgentLocks(req.params.sessionId, body);
       res.json(getAgentWorkspacePayload(req.params.sessionId));
     } catch (error) {
@@ -158,6 +164,13 @@ function sendError(res: Response, error: unknown) {
 function notFound(sessionId: string) {
   const err = new Error(`Agent session not found: ${sessionId}`) as Error & { code?: string; status?: number };
   err.code = "AGENT_SESSION_NOT_FOUND";
+  err.status = 404;
+  return err;
+}
+
+function imageNotFound(sessionId: string) {
+  const err = new Error(`Agent image not found in session: ${sessionId}`) as Error & { code?: string; status?: number };
+  err.code = "AGENT_IMAGE_NOT_FOUND";
   err.status = 404;
   return err;
 }

@@ -161,6 +161,59 @@ describe("Agent Mode runtime contract", () => {
     });
   });
 
+  it("persists selected Agent image focus and rejects cross-session image ids", async () => {
+    const finalImage = await pngB64();
+    globalThis.fetch = async (url, init) => {
+      if (String(url).startsWith("http://127.0.0.1:")) return originalFetch(url, init);
+      return sseResponse([
+        {
+          type: "response.output_item.done",
+          item: { type: "image_generation_call", result: finalImage, revised_prompt: "generated focus target" },
+        },
+        { type: "response.completed", response: { usage: { total_tokens: 4 } } },
+      ]);
+    };
+
+    await withApp(async (baseUrl) => {
+      const created = await createSession(baseUrl);
+      const generated = await fetch(`${baseUrl}/api/agent/sessions/${created.selectedSessionId}/turns`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: "make a second image", provider: "api" }),
+      });
+      const generatedBody = await generated.json() as {
+        currentImageId: string;
+        imagesById: Record<string, { id: string }>;
+        imageIdsBySession: Record<string, string[]>;
+      };
+
+      assert.equal(generated.status, 200);
+      assert.notEqual(generatedBody.currentImageId, "img_seed");
+      assert.ok(generatedBody.imageIdsBySession[created.selectedSessionId].includes("img_seed"));
+      assert.equal(generatedBody.imageIdsBySession[created.selectedSessionId].length, 2);
+
+      const selected = await fetch(`${baseUrl}/api/agent/sessions/${created.selectedSessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentImageId: "img_seed" }),
+      });
+      const selectedBody = await selected.json() as { currentImageId: string; manifest: string };
+      assert.equal(selected.status, 200);
+      assert.equal(selectedBody.currentImageId, "img_seed");
+      assert.match(selectedBody.manifest, /id: img_seed/);
+      assert.match(selectedBody.manifest, /seed prompt/);
+
+      const rejected = await fetch(`${baseUrl}/api/agent/sessions/${created.selectedSessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentImageId: "not_in_this_session" }),
+      });
+      const rejectedBody = await rejected.json() as { code: string };
+      assert.equal(rejected.status, 404);
+      assert.equal(rejectedBody.code, "AGENT_IMAGE_NOT_FOUND");
+    });
+  });
+
   it("does not treat text-only model output as success", async () => {
     let upstreamHits = 0;
     globalThis.fetch = async (url, init) => {
