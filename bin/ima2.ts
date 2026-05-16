@@ -10,6 +10,7 @@ import { buildHardeningDoctorLines } from "./lib/doctor-checks.js";
 import { openUrl, resolveBin } from "./lib/platform.js";
 import { maybePromptGithubStar } from "./lib/star-prompt.js";
 import { buildStorageDoctorLines } from "./lib/storage-doctor.js";
+import { ensureFreshUiDist } from "./lib/ui-build.js";
 import { detectCodexAuth } from "../lib/codexDetect.js";
 import { config as runtimeConfig } from "../config.js";
 
@@ -146,23 +147,15 @@ async function serve(serveArgs: string[] = []) {
     config = await setup();
   }
 
-  // Ensure ui/dist exists — if missing, auto-build (dev) or error (installed pkg)
-  const distIndex = join(ROOT, "ui", "dist", "index.html");
-  if (!existsSync(distIndex)) {
-    const hasUiSrc = existsSync(join(ROOT, "ui", "package.json"));
-    if (hasUiSrc) {
-      console.log("\n  ui/dist missing — running 'npm run build' first...\n");
-      try {
-        execSync(`${resolveBin("npm")} run build`, { stdio: "inherit", cwd: ROOT });
-      } catch {
-        console.log("\n  Build failed. Try: cd ui && npm install && npm run build\n");
-        process.exit(1);
-      }
-    } else {
-      console.log("\n  ui/dist not found and ui/ source is missing.");
-      console.log("  This installation appears broken. Reinstall: npm i -g ima2-gen\n");
-      process.exit(1);
-    }
+  const uiDist = ensureFreshUiDist(ROOT);
+  if (!uiDist.ok) {
+    console.log(`\n  ${uiDist.error}`);
+    console.log(
+      uiDist.reason === "missing-source-and-dist"
+        ? "  This installation appears broken. Reinstall: npm i -g ima2-gen\n"
+        : "",
+    );
+    process.exit(1);
   }
 
   const env = { ...process.env };
