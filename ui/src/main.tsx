@@ -5,6 +5,7 @@ import "./styles/canvas-mode.css";
 import "./styles/canvas-background-cleanup.css";
 import "./styles/classic-workspace.css";
 import "./styles/composer-flow.css";
+import "./styles/gallery-controls.css";
 import "./styles/prompt-builder.css";
 import "./styles/prompt-builder-messages.css";
 import "./styles/sidebar-history.css";

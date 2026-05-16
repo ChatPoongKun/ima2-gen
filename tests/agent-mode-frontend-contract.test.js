@@ -10,14 +10,14 @@ function readSource(path) {
 }
 
 describe("Agent Mode frontend shell contract", () => {
-  it("keeps Agent mode behind its own feature gate", () => {
+  it("exposes Agent mode by default with an explicit opt-out gate", () => {
     const devMode = readSource("ui/src/lib/devMode.ts");
     const types = readSource("ui/src/types.ts");
     const store = readSource("ui/src/store/useAppStore.ts");
     const switcher = readSource("ui/src/components/UIModeSwitch.tsx");
 
     assert.match(devMode, /export const ENABLE_AGENT_MODE/);
-    assert.match(devMode, /VITE_IMA2_AGENT_MODE/);
+    assert.match(devMode, /VITE_IMA2_AGENT_MODE !== "0"/);
     assert.match(types, /"classic" \| "node" \| "card-news" \| "agent"/);
     assert.match(store, /raw === "agent"/);
     assert.match(store, /m === "agent" && !ENABLE_AGENT_MODE/);
