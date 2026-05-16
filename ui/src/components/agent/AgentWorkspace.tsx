@@ -1,6 +1,12 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
-import { createAgentWorkspaceSeed } from "../../lib/agentApi";
+import {
+  createAgentSession,
+  deleteAgentSession,
+  getAgentWorkspace,
+  sendAgentTurn,
+  updateAgentSession,
+} from "../../lib/agentApi";
 import { useAppStore } from "../../store/useAppStore";
 import { useAgentWorkspaceLayout } from "../../hooks/useAgentWorkspaceLayout";
 import { AgentChatPane } from "./AgentChatPane";
@@ -10,91 +16,137 @@ import { AgentSessionDrawer } from "./AgentSessionDrawer";
 import { AgentSessionRail } from "./AgentSessionRail";
 import { AgentSessionSidebar } from "./AgentSessionSidebar";
 import { AgentTopBar } from "./AgentTopBar";
-import type { AgentContextTab, AgentRuntimeStatus, AgentSessionSummary, AgentTurn } from "./agentTypes";
+import type { AgentContextTab, AgentRuntimeStatus, AgentTurn, AgentWorkspacePayload } from "./agentTypes";
 
-function newSession(title: string): AgentSessionSummary {
+function emptyWorkspace(): AgentWorkspacePayload {
   return {
-    id: `agent-session-${Date.now()}`,
-    title,
-    codexThreadId: null,
-    lastImageId: null,
-    imageCount: 0,
-    compacted: false,
-    webSearchEnabled: true,
-    updatedAt: Date.now(),
+    sessions: [],
+    turnsBySession: {},
+    imagesById: {},
+    selectedSessionId: null,
+    currentImageId: null,
+    allowedTools: ["ima2.get_image_context", "ima2.web_search", "ima2.generate_image"],
+    manifest: null,
   };
 }
 
-function turnId(role: AgentTurn["role"]): string {
-  return `agent-turn-${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+function localErrorTurn(text: string): AgentTurn {
+  return {
+    id: `agent-local-error-${Date.now()}`,
+    role: "assistant",
+    text,
+    imageIds: [],
+    webFindingIds: [],
+    status: "error",
+    createdAt: Date.now(),
+  };
 }
 
 export function AgentWorkspace() {
   const { t } = useI18n();
   const layoutMode = useAgentWorkspaceLayout();
   const currentGeneratedImage = useAppStore((s) => s.currentImage);
-  const seed = useMemo(() => createAgentWorkspaceSeed(currentGeneratedImage), [currentGeneratedImage]);
-  const [sessions, setSessions] = useState(seed.sessions);
-  const [turnsBySession, setTurnsBySession] = useState(seed.turnsBySession);
-  const [selectedSessionId, setSelectedSessionId] = useState(seed.selectedSessionId);
-  const [currentImageId] = useState(seed.currentImageId);
-  const [imagesById] = useState(seed.imagesById);
+  const bootstrapped = useRef(false);
+  const [workspace, setWorkspace] = useState<AgentWorkspacePayload>(() => emptyWorkspace());
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AgentContextTab>("image");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [imageSheetOpen, setImageSheetOpen] = useState(false);
-  const [runtimeStatus] = useState<AgentRuntimeStatus>("ready");
+  const [runtimeStatus, setRuntimeStatus] = useState<AgentRuntimeStatus>("reconnecting");
 
-  const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? null;
-  const currentImage = currentImageId ? imagesById[currentImageId] ?? null : null;
-  const images = Object.values(imagesById);
-  const turns = selectedSession ? turnsBySession[selectedSession.id] ?? [] : [];
+  const applyWorkspace = useCallback((payload: AgentWorkspacePayload) => {
+    setWorkspace(payload);
+    setSelectedSessionId(payload.selectedSessionId);
+  }, []);
+
+  const loadWorkspace = useCallback(async (preferredId?: string | null) => {
+    setRuntimeStatus("reconnecting");
+    const loaded = await getAgentWorkspace(preferredId);
+    if (loaded.sessions.length > 0) {
+      applyWorkspace(loaded);
+      setRuntimeStatus("ready");
+      return;
+    }
+    const created = await createAgentSession({
+      title: t("agent.newSession"),
+      currentImage: currentGeneratedImage,
+    });
+    applyWorkspace(created);
+    setRuntimeStatus("ready");
+  }, [applyWorkspace, currentGeneratedImage, t]);
+
+  useEffect(() => {
+    if (bootstrapped.current) return;
+    bootstrapped.current = true;
+    void loadWorkspace().catch((error) => {
+      console.error(error);
+      setRuntimeStatus("ready");
+    });
+  }, [loadWorkspace]);
+
+  const selectedSession = workspace.sessions.find((session) => session.id === selectedSessionId) ?? null;
+  const currentImage = workspace.currentImageId ? workspace.imagesById[workspace.currentImageId] ?? null : null;
+  const images = Object.values(workspace.imagesById);
+  const turns = selectedSession ? workspace.turnsBySession[selectedSession.id] ?? [] : [];
   const showRail = layoutMode === "desktop-rail";
   const showSidebar = layoutMode === "desktop-three-pane";
   const showInlineImage = layoutMode !== "mobile-chat-image-sheet";
 
   const selectSession = (id: string) => {
-    setSelectedSessionId(id);
     setDrawerOpen(false);
+    void loadWorkspace(id).catch(console.error);
   };
   const createSession = () => {
-    const session = newSession(t("agent.newSession"));
-    setSessions((items) => [session, ...items]);
-    setTurnsBySession((items) => ({ ...items, [session.id]: [] }));
-    setSelectedSessionId(session.id);
+    void createAgentSession({ title: t("agent.newSession"), currentImage: null })
+      .then(applyWorkspace)
+      .catch(console.error);
   };
   const renameSession = (id: string) => {
-    const session = sessions.find((item) => item.id === id);
+    const session = workspace.sessions.find((item) => item.id === id);
     const title = window.prompt(t("agent.renameSession"), session?.title ?? "");
     if (!title?.trim()) return;
-    setSessions((items) => items.map((item) => item.id === id ? { ...item, title: title.trim() } : item));
+    void updateAgentSession(id, { title: title.trim() }).then(applyWorkspace).catch(console.error);
   };
   const deleteSession = (id: string) => {
-    const session = sessions.find((item) => item.id === id);
+    const session = workspace.sessions.find((item) => item.id === id);
     if (!session || !window.confirm(t("agent.deleteConfirm", { title: session.title }))) return;
-    const nextSessions = sessions.filter((item) => item.id !== id);
-    setSessions(nextSessions);
-    setSelectedSessionId(nextSessions[0]?.id ?? "");
+    void deleteAgentSession(id).then(applyWorkspace).catch(console.error);
   };
   const setSessionWebSearch = (enabled: boolean) => {
-    setSessions((items) => items.map((item) => item.id === selectedSessionId ? { ...item, webSearchEnabled: enabled } : item));
+    if (!selectedSessionId) return;
+    void updateAgentSession(selectedSessionId, { webSearchEnabled: enabled }).then(applyWorkspace).catch(console.error);
   };
   const sendMessage = (text: string) => {
-    const userTurn: AgentTurn = { id: turnId("user"), role: "user", text, status: "complete" };
-    const toolTurn: AgentTurn = { id: turnId("tool"), role: "tool", text: "ima2.generate_image", status: "complete" };
-    setTurnsBySession((items) => ({ ...items, [selectedSessionId]: [...(items[selectedSessionId] ?? []), userTurn, toolTurn] }));
-    setSessions((items) => items.map((item) => item.id === selectedSessionId ? { ...item, updatedAt: Date.now() } : item));
+    if (!selectedSessionId) return;
+    setRuntimeStatus("generating");
+    void sendAgentTurn(selectedSessionId, text)
+      .then(applyWorkspace)
+      .catch((error) => {
+        appendLocalError(selectedSessionId, error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => setRuntimeStatus("ready"));
+  };
+
+  const appendLocalError = (sessionId: string, message: string) => {
+    setWorkspace((current) => ({
+      ...current,
+      turnsBySession: {
+        ...current.turnsBySession,
+        [sessionId]: [...(current.turnsBySession[sessionId] ?? []), localErrorTurn(message)],
+      },
+    }));
   };
 
   return (
     <main className={`agent-workspace agent-workspace--${layoutMode}`} data-layout={layoutMode} aria-label={t("agent.workspace")}>
       {!showSidebar ? <AgentTopBar layoutMode={layoutMode} session={selectedSession} currentImage={currentImage} onOpenSessions={() => setDrawerOpen(true)} onOpenImage={() => setImageSheetOpen(true)} /> : null}
       <div className="agent-workspace__body">
-        {showSidebar ? <AgentSessionSidebar sessions={sessions} selectedId={selectedSessionId} imagesById={imagesById} onCreate={createSession} onSelect={selectSession} onRename={renameSession} onDelete={deleteSession} /> : null}
-        {showRail ? <AgentSessionRail sessions={sessions} selectedId={selectedSessionId} imagesById={imagesById} onCreate={createSession} onSelect={selectSession} onOpenDrawer={() => setDrawerOpen(true)} /> : null}
-        <AgentChatPane session={selectedSession} turns={turns} imagesById={imagesById} runtimeStatus={runtimeStatus} onWebSearchChange={setSessionWebSearch} onSend={sendMessage} />
+        {showSidebar ? <AgentSessionSidebar sessions={workspace.sessions} selectedId={selectedSessionId ?? ""} imagesById={workspace.imagesById} onCreate={createSession} onSelect={selectSession} onRename={renameSession} onDelete={deleteSession} /> : null}
+        {showRail ? <AgentSessionRail sessions={workspace.sessions} selectedId={selectedSessionId ?? ""} imagesById={workspace.imagesById} onCreate={createSession} onSelect={selectSession} onOpenDrawer={() => setDrawerOpen(true)} /> : null}
+        <AgentChatPane session={selectedSession} turns={turns} imagesById={workspace.imagesById} runtimeStatus={runtimeStatus} onWebSearchChange={setSessionWebSearch} onSend={sendMessage} />
         {showInlineImage ? <AgentImagePane currentImage={currentImage} images={images} activeTab={activeTab} onTabChange={setActiveTab} /> : null}
       </div>
-      <AgentSessionDrawer open={drawerOpen} sessions={sessions} selectedId={selectedSessionId} imagesById={imagesById} onClose={() => setDrawerOpen(false)} onCreate={createSession} onSelect={selectSession} onRename={renameSession} onDelete={deleteSession} />
+      <AgentSessionDrawer open={drawerOpen} sessions={workspace.sessions} selectedId={selectedSessionId ?? ""} imagesById={workspace.imagesById} onClose={() => setDrawerOpen(false)} onCreate={createSession} onSelect={selectSession} onRename={renameSession} onDelete={deleteSession} />
       <AgentImageSheet open={imageSheetOpen} currentImage={currentImage} images={images} activeTab={activeTab} onTabChange={setActiveTab} onClose={() => setImageSheetOpen(false)} />
     </main>
   );

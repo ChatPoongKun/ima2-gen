@@ -64,16 +64,22 @@ describe("Agent Mode frontend shell contract", () => {
     assert.match(panelCss, /\.agent-image-sheet/);
   });
 
-  it("keeps Phase 1 state UI-only and image-handle based", () => {
+  it("wires Agent workspace to server-backed runtime APIs and image handles", () => {
     const api = readSource("ui/src/lib/agentApi.ts");
+    const workspace = readSource("ui/src/components/agent/AgentWorkspace.tsx");
     const composer = readSource("ui/src/components/agent/AgentComposer.tsx");
     const message = readSource("ui/src/components/agent/AgentMessage.tsx");
     const ko = readSource("ui/src/i18n/ko.json");
     const en = readSource("ui/src/i18n/en.json");
 
-    assert.match(api, /createAgentWorkspaceSeed/);
+    assert.match(api, /\/api\/agent\/sessions/);
+    assert.match(api, /\/turns/);
     assert.match(api, /imageHandleFromCurrent/);
+    assert.doesNotMatch(api, /createAgentWorkspaceSeed/);
     assert.doesNotMatch(api, /base64/i);
+    assert.match(workspace, /getAgentWorkspace/);
+    assert.match(workspace, /sendAgentTurn/);
+    assert.match(workspace, /runtimeStatus/);
     assert.match(composer, /onWebSearchChange/);
     assert.match(composer, /onSend/);
     assert.match(message, /imageIds/);

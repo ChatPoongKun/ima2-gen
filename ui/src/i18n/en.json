@@ -586,8 +586,8 @@
     "noImage": "No current image",
     "noRefs": "No references",
     "noWeb": "No web evidence",
-    "memoryItemStyle": "Style locks will persist after runtime wiring.",
-    "memoryItemSubject": "Subject locks belong to image context.",
+    "memoryItemStyle": "Style locks are retained in image context.",
+    "memoryItemSubject": "Subject locks are restored after resume.",
     "imageAlt": "Agent image",
     "filename": "File",
     "prompt": "Prompt"
