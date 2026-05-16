@@ -1,8 +1,8 @@
 ---
 title: "Issue #27 — Canvas Annotation SVG / Vector Export"
-status: planned / library research attached
+status: open / implementation-ready hardened
 created: 2026-04-30
-updated: 2026-05-14
+updated: 2026-05-16
 github: https://github.com/lidge-jun/ima2-gen/issues/27
 tags: [canvas, svg, vector, annotations, export]
 ---
@@ -17,6 +17,32 @@ should vectorize the annotation layer, not trace the generated raster image.
 Canonical issue:
 
 - https://github.com/lidge-jun/ima2-gen/issues/27
+
+## 2026-05-16 Implementation Lock
+
+This issue remains open. It should start from the current annotation model and
+avoid a Canvas framework migration.
+
+Build policy:
+
+- implement direct serialization in `ui/src/lib/canvas/svgExport.ts`;
+- preserve source image natural dimensions as the SVG viewport;
+- embed the source raster as a data/URL `<image>` element without local paths;
+- serialize only Canvas annotations as vector elements;
+- support unsaved local annotations;
+- do not mutate Canvas state, write server files, or create a canvas version.
+
+Acceptance-critical tests:
+
+- add `tests/canvas-svg-export-contract.test.js`;
+- assert `<svg viewBox>` dimensions, `<image>` embedding, escaped memo text,
+  path/rect/arrow output, and no state mutation.
+
+Out-of-scope lock:
+
+- no Potrace/raster tracing;
+- no Fabric migration;
+- no SVG import back into Canvas Mode.
 
 ## Current Product Context
 
@@ -186,4 +212,3 @@ Contracts:
 
 True raster vectorization should remain a separate issue because generated images
 do not convert cleanly into editable vector art without a dedicated tracing UX.
-

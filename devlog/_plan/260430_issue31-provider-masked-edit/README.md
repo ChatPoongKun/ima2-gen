@@ -1,8 +1,8 @@
 ---
 title: "Issue #31 — Provider-Backed Masked Edit"
-status: planned / library research attached
+status: open / implementation-ready hardened
 created: 2026-04-30
-updated: 2026-05-14
+updated: 2026-05-16
 github: https://github.com/lidge-jun/ima2-gen/issues/31
 tags: [canvas, edit, mask, inpaint, provider]
 ---
@@ -17,6 +17,37 @@ feature. Do not fake masked edit through prompt-only full-image edits.
 Canonical issue:
 
 - https://github.com/lidge-jun/ima2-gen/issues/31
+
+## 2026-05-16 Implementation Lock
+
+This issue remains open because true provider-backed mask semantics are not yet
+proven. Existing groundwork is useful, but the product must stay fail-closed
+until a provider contract is verified.
+
+Build policy:
+
+- keep `IMA2_OAUTH_MASKED_EDIT_ENABLED` default off;
+- reject unsupported masked edit before the upstream provider call;
+- never silently fall back from requested mask edit to prompt-only full-image
+  edit;
+- send source image and mask as matching PNG bytes after provider contract proof;
+- default clean edit input must not use merged annotation/export raster;
+- logs may include mask presence, bytes, and dimensions, never raw mask data.
+
+Guided-edit policy:
+
+- marked-up raster guidance can exist only as an explicit mode;
+- when used, prompt text must instruct the model to treat marks as edit
+  guidance and remove guide marks from the final image;
+- guided edit does not close the true provider-backed mask requirement.
+
+Acceptance-critical tests:
+
+- keep/extend `tests/edit-mask-api-contract.test.js`;
+- keep/extend `tests/oauth-masked-edit-contract.test.js`;
+- keep/extend `tests/oauth-proxy-edit-mask-contract.test.js`;
+- add or extend `tests/canvas-edit-mask-flow-contract.test.js` for clean
+  raster vs merged-raster leakage.
 
 ## Current Product Context
 
@@ -177,4 +208,3 @@ Contracts:
 - New background removal model.
 - Replacing Canvas Mode editor library.
 - "Magic" full auto inpaint.
-

@@ -1,8 +1,8 @@
 ---
 title: "Issue #28 — Canvas Composition PPTX Export"
-status: planned / library research attached
+status: open / implementation-ready hardened
 created: 2026-04-30
-updated: 2026-05-14
+updated: 2026-05-16
 github: https://github.com/lidge-jun/ima2-gen/issues/28
 tags: [canvas, pptx, export, pptxgenjs]
 ---
@@ -17,6 +17,33 @@ a one-slide deck containing the current source image plus visible annotations.
 Canonical issue:
 
 - https://github.com/lidge-jun/ima2-gen/issues/28
+
+## 2026-05-16 Implementation Lock
+
+This issue remains open. The first implementation should be client-side and
+should not wait for a server export route.
+
+Build policy:
+
+- add `pptxgenjs` as the PPTX writer dependency;
+- add `ui/src/lib/canvas/pptxExport.ts`;
+- create one 16:9 slide;
+- fit the current source image/composition while preserving aspect ratio;
+- include visible annotations, preferably by reusing #27 SVG overlay output;
+- expose `Export PPTX` from Canvas toolbar with loading/error states;
+- do not require saving a canvas version first.
+
+Acceptance-critical tests:
+
+- add `tests/canvas-pptx-export-contract.test.js`;
+- assert dependency/package inclusion, toolbar action, utility import, no
+  save-first requirement, and memo text/annotation payload path.
+
+Manual QA:
+
+- open the exported deck in PowerPoint, Keynote, or LibreOffice/Google Slides;
+- verify image aspect ratio, annotation placement, readable memo text, and no
+  local filesystem path leakage.
 
 ## Current Product Context
 
@@ -202,4 +229,3 @@ QA checklist:
 - annotation placement visually matches Canvas Mode;
 - memo text readable;
 - no local filesystem paths leak into the deck.
-

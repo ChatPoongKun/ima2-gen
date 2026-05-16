@@ -49,9 +49,9 @@ contradicts current code, prefer current code plus the active roadmap.
 | #31 | Open. Provider-backed masked edit must prove upstream mask contract before UI claims true inpaint. |
 | #27 | Open. Build deterministic SVG export from source image + annotation model. |
 | #28 | Open. Build client-side PPTX export, preferably using #27 overlay output. |
-| #59 | Implemented and moved to `_fin`; close GitHub when the issue comment/closure is synced. |
-| #64-#70 | Implemented and moved to `_fin`; close GitHub when issue comments/closures are synced. |
-| #68/#69 | Implemented as UX hardening under the #64-#70 closeout. |
+| #59 | Implemented, moved to `_fin`, and closed on GitHub during the 2026-05-16 closeout. |
+| #64-#70 | Implemented, moved to `_fin`, and closed on GitHub during the 2026-05-16 closeout. |
+| #68/#69 | Implemented as UX hardening under the #64-#70 closeout and closed on GitHub. |
 | Agent Mode | Implemented and moved to `_fin`; future work should start from a new scoped issue. |
 
 ## Cleanup Checklist
