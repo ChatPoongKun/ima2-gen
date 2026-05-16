@@ -110,4 +110,28 @@ describe("Agent Mode frontend shell contract", () => {
     assert.match(en, /"pending": "Generating image\.\.\."/);
     assert.match(ko, /"pending": "이미지를 생성하는 중\.\.\."/);
   });
+
+  it("collapses Agent tool turns behind accessible summary controls", () => {
+    const message = readSource("ui/src/components/agent/AgentMessage.tsx");
+    const icons = readSource("ui/src/components/agent/AgentIcons.tsx");
+    const panelCss = readSource("ui/src/styles/agent-workspace-panels.css");
+    const ko = readSource("ui/src/i18n/ko.json");
+    const en = readSource("ui/src/i18n/en.json");
+
+    assert.match(message, /turn\.role === "tool"/);
+    assert.match(message, /useState\(false\)/);
+    assert.match(message, /agent-message__tool-toggle/);
+    assert.match(message, /aria-expanded={toolExpanded}/);
+    assert.match(message, /aria-controls={detailsId}/);
+    assert.match(message, /agent-message__tool-details/);
+    assert.match(message, /hidden={!toolExpanded}/);
+    assert.match(message, /renderImages\(true\)/);
+    assert.match(icons, /ChevronRightIcon/);
+    assert.match(icons, /ChevronDownIcon/);
+    assert.match(panelCss, /\.agent-message__tool-toggle/);
+    assert.match(panelCss, /\.agent-message__tool-details\[hidden\]/);
+    assert.match(panelCss, /\.agent-message__tool-thumbs/);
+    assert.match(en, /"toolExpand": "Show tool details"/);
+    assert.match(ko, /"toolExpand": "도구 상세 펼치기"/);
+  });
 });
