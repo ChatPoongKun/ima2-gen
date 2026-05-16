@@ -86,4 +86,28 @@ describe("Agent Mode frontend shell contract", () => {
     assert.match(ko, /"agent"/);
     assert.match(en, /"agent"/);
   });
+
+  it("shows optimistic chat turns and visible pending state while Agent generation is in flight", () => {
+    const workspace = readSource("ui/src/components/agent/AgentWorkspace.tsx");
+    const message = readSource("ui/src/components/agent/AgentMessage.tsx");
+    const panelCss = readSource("ui/src/styles/agent-workspace-panels.css");
+    const ko = readSource("ui/src/i18n/ko.json");
+    const en = readSource("ui/src/i18n/en.json");
+
+    assert.match(workspace, /LOCAL_TURN_PREFIX/);
+    assert.match(workspace, /localUserTurn/);
+    assert.match(workspace, /localPendingTurn/);
+    assert.match(workspace, /status: "streaming"/);
+    assert.match(workspace, /pendingTurnsRef/);
+    assert.match(workspace, /mergeWorkspaceWithLocalTurns/);
+    assert.match(workspace, /replacePendingWithError/);
+    assert.match(workspace, /appendTurns\(current, sessionId, \[userTurn, pendingTurn\]\)/);
+    assert.match(workspace, /t\("agent\.pending"\)/);
+    assert.match(message, /aria-busy/);
+    assert.match(panelCss, /\.agent-message\.is-streaming/);
+    assert.match(panelCss, /@keyframes agent-spin/);
+    assert.match(panelCss, /agent-status__dot[\s\S]*animation: agent-pulse/);
+    assert.match(en, /"pending": "Generating image\.\.\."/);
+    assert.match(ko, /"pending": "이미지를 생성하는 중\.\.\."/);
+  });
 });

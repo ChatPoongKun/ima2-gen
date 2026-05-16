@@ -18,6 +18,9 @@ import { AgentSessionSidebar } from "./AgentSessionSidebar";
 import { AgentTopBar } from "./AgentTopBar";
 import type { AgentContextTab, AgentRuntimeStatus, AgentTurn, AgentWorkspacePayload } from "./agentTypes";
 
+const LOCAL_TURN_PREFIX = "agent-local-";
+let localTurnSequence = 0;
+
 function emptyWorkspace(): AgentWorkspacePayload {
   return {
     sessions: [],
@@ -30,9 +33,42 @@ function emptyWorkspace(): AgentWorkspacePayload {
   };
 }
 
+function nextLocalTurnId(kind: string): string {
+  localTurnSequence += 1;
+  return `${LOCAL_TURN_PREFIX}${kind}-${Date.now()}-${localTurnSequence}`;
+}
+
+function isLocalTurn(turn: AgentTurn): boolean {
+  return turn.id.startsWith(LOCAL_TURN_PREFIX);
+}
+
+function localUserTurn(text: string, createdAt: number): AgentTurn {
+  return {
+    id: nextLocalTurnId("user"),
+    role: "user",
+    text,
+    imageIds: [],
+    webFindingIds: [],
+    status: "complete",
+    createdAt,
+  };
+}
+
+function localPendingTurn(text: string, createdAt: number): AgentTurn {
+  return {
+    id: nextLocalTurnId("pending"),
+    role: "assistant",
+    text,
+    imageIds: [],
+    webFindingIds: [],
+    status: "streaming",
+    createdAt,
+  };
+}
+
 function localErrorTurn(text: string): AgentTurn {
   return {
-    id: `agent-local-error-${Date.now()}`,
+    id: nextLocalTurnId("error"),
     role: "assistant",
     text,
     imageIds: [],
@@ -42,11 +78,58 @@ function localErrorTurn(text: string): AgentTurn {
   };
 }
 
+function appendTurns(current: AgentWorkspacePayload, sessionId: string, turns: AgentTurn[]): AgentWorkspacePayload {
+  return {
+    ...current,
+    turnsBySession: {
+      ...current.turnsBySession,
+      [sessionId]: [...(current.turnsBySession[sessionId] ?? []), ...turns],
+    },
+  };
+}
+
+function replacePendingWithError(
+  current: AgentWorkspacePayload,
+  sessionId: string,
+  pendingTurnId: string,
+  message: string,
+): AgentWorkspacePayload {
+  const turns = current.turnsBySession[sessionId] ?? [];
+  return {
+    ...current,
+    turnsBySession: {
+      ...current.turnsBySession,
+      [sessionId]: [...turns.filter((turn) => turn.id !== pendingTurnId), localErrorTurn(message)],
+    },
+  };
+}
+
+function mergeWorkspaceWithLocalTurns(
+  current: AgentWorkspacePayload,
+  incoming: AgentWorkspacePayload,
+  settledLocalIds: Set<string>,
+): AgentWorkspacePayload {
+  const turnsBySession = { ...incoming.turnsBySession };
+  for (const [sessionId, currentTurns] of Object.entries(current.turnsBySession)) {
+    const incomingTurns = turnsBySession[sessionId] ?? [];
+    const incomingIds = new Set(incomingTurns.map((turn) => turn.id));
+    const newestIncomingCreatedAt = Math.max(0, ...incomingTurns.map((turn) => turn.createdAt ?? 0));
+    const carryTurns = currentTurns.filter((turn) => {
+      if (settledLocalIds.has(turn.id) || incomingIds.has(turn.id)) return false;
+      if (isLocalTurn(turn) || turn.status === "streaming") return true;
+      return (turn.createdAt ?? 0) >= newestIncomingCreatedAt;
+    });
+    if (carryTurns.length > 0) turnsBySession[sessionId] = [...incomingTurns, ...carryTurns];
+  }
+  return { ...incoming, turnsBySession };
+}
+
 export function AgentWorkspace() {
   const { t } = useI18n();
   const layoutMode = useAgentWorkspaceLayout();
   const currentGeneratedImage = useAppStore((s) => s.currentImage);
   const bootstrapped = useRef(false);
+  const pendingTurnsRef = useRef(0);
   const [workspace, setWorkspace] = useState<AgentWorkspacePayload>(() => emptyWorkspace());
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AgentContextTab>("image");
@@ -58,6 +141,21 @@ export function AgentWorkspace() {
     setWorkspace(payload);
     setSelectedSessionId(payload.selectedSessionId);
   }, []);
+
+  const applyWorkspaceWithLocalTurns = useCallback((payload: AgentWorkspacePayload, settledLocalIds: Set<string>) => {
+    setWorkspace((current) => mergeWorkspaceWithLocalTurns(current, payload, settledLocalIds));
+    setSelectedSessionId(payload.selectedSessionId);
+  }, []);
+
+  const beginGeneration = () => {
+    pendingTurnsRef.current += 1;
+    setRuntimeStatus("generating");
+  };
+
+  const finishGeneration = () => {
+    pendingTurnsRef.current = Math.max(0, pendingTurnsRef.current - 1);
+    if (pendingTurnsRef.current === 0) setRuntimeStatus("ready");
+  };
 
   const loadWorkspace = useCallback(async (preferredId?: string | null) => {
     setRuntimeStatus("reconnecting");
@@ -118,23 +216,21 @@ export function AgentWorkspace() {
   };
   const sendMessage = (text: string) => {
     if (!selectedSessionId) return;
-    setRuntimeStatus("generating");
-    void sendAgentTurn(selectedSessionId, text)
-      .then(applyWorkspace)
-      .catch((error) => {
-        appendLocalError(selectedSessionId, error instanceof Error ? error.message : String(error));
-      })
-      .finally(() => setRuntimeStatus("ready"));
-  };
+    const sessionId = selectedSessionId;
+    const createdAt = Date.now();
+    const userTurn = localUserTurn(text, createdAt);
+    const pendingTurn = localPendingTurn(t("agent.pending"), createdAt + 1);
+    const settledLocalIds = new Set([userTurn.id, pendingTurn.id]);
 
-  const appendLocalError = (sessionId: string, message: string) => {
-    setWorkspace((current) => ({
-      ...current,
-      turnsBySession: {
-        ...current.turnsBySession,
-        [sessionId]: [...(current.turnsBySession[sessionId] ?? []), localErrorTurn(message)],
-      },
-    }));
+    beginGeneration();
+    setWorkspace((current) => appendTurns(current, sessionId, [userTurn, pendingTurn]));
+    void sendAgentTurn(sessionId, text)
+      .then((payload) => applyWorkspaceWithLocalTurns(payload, settledLocalIds))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        setWorkspace((current) => replacePendingWithError(current, sessionId, pendingTurn.id, message));
+      })
+      .finally(finishGeneration);
   };
 
   return (

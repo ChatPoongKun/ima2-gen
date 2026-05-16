@@ -17,7 +17,10 @@ export function AgentMessage({ turn, imagesById }: Props) {
         : t("agent.assistant");
 
   return (
-    <article className={`agent-message agent-message--${turn.role}${turn.status === "streaming" ? " is-streaming" : ""}`}>
+    <article
+      className={`agent-message agent-message--${turn.role}${turn.status === "streaming" ? " is-streaming" : ""}`}
+      aria-busy={turn.status === "streaming" ? "true" : undefined}
+    >
       <div className="agent-message__role">{roleLabel}</div>
       <p>{turn.text}</p>
       {turn.imageIds?.length ? (

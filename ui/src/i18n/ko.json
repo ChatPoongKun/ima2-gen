@@ -568,6 +568,7 @@
     "statusReady": "준비됨",
     "statusGenerating": "생성 중",
     "statusReconnecting": "연결 복구 중",
+    "pending": "이미지를 생성하는 중...",
     "composerPlaceholder": "만들 이미지를 입력하세요",
     "attachReference": "참조 첨부",
     "send": "전송",

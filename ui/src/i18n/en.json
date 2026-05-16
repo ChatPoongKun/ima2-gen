@@ -568,6 +568,7 @@
     "statusReady": "Ready",
     "statusGenerating": "Generating",
     "statusReconnecting": "Reconnecting",
+    "pending": "Generating image...",
     "composerPlaceholder": "Describe the image to create",
     "attachReference": "Attach reference",
     "send": "Send",
