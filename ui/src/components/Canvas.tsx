@@ -73,6 +73,10 @@ export function Canvas() {
   const [dropActive, setDropActive] = useState(false);
   const { creatingBlankCanvas, createBlankCanvas } = useCreateBlankCanvas();
   const resultContainerRef = useRef<HTMLDivElement>(null);
+  const imageKey = currentImage
+    ? `${currentImage.filename ?? currentImage.url ?? currentImage.image}:${currentImage.canvasMergedAt ?? ""}`
+    : null;
+  const viewer = useViewerTransform(imageKey);
 
   const copyPrompt = (): void => {
     if (!currentImage?.prompt) return;
@@ -157,10 +161,6 @@ export function Canvas() {
   const displaySize = formatSizeAlias(currentImage?.size ?? getResolvedSize());
   const displayModel = getImageModelShortLabel(currentImage?.model);
   const imageSrc = currentImage ? getClassicImageSrc(currentImage) : null;
-  const imageKey = currentImage
-    ? `${currentImage.filename ?? currentImage.url ?? currentImage.image}:${currentImage.canvasMergedAt ?? ""}`
-    : null;
-  const viewer = useViewerTransform(imageKey);
 
   return (
     <main

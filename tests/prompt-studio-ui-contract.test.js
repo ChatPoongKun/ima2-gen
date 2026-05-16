@@ -164,6 +164,11 @@ describe("prompt studio UI contract", () => {
 
     assert.match(main, /styles\/viewer-workflow\.css/);
     assert.match(canvas, /useViewerTransform\(imageKey\)/);
+    assert.ok(
+      canvas.indexOf("useViewerTransform(imageKey)") <
+        canvas.indexOf("if (canvasOpen && currentImage)"),
+      "viewer transform hook must run before canvas-mode early return",
+    );
     assert.match(canvas, /ViewerControls/);
     assert.match(canvas, /canvas-annotation-frame--zoomed/);
     assert.match(hook, /export const VIEWER_MAX_ZOOM = 5/);
