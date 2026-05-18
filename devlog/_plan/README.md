@@ -34,6 +34,7 @@ Deferred / 미래 항목은 `_plan/`이 아니라 `devlog/_future/`에 둔다.
 | 8 | `260516_agent-mode-followup-jawdev/` | plan | Agent Mode follow-up: layout regression, cli-jaw-style nested tool folding, durable queue, parallel image generation, right sidebar model/form/quality controls, and per-session spinners. |
 | 9 | `260517_agent-ui-polish-jawdev/` | plan | Agent Mode polish and crash triage: workspace payload safety, layout breakpoint mismatch, settings visual polish, tool height, top model chip, sidebar tab separation. |
 | 10 | `260517_agent-mode-auto-generation-jawdev/` | implementation-patched | Agent Mode auto generation policy: deterministic request-aware variants/parallelism, text responses, `/question`, slash commands, manual caps, and queue/tool observability. |
+| 11 | `260519_issue72-slash-command-dropup/` | plan | GitHub #72. Agent Composer slash command dropup menu + tab autocomplete. 정적 pill → floating dropup, prefix 필터, 키보드 내비게이션, browser QA. |
 
 ## 2026-05-16 GH / Devlog Closeout
 
@@ -68,6 +69,7 @@ require implementation are:
 | #31 | `260430_issue31-provider-masked-edit/` | Verify provider mask semantics before enabling true masked edit. |
 | #27 | `260430_issue27-canvas-svg-export/` | Build direct SVG serializer from current annotation model. |
 | #28 | `260430_issue28-canvas-pptx-export/` | Add PptxGenJS export, preferably reusing #27 overlay output. |
+| #72 | `260519_issue72-slash-command-dropup/` | Slash command dropup menu + tab autocomplete. 정적 pill 뱃지 → floating dropup, 키보드 내비게이션, prefix 필터링. |
 
 ## 다음 작업 원칙
 
@@ -84,3 +86,4 @@ require implementation are:
 - 2026-05-16: live Agent Mode follow-up 요구사항을 `260516_agent-mode-followup-jawdev/`로 분리했다. 기존 `_fin/260516_agent-mode-codex-rs-workspace/`는 완료 상태로 유지하고, queue/parallel/right-sidebar/session-spinner 작업은 새 active lane에서 추적한다.
 - 2026-05-17: Agent Mode UI polish/crash triage lane `260517_agent-ui-polish-jawdev/`와 Agent auto generation planning lane `260517_agent-mode-auto-generation-jawdev/`를 active lane에 추가했다. 후자는 request-aware variants/parallelism, text responses, `/question`, slash commands, and queue/tool/model observability를 차후 구현 scope로 기록한다.
 - 2026-05-17: `260517_agent-mode-auto-generation-jawdev/`에 deterministic planner, slash command parser, `/question` text bypass, planned parallelism runtime wiring, right sidebar tab split, composer slash hints, focused contract tests, reviewer concern closure, and Chrome/Computer Use QA closeout를 추가했다. 구현/검증 근거는 해당 lane의 `08_implementation_patch_log.md`가 source of truth이며, 폴더 이동은 별도 closeout 작업에서 처리한다.
+- 2026-05-19: GitHub #72를 열고 `260519_issue72-slash-command-dropup/` planning lane을 추가했다. Agent Composer의 정적 slash command pill 뱃지를 floating dropup 메뉴 + Tab 자동완성 + 화살표 키 내비게이션으로 교체하는 작업이다. browser 스킬 기반 QA 체크리스트 포함.

@@ -144,8 +144,9 @@ describe("Agent Mode frontend shell contract", () => {
     const ko = readSource("ui/src/i18n/ko.json");
     const en = readSource("ui/src/i18n/en.json");
 
-    assert.match(message, /turn\.role === "tool"/);
-    assert.match(message, /AgentToolGroup/);
+    const messageList = readSource("ui/src/components/agent/AgentMessageList.tsx");
+    assert.match(messageList, /turn\.role === "tool"/);
+    assert.match(messageList, /AgentToolGroup/);
     assert.match(group, /useState\(false\)/);
     assert.match(group, /agent-message__tool-toggle/);
     assert.match(group, /aria-expanded={expanded}/);

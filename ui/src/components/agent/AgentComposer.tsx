@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import { GlobeIcon, PaperclipIcon, SendIcon } from "./AgentIcons";
+import { SlashCommandMenu } from "./SlashCommandMenu";
+import { filterCommands, type SlashCommandDef } from "./slashCommands";
 
 type Props = {
   webSearchEnabled: boolean;
@@ -12,8 +14,26 @@ type Props = {
 export function AgentComposer({ webSearchEnabled, insertedPrompt, onWebSearchChange, onSend }: Props) {
   const { t } = useI18n();
   const [draft, setDraft] = useState("");
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  const [menuDismissed, setMenuDismissed] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const listboxId = useId();
+
   const canSend = draft.trim().length > 0;
-  const showSlashCommands = draft.trimStart().startsWith("/");
+  const slashMatch = draft.trimStart().match(/^\/([a-z]*)$/i);
+  const showMenu = slashMatch !== null && !menuDismissed;
+  const slashQuery = slashMatch?.[1] ?? "";
+  const filtered = filterCommands(slashQuery);
+  const menuVisible = showMenu && filtered.length > 0;
+
+  const activeOptionId = menuVisible
+    ? `${listboxId}-opt-${highlightIndex}`
+    : undefined;
+
+  useEffect(() => {
+    setHighlightIndex(0);
+    setMenuDismissed(false);
+  }, [slashQuery]);
 
   useEffect(() => {
     if (!insertedPrompt?.text) return;
@@ -27,27 +47,72 @@ export function AgentComposer({ webSearchEnabled, insertedPrompt, onWebSearchCha
     setDraft("");
   };
 
+  const handleSelect = (cmd: SlashCommandDef) => {
+    setDraft(`/${cmd.name} `);
+    textareaRef.current?.focus();
+  };
+
   return (
     <div className="agent-composer">
+      {menuVisible && (
+        <SlashCommandMenu
+          listboxId={listboxId}
+          query={slashQuery}
+          highlightIndex={highlightIndex}
+          onSelect={handleSelect}
+          onHighlightChange={setHighlightIndex}
+        />
+      )}
       <textarea
+        ref={textareaRef}
         value={draft}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={menuVisible}
+        aria-controls={listboxId}
+        aria-activedescendant={activeOptionId}
+        autoCapitalize="off"
+        autoCorrect="off"
         placeholder={t("agent.composerPlaceholder")}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
             event.preventDefault();
             submit();
+            return;
+          }
+
+          if (menuVisible) {
+            switch (event.key) {
+              case "Tab": {
+                event.preventDefault();
+                handleSelect(filtered[highlightIndex]);
+                return;
+              }
+              case "ArrowDown": {
+                event.preventDefault();
+                setHighlightIndex((i) => (i + 1) % filtered.length);
+                return;
+              }
+              case "ArrowUp": {
+                event.preventDefault();
+                setHighlightIndex((i) => (i - 1 + filtered.length) % filtered.length);
+                return;
+              }
+              case "Enter": {
+                event.preventDefault();
+                handleSelect(filtered[highlightIndex]);
+                return;
+              }
+              case "Escape": {
+                event.preventDefault();
+                setMenuDismissed(true);
+                return;
+              }
+            }
           }
         }}
       />
-      {showSlashCommands ? (
-        <div className="agent-composer__commands" role="listbox" aria-label={t("agent.slashCommands")}>
-          <span>/question</span>
-          <span>/variants 3</span>
-          <span>/generate 4</span>
-          <span>/parallelism 2</span>
-        </div>
-      ) : null}
       <div className="agent-composer__actions">
         <button type="button" aria-label={t("agent.attachReference")} title={t("agent.attachReference")}>
           <PaperclipIcon size={16} />

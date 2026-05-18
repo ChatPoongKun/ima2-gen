@@ -1,29 +1,54 @@
-import { useId, useState } from "react";
+import { useMemo, useId, useState } from "react";
 import { useI18n } from "../../i18n";
-import { formatAgentToolLabel, getAgentToolCalls } from "../../lib/agentToolFormatting";
+import { getAgentToolCalls } from "../../lib/agentToolFormatting";
 import { ChevronDownIcon, ChevronRightIcon } from "./AgentIcons";
 import { AgentResultThumb } from "./AgentResultThumb";
 import { AgentToolCallRow } from "./AgentToolCallRow";
-import type { AgentImageHandle, AgentTurn } from "./agentTypes";
+import type { AgentImageHandle, AgentToolCallSummary, AgentTurn } from "./agentTypes";
 
 type Props = {
-  turn: AgentTurn;
+  turns: AgentTurn[];
   imagesById: Record<string, AgentImageHandle>;
   currentImageId: string | null;
   onImageSelect: (imageId: string) => void;
 };
 
-export function AgentToolGroup({ turn, imagesById, currentImageId, onImageSelect }: Props) {
+function mergeTurns(turns: AgentTurn[]): { toolCalls: AgentToolCallSummary[]; imageIds: string[]; isStreaming: boolean; label: string } {
+  const toolCalls: AgentToolCallSummary[] = [];
+  const imageIdSet = new Set<string>();
+  let isStreaming = false;
+  const names: string[] = [];
+
+  for (const turn of turns) {
+    const calls = getAgentToolCalls(turn);
+    toolCalls.push(...calls);
+    for (const id of turn.imageIds ?? []) imageIdSet.add(id);
+    for (const call of calls) {
+      for (const id of call.imageIds ?? []) imageIdSet.add(id);
+    }
+    if (turn.status === "streaming") isStreaming = true;
+    for (const call of calls) {
+      if (!names.includes(call.name)) names.push(call.name);
+    }
+  }
+
+  return {
+    toolCalls,
+    imageIds: [...imageIdSet],
+    isStreaming,
+    label: names.join(" + ") || "tool",
+  };
+}
+
+export function AgentToolGroup({ turns, imagesById, currentImageId, onImageSelect }: Props) {
   const { t } = useI18n();
   const detailsId = useId();
   const [expanded, setExpanded] = useState(false);
-  const imageIds = turn.imageIds ?? [];
-  const toolCalls = getAgentToolCalls(turn);
+  const { toolCalls, imageIds, isStreaming, label } = useMemo(() => mergeTurns(turns), [turns]);
   const actionLabel = expanded ? t("agent.toolCollapse") : t("agent.toolExpand");
-  const label = formatAgentToolLabel(turn.text);
 
   return (
-    <article className={`agent-message agent-message--tool is-collapsible${turn.status === "streaming" ? " is-streaming" : ""}`} aria-busy={turn.status === "streaming" ? "true" : undefined}>
+    <article className={`agent-message agent-message--tool is-collapsible${isStreaming ? " is-streaming" : ""}`} aria-busy={isStreaming ? "true" : undefined}>
       <div className="agent-message__tool-summary">
         <button
           type="button"
@@ -33,14 +58,14 @@ export function AgentToolGroup({ turn, imagesById, currentImageId, onImageSelect
           aria-label={`${actionLabel}: ${label}`}
           onClick={() => setExpanded((next) => !next)}
         >
-          <span className="agent-message__tool-dot" aria-hidden="true" />
-          <span className="agent-message__tool-main">
+          <span className="agent-message__tool-header">
+            <span className="agent-message__tool-dot" aria-hidden="true" />
             <span className="agent-message__role">{t("agent.toolGroup")}</span>
-            <span className="agent-message__tool-label">{label}</span>
+            {imageIds.length > 0 ? <span className="agent-message__tool-count">{t("agent.toolImageCount", { count: imageIds.length })}</span> : null}
+            {toolCalls.length > 0 ? <span className="agent-message__tool-count">{t("agent.toolCallCount", { count: toolCalls.length })}</span> : null}
+            {expanded ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
           </span>
-          {imageIds.length > 0 ? <span className="agent-message__tool-count">{t("agent.toolImageCount", { count: imageIds.length })}</span> : null}
-          {toolCalls.length > 0 ? <span className="agent-message__tool-count">{t("agent.toolCallCount", { count: toolCalls.length })}</span> : null}
-          {expanded ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
+          <span className="agent-message__tool-label">{label}</span>
         </button>
         {imageIds.length > 0 ? (
           <div className="agent-message__tool-thumbs">
@@ -61,7 +86,6 @@ export function AgentToolGroup({ turn, imagesById, currentImageId, onImageSelect
         ) : null}
       </div>
       <div id={detailsId} className="agent-message__tool-details" hidden={!expanded}>
-        <p>{turn.text}</p>
         {toolCalls.length > 0 ? (
           <ul className="agent-tool-call-list">
             {toolCalls.map((call) => (

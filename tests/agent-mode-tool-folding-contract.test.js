@@ -11,14 +11,14 @@ function readSource(path) {
 
 describe("Agent Mode tool folding contract", () => {
   it("uses an outer tool group and nested per-call rows", () => {
-    const message = readSource("ui/src/components/agent/AgentMessage.tsx");
+    const messageList = readSource("ui/src/components/agent/AgentMessageList.tsx");
     const group = readSource("ui/src/components/agent/AgentToolGroup.tsx");
     const row = readSource("ui/src/components/agent/AgentToolCallRow.tsx");
     const details = readSource("ui/src/components/agent/AgentToolCallDetails.tsx");
     const formatting = readSource("ui/src/lib/agentToolFormatting.ts");
 
-    assert.match(message, /turn\.role === "tool"/);
-    assert.match(message, /<AgentToolGroup/);
+    assert.match(messageList, /turn\.role === "tool"/);
+    assert.match(messageList, /<AgentToolGroup/);
     assert.match(group, /agent-message__tool-toggle/);
     assert.match(group, /aria-expanded={expanded}/);
     assert.match(group, /AgentToolCallRow/);

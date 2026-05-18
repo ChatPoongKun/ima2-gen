@@ -128,10 +128,9 @@
 
 .agent-message__tool-toggle {
   width: 100%;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   padding: 8px 10px;
   border: 1px dashed var(--border);
   border-radius: 8px;
@@ -159,20 +158,23 @@
   background: var(--green);
 }
 
-.agent-message__tool-main {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
+.agent-message__tool-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .agent-message__tool-label {
+  padding-left: 15px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text);
+  font-size: 12px;
 }
 
 .agent-message__tool-count {
+  flex: 0 0 auto;
   padding: 2px 6px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -272,6 +274,7 @@
 }
 
 .agent-composer {
+  position: relative;
   display: grid;
   gap: 8px;
   padding: 12px;
@@ -294,24 +297,47 @@
   line-height: 1.45;
 }
 
-.agent-composer__commands {
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.slash-command-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 -8px 20px var(--shadow-strong, rgba(0,0,0,.4));
+  z-index: 20;
 }
 
-.agent-composer__commands span {
-  min-height: 24px;
-  display: inline-flex;
+.slash-command-menu__item {
+  display: flex;
   align-items: center;
-  padding: 0 7px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.slash-command-menu__item:hover,
+.slash-command-menu__item.is-highlighted {
   background: var(--control-bg);
-  color: var(--text-dim);
+}
+
+.slash-command-menu__name {
   font-family: var(--mono);
-  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.slash-command-menu__desc {
+  color: var(--text-dim);
+  font-size: 12px;
 }
 
 .agent-composer__actions {
