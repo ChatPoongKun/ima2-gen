@@ -13,10 +13,24 @@ import "./styles/settings-controls.css";
 import "./styles/viewer-workflow.css";
 import "./styles/agent-workspace.css";
 import "./styles/agent-workspace-panels.css";
+import "./styles/agent-workspace-image.css";
+import "./styles/agent-workspace-sidebar.css";
 import App from "./App";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+function canonicalizeLocalhostOrigin(): boolean {
+  if (window.location.protocol !== "http:" || window.location.hostname !== "localhost") {
+    return false;
+  }
+  const next = new URL(window.location.href);
+  next.hostname = "127.0.0.1";
+  window.location.replace(next.toString());
+  return true;
+}
+
+if (!canonicalizeLocalhostOrigin()) {
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+}

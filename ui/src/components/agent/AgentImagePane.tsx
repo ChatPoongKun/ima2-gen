@@ -69,7 +69,7 @@ export function AgentImagePane({ currentImage, images, activeTab, onTabChange, o
   return (
     <section className="agent-image" aria-label={t("agent.imagePane")}>
       <header className="agent-pane-header">
-        <div>
+        <div className="agent-pane-header__title">
           <span>{t("agent.imagePane")}</span>
           <strong>{t("agent.currentImage")}</strong>
         </div>

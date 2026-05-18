@@ -1,6 +1,6 @@
 ---
 created: 2026-04-23
-updated: 2026-05-16
+updated: 2026-05-17
 tags: [ima2-gen, devlog, roadmap, doc-ops]
 aliases: [ima2 devlog map, image_gen roadmap, devlog map]
 ---
@@ -26,6 +26,9 @@ contradicts current code, prefer current code plus the active roadmap.
 | `devlog/_plan/260514_canvas-library-research/` | research | Canvas/export library comparison reference. |
 | `devlog/_plan/260514_canvas-background-removal-library-research/` | research | Background cleanup/removal library reference. |
 | `devlog/_plan/260515_fork-prompting-modularization-research/` | research | Fork/DCInside prompt-builder and workspace modularization notes. |
+| `devlog/_plan/260516_agent-mode-followup-jawdev/` | plan | Agent Mode follow-up for stable layout, nested tools, durable queue, parallel image generation, right sidebar model/form/quality controls, and session-specific spinners. |
+| `devlog/_plan/260517_agent-ui-polish-jawdev/` | plan | Agent Mode UI polish and runtime crash triage after the follow-up implementation. |
+| `devlog/_plan/260517_agent-mode-auto-generation-jawdev/` | implementation-patched | Agent Mode auto generation policy: deterministic request-aware variants/parallelism, text responses, `/question`, slash commands, and plan observability. |
 
 ## 2026-05-16 Completion References
 
@@ -53,6 +56,9 @@ contradicts current code, prefer current code plus the active roadmap.
 | #64-#70 | Implemented, moved to `_fin`, and closed on GitHub during the 2026-05-16 closeout. |
 | #68/#69 | Implemented as UX hardening under the #64-#70 closeout and closed on GitHub. |
 | Agent Mode | Implemented and moved to `_fin`; future work should start from a new scoped issue. |
+| Agent Mode follow-up | Active. New Jawdev plan created for layout regression, tool double folding, queue, parallel generation, right sidebar controls, model settings sync, and per-session spinners. |
+| Agent UI polish | Active. Follow-up polish lane for workspace payload safety, layout mismatch, settings visual quality, tool height, top model chip visibility, and sidebar tab separation. |
+| Agent auto generation | Active implementation lane. Deterministic planner, slash commands, `/question`, text response summary, planned variants/parallelism observability, right sidebar/model sheet UI, focused contracts, reviewer concern closure, and Chrome/Computer Use QA are recorded; `_fin` movement is a separate closeout step. |
 
 ## Cleanup Checklist
 
@@ -64,3 +70,6 @@ contradicts current code, prefer current code plus the active roadmap.
 ## Change Log
 
 - 2026-05-16: Replaced the stale historical active-lane table with the actual remaining `_plan` folders. Added the GH issue hardening closeout references and marked #59/#64-#70/#68/#69/Agent Mode as implemented in `_fin`.
+- 2026-05-16: Added `260516_agent-mode-followup-jawdev/` as the active Agent Mode follow-up lane instead of reopening the completed Agent Mode closeout.
+- 2026-05-17: Added `260517_agent-ui-polish-jawdev/` and `260517_agent-mode-auto-generation-jawdev/` to the active plan references and roadmap summary.
+- 2026-05-17: Updated Agent auto generation lane status after first implementation patch and focused contract verification.

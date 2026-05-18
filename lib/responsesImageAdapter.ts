@@ -152,7 +152,17 @@ function extractSseData(block: string) {
 
 interface SseData {
   type?: string;
-  item?: { type?: string; partial_image?: string; image?: string; result?: string; index?: number; revised_prompt?: string };
+  delta?: string;
+  text?: string;
+  item?: {
+    type?: string;
+    partial_image?: string;
+    image?: string;
+    result?: string;
+    index?: number;
+    revised_prompt?: string;
+    content?: Array<{ type?: string; text?: string }>;
+  };
   partial_image?: string;
   image?: string;
   result?: string;
@@ -168,6 +178,34 @@ function extractPartialImage(data: SseData) {
   if (typeof b64 !== "string" || b64.length === 0) return null;
   const index = Number.isFinite(data.index) ? data.index : Number.isFinite(item.index) ? item.index : null;
   return { b64, index };
+}
+
+function extractTextDelta(data: SseData): string | null {
+  if (data.type === "response.output_text.delta" && typeof data.delta === "string") return data.delta;
+  return null;
+}
+
+function extractFinalText(data: SseData): string | null {
+  if (data.type === "response.output_text.done" && typeof data.text === "string") return cleanTextOutput(data.text);
+  if (data.type === "response.output_item.done" && data.item?.type === "message") {
+    return extractJsonItemText(data.item);
+  }
+  return null;
+}
+
+function extractJsonItemText(item: { type?: string; text?: string; content?: Array<{ type?: string; text?: string }> }): string | null {
+  if (item.type === "output_text" && typeof item.text === "string") return cleanTextOutput(item.text);
+  if (!Array.isArray(item.content)) return null;
+  const text = item.content
+    .filter((part) => part.type === "output_text" && typeof part.text === "string")
+    .map((part) => part.text)
+    .join("\n\n");
+  return cleanTextOutput(text);
+}
+
+function cleanTextOutput(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, 4_000) : null;
 }
 
 interface ParseStreamOptions {
@@ -191,6 +229,8 @@ async function parseStream(res: Response, {
   const eventTypes: Record<string, number> = {};
   let buffer = "";
   let usage: Record<string, number> | null = null;
+  let textOutput = "";
+  let finalTextOutput: string | null = null;
   let webSearchCalls = 0;
   let eventCount = 0;
   let extraIgnored = 0;
@@ -208,6 +248,10 @@ async function parseStream(res: Response, {
       try { data = JSON.parse(eventData); } catch { continue; }
       eventCount++;
       eventTypes[data.type || "_unknown"] = (eventTypes[data.type || "_unknown"] || 0) + 1;
+      const delta = extractTextDelta(data);
+      if (delta) textOutput += delta;
+      const finalText = extractFinalText(data);
+      if (finalText) finalTextOutput = finalText;
       const partial = extractPartialImage(data);
       if (partial && typeof onPartialImage === "function") onPartialImage(partial);
       if (data.type === "response.output_item.done" && data.item?.type === "image_generation_call") {
@@ -238,12 +282,22 @@ async function parseStream(res: Response, {
     }
   }
   logEvent(scope, "stream_end", { requestId, events: eventCount, imageCount: images.length });
-  return { images, usage, webSearchCalls, eventCount, eventTypes, extraIgnored };
+  return { images, usage, webSearchCalls, eventCount, eventTypes, extraIgnored, text: finalTextOutput ?? cleanTextOutput(textOutput) };
 }
 
 async function parseJson(res: Response, maxImages: number) {
-  const json = await res.json() as { output?: Array<{ type?: string; result?: string; revised_prompt?: string }>; usage?: Record<string, number> };
+  const json = await res.json() as {
+    output?: Array<{
+      type?: string;
+      result?: string;
+      revised_prompt?: string;
+      text?: string;
+      content?: Array<{ type?: string; text?: string }>;
+    }>;
+    usage?: Record<string, number>;
+  };
   const images: ParsedImage[] = [];
+  const textParts: string[] = [];
   let webSearchCalls = 0;
   for (const item of json.output || []) {
     if (item.type === "image_generation_call" && item.result && images.length < maxImages) {
@@ -253,8 +307,10 @@ async function parseJson(res: Response, maxImages: number) {
       });
     }
     if (item.type === "web_search_call") webSearchCalls++;
+    const itemText = extractJsonItemText(item);
+    if (itemText) textParts.push(itemText);
   }
-  return { images, usage: json.usage || null, webSearchCalls, eventCount: 0, eventTypes: {}, extraIgnored: 0 };
+  return { images, usage: json.usage || null, webSearchCalls, eventCount: 0, eventTypes: {}, extraIgnored: 0, text: cleanTextOutput(textParts.join("\n\n")) };
 }
 
 interface PostResponsesArgs {
@@ -394,7 +450,7 @@ export async function generateViaResponses(provider: string | undefined, prompt:
   });
   const image = result.images[0];
   if (!image?.b64) throw makeError("No image data received from Responses API", { code: "EMPTY_RESPONSE", eventCount: result.eventCount });
-  return { b64: image.b64, usage: result.usage, webSearchCalls: result.webSearchCalls, revisedPrompt: image.revisedPrompt };
+  return { b64: image.b64, usage: result.usage, webSearchCalls: result.webSearchCalls, revisedPrompt: image.revisedPrompt, text: result.text };
 }
 
 export async function generateMultimodeViaResponses(provider: string | undefined, prompt: string | undefined, quality: string | undefined, size: string | undefined, moderation: string = "low", references: ReferenceRef[] = [], requestId: string | null = null, mode: string = "auto", ctxRaw: RouteRuntimeContext = {}, options: GenerateOptions = {}) {

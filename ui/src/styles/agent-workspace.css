@@ -97,23 +97,23 @@
 }
 
 .agent-topbar__title,
-.agent-sessions__brand div,
-.agent-pane-header div {
+.agent-sessions__brand > :first-child,
+.agent-pane-header__title {
   min-width: 0;
   display: grid;
   gap: 2px;
 }
 
 .agent-topbar__title span,
-.agent-sessions__brand span,
-.agent-pane-header span {
+.agent-sessions__brand > :first-child span,
+.agent-pane-header__title span {
   color: var(--text-dim);
   font-size: 11px;
 }
 
 .agent-topbar__title strong,
-.agent-sessions__brand strong,
-.agent-pane-header strong {
+.agent-sessions__brand > :first-child strong,
+.agent-pane-header__title strong {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

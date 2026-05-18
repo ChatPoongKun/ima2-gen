@@ -3,12 +3,13 @@ import { useI18n } from "../../i18n";
 import { UIModeSwitch } from "../UIModeSwitch";
 import { PlusIcon, SearchIcon } from "./AgentIcons";
 import { AgentSessionList } from "./AgentSessionList";
-import type { AgentImageHandle, AgentSessionSummary } from "./agentTypes";
+import type { AgentImageHandle, AgentSessionRunSummary, AgentSessionSummary } from "./agentTypes";
 
 type Props = {
   sessions: AgentSessionSummary[];
   selectedId: string;
   imagesById: Record<string, AgentImageHandle>;
+  runSummaryBySession?: Record<string, AgentSessionRunSummary>;
   onCreate: () => void;
   onSelect: (id: string) => void;
   onRename: (id: string) => void;

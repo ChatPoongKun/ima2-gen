@@ -1,17 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useI18n } from "../../i18n";
 import { GlobeIcon, PaperclipIcon, SendIcon } from "./AgentIcons";
 
 type Props = {
   webSearchEnabled: boolean;
+  insertedPrompt?: { id: number; text: string } | null;
   onWebSearchChange: (enabled: boolean) => void;
   onSend: (text: string) => void;
 };
 
-export function AgentComposer({ webSearchEnabled, onWebSearchChange, onSend }: Props) {
+export function AgentComposer({ webSearchEnabled, insertedPrompt, onWebSearchChange, onSend }: Props) {
   const { t } = useI18n();
   const [draft, setDraft] = useState("");
   const canSend = draft.trim().length > 0;
+  const showSlashCommands = draft.trimStart().startsWith("/");
+
+  useEffect(() => {
+    if (!insertedPrompt?.text) return;
+    setDraft((current) => current.trim() ? `${current.trim()}\n\n${insertedPrompt.text}` : insertedPrompt.text);
+  }, [insertedPrompt]);
 
   const submit = () => {
     const text = draft.trim();
@@ -33,6 +40,14 @@ export function AgentComposer({ webSearchEnabled, onWebSearchChange, onSend }: P
           }
         }}
       />
+      {showSlashCommands ? (
+        <div className="agent-composer__commands" role="listbox" aria-label={t("agent.slashCommands")}>
+          <span>/question</span>
+          <span>/variants 3</span>
+          <span>/generate 4</span>
+          <span>/parallelism 2</span>
+        </div>
+      ) : null}
       <div className="agent-composer__actions">
         <button type="button" aria-label={t("agent.attachReference")} title={t("agent.attachReference")}>
           <PaperclipIcon size={16} />

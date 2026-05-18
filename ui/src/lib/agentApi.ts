@@ -1,6 +1,8 @@
 import type { GenerateItem } from "../types";
 import type {
+  AgentGenerationSettings,
   AgentImageHandle,
+  AgentQueueItem,
   AgentWorkspacePayload,
 } from "../components/agent/agentTypes";
 
@@ -8,15 +10,16 @@ type AgentSessionPatch = {
   title?: string;
   webSearchEnabled?: boolean;
   currentImageId?: string;
+  generationSettings?: Partial<AgentGenerationSettings>;
 };
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
-  const data = (await res.json().catch(() => ({}))) as T & {
-    error?: string | { message?: string; code?: string };
-    code?: string;
-  };
   if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string | { message?: string; code?: string };
+      code?: string;
+    };
     const raw = data.error;
     const message = typeof raw === "string" ? raw : raw?.message ?? `Request failed: ${res.status}`;
     const err = new Error(message) as Error & { status?: number; code?: string };
@@ -24,7 +27,7 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
     err.code = typeof raw === "object" ? raw?.code : data.code;
     throw err;
   }
-  return data;
+  return (await res.json()) as T;
 }
 
 function currentImageUrl(item: GenerateItem) {
@@ -90,6 +93,26 @@ export async function sendAgentTurn(sessionId: string, prompt: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt }),
+  });
+}
+
+export async function enqueueAgentTurn(sessionId: string, prompt: string, options: AgentGenerationSettings) {
+  return jsonFetch<{ queueItem: AgentQueueItem | null; workspace: AgentWorkspacePayload }>(`/api/agent/sessions/${encodeURIComponent(sessionId)}/queue`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, options }),
+  });
+}
+
+export async function cancelAgentQueueItem(itemId: string) {
+  return jsonFetch<AgentWorkspacePayload>(`/api/agent/queue/${encodeURIComponent(itemId)}/cancel`, {
+    method: "POST",
+  });
+}
+
+export async function retryAgentQueueItem(itemId: string) {
+  return jsonFetch<AgentWorkspacePayload>(`/api/agent/queue/${encodeURIComponent(itemId)}/retry`, {
+    method: "POST",
   });
 }
 

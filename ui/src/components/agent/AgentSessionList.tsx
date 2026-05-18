@@ -1,12 +1,14 @@
 import { useI18n } from "../../i18n";
 import { EditIcon, ImageIcon, TrashIcon } from "./AgentIcons";
 import { AgentSafeImage } from "./AgentSafeImage";
-import type { AgentImageHandle, AgentSessionSummary } from "./agentTypes";
+import { AgentSessionSpinner } from "./AgentSessionSpinner";
+import type { AgentImageHandle, AgentSessionRunSummary, AgentSessionSummary } from "./agentTypes";
 
 type Props = {
   sessions: AgentSessionSummary[];
   selectedId: string;
   imagesById: Record<string, AgentImageHandle>;
+  runSummaryBySession?: Record<string, AgentSessionRunSummary>;
   onSelect: (id: string) => void;
   onRename: (id: string) => void;
   onDelete: (id: string) => void;
@@ -19,7 +21,7 @@ function formatUpdatedAt(timestamp: number): string {
   return hours < 24 ? `${hours}h` : `${Math.round(hours / 24)}d`;
 }
 
-export function AgentSessionList({ sessions, selectedId, imagesById, onSelect, onRename, onDelete }: Props) {
+export function AgentSessionList({ sessions, selectedId, imagesById, runSummaryBySession = {}, onSelect, onRename, onDelete }: Props) {
   const { t } = useI18n();
 
   return (
@@ -38,8 +40,9 @@ export function AgentSessionList({ sessions, selectedId, imagesById, onSelect, o
                   {t("agent.imageCount", { count: session.imageCount })} · {formatUpdatedAt(session.updatedAt)}
                 </span>
               </span>
-              <span className="agent-session-row__badges">
-                {session.webSearchEnabled ? <em title={t("agent.web")}>W</em> : null}
+	              <span className="agent-session-row__badges">
+	                <AgentSessionSpinner summary={runSummaryBySession[session.id]} />
+	                {session.webSearchEnabled ? <em title={t("agent.web")}>W</em> : null}
                 {session.compacted ? <em title={t("agent.compacted")}>C</em> : null}
               </span>
             </button>

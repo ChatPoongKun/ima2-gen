@@ -3,13 +3,14 @@ import { useI18n } from "../../i18n";
 import { CloseIcon, PlusIcon, SearchIcon } from "./AgentIcons";
 import { AgentSessionList } from "./AgentSessionList";
 import { useAgentDialogFocus } from "./useAgentDialogFocus";
-import type { AgentImageHandle, AgentSessionSummary } from "./agentTypes";
+import type { AgentImageHandle, AgentSessionRunSummary, AgentSessionSummary } from "./agentTypes";
 
 type Props = {
   open: boolean;
   sessions: AgentSessionSummary[];
   selectedId: string;
   imagesById: Record<string, AgentImageHandle>;
+  runSummaryBySession?: Record<string, AgentSessionRunSummary>;
   onClose: () => void;
   onCreate: () => void;
   onSelect: (id: string) => void;
@@ -17,7 +18,7 @@ type Props = {
   onDelete: (id: string) => void;
 };
 
-export function AgentSessionDrawer({ open, sessions, selectedId, imagesById, onClose, onCreate, onSelect, onRename, onDelete }: Props) {
+export function AgentSessionDrawer({ open, sessions, selectedId, imagesById, runSummaryBySession, onClose, onCreate, onSelect, onRename, onDelete }: Props) {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const close = useCallback(() => onClose(), [onClose]);
@@ -46,7 +47,7 @@ export function AgentSessionDrawer({ open, sessions, selectedId, imagesById, onC
           <SearchIcon size={15} />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("agent.sessionSearch")} />
         </label>
-        <AgentSessionList sessions={filtered} selectedId={selectedId} imagesById={imagesById} onSelect={onSelect} onRename={onRename} onDelete={onDelete} />
+        <AgentSessionList sessions={filtered} selectedId={selectedId} imagesById={imagesById} runSummaryBySession={runSummaryBySession} onSelect={onSelect} onRename={onRename} onDelete={onDelete} />
       </section>
     </div>
   );

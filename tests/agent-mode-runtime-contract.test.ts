@@ -131,6 +131,8 @@ describe("Agent Mode runtime contract", () => {
       if (String(url).startsWith("http://127.0.0.1:")) return originalFetch(url, init);
       calls.push({ body: JSON.parse(String(init?.body)) });
       return sseResponse([
+        { type: "response.output_text.delta", delta: "Use a crisp frontal composition." },
+        { type: "response.output_text.done", text: "Use a crisp frontal composition." },
         {
           type: "response.output_item.done",
           item: { type: "image_generation_call", result: finalImage, revised_prompt: "revised agent prompt" },
@@ -149,7 +151,7 @@ describe("Agent Mode runtime contract", () => {
       });
       const body = await res.json() as any;
       const images = Object.values(body.imagesById) as Array<{ url: string; revisedPrompt?: string }>;
-      const turns = body.turnsBySession[created.selectedSessionId] as Array<{ text: string; imageIds?: string[] }>;
+      const turns = body.turnsBySession[created.selectedSessionId] as Array<{ role: string; text: string; imageIds?: string[] }>;
 
       assert.equal(res.status, 200);
       assert.deepEqual(calls[0].body.tools.map((tool: { type: string }) => tool.type), ["web_search", "image_generation"]);
@@ -157,7 +159,12 @@ describe("Agent Mode runtime contract", () => {
       assert.ok(images.some((image) => image.url.startsWith("/generated/")));
       assert.ok(!JSON.stringify(turns).includes(finalImage));
       assert.ok(turns.some((turn) => turn.text.includes("ima2.get_image_context")));
-      assert.ok(turns.some((turn) => turn.imageIds?.length));
+      const assistantImageTurn = turns.find((turn) => turn.role === "assistant" && turn.imageIds?.length);
+      assert.ok(assistantImageTurn);
+      const modelTextIndex = assistantImageTurn.text.indexOf("Use a crisp frontal composition.");
+      const artifactTextIndex = assistantImageTurn.text.indexOf("Generated 1 image artifact.");
+      assert.ok(modelTextIndex >= 0);
+      assert.ok(artifactTextIndex > modelTextIndex);
     });
   });
 
@@ -185,12 +192,16 @@ describe("Agent Mode runtime contract", () => {
         currentImageId: string;
         imagesById: Record<string, { id: string }>;
         imageIdsBySession: Record<string, string[]>;
+        turnsBySession: Record<string, Array<{ text: string; imageIds?: string[] }>>;
       };
+      const turns = generatedBody.turnsBySession[created.selectedSessionId];
 
       assert.equal(generated.status, 200);
       assert.notEqual(generatedBody.currentImageId, "img_seed");
       assert.ok(generatedBody.imageIdsBySession[created.selectedSessionId].includes("img_seed"));
       assert.equal(generatedBody.imageIdsBySession[created.selectedSessionId].length, 2);
+      assert.ok(turns.some((turn) => turn.text.includes("Generated 1 image artifact.")));
+      assert.ok(turns.some((turn) => turn.imageIds?.includes(generatedBody.currentImageId)));
 
       const selected = await fetch(`${baseUrl}/api/agent/sessions/${created.selectedSessionId}`, {
         method: "PATCH",
@@ -219,7 +230,11 @@ describe("Agent Mode runtime contract", () => {
     globalThis.fetch = async (url, init) => {
       if (String(url).startsWith("http://127.0.0.1:")) return originalFetch(url, init);
       upstreamHits++;
-      return sseResponse([{ type: "response.completed", response: { usage: { total_tokens: 1 } } }]);
+      return sseResponse([
+        { type: "response.output_text.delta", delta: "This is a text-only answer." },
+        { type: "response.output_text.done", text: "This is a text-only answer." },
+        { type: "response.completed", response: { usage: { total_tokens: 1 } } },
+      ]);
     };
 
     await withApp(async (baseUrl) => {

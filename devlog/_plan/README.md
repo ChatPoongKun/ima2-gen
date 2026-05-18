@@ -1,6 +1,6 @@
 ---
 created: 2026-04-23
-updated: 2026-05-16
+updated: 2026-05-17
 tags: [ima2-gen, devlog, roadmap]
 aliases: [ima2 active plan, image_gen current roadmap, ima2 개발계획]
 ---
@@ -31,6 +31,9 @@ Deferred / 미래 항목은 `_plan/`이 아니라 `devlog/_future/`에 둔다.
 | 5 | `260514_canvas-background-removal-library-research/` | research | Background cleanup/removal reference. 현재 GitHub closeout 대상은 아니다. |
 | 6 | `260516_issue71-classic-prompt-context-injection/` | planning | GitHub #71. Classic current prompt injection + quality element prompt context. Prompt Studio 전의 즉시 구현 slice다. |
 | 7 | `260515_fork-prompting-modularization-research/` | research / modularization | Prompt Builder, composer, history/viewer modularization reference. #71이 첫 구현 승격 lane이다. |
+| 8 | `260516_agent-mode-followup-jawdev/` | plan | Agent Mode follow-up: layout regression, cli-jaw-style nested tool folding, durable queue, parallel image generation, right sidebar model/form/quality controls, and per-session spinners. |
+| 9 | `260517_agent-ui-polish-jawdev/` | plan | Agent Mode polish and crash triage: workspace payload safety, layout breakpoint mismatch, settings visual polish, tool height, top model chip, sidebar tab separation. |
+| 10 | `260517_agent-mode-auto-generation-jawdev/` | implementation-patched | Agent Mode auto generation policy: deterministic request-aware variants/parallelism, text responses, `/question`, slash commands, manual caps, and queue/tool observability. |
 
 ## 2026-05-16 GH / Devlog Closeout
 
@@ -78,3 +81,6 @@ require implementation are:
 - 2026-05-16: GitHub issue snapshot과 현재 코드/test를 대조해 #47/#48/#59/#60/#62/#63/#64-#70/#68/#69 및 agent-mode completed folders를 `_fin`으로 이동했다. Active lane은 #31/#27/#28 Canvas follow-up과 research references만 남겼다.
 - 2026-05-16: `260515_fork-prompting-modularization-research/` 안의 Agent image focus/sheet regression slice를 구현/QA 기록으로 보강했다. 해당 slice는 `f250784`로 완료됐지만 Prompt Studio modularization 전체는 미완료라 폴더를 `_plan`에 유지한다.
 - 2026-05-16: GitHub #71을 열고 `260516_issue71-classic-prompt-context-injection/` planning lane을 추가했다. `cli-jaw`/Codex CLI prompt injection pattern을 참고해 Classic current prompt injection과 quality element injection을 server-backed prompt context manifest로 구현하는 방향이다.
+- 2026-05-16: live Agent Mode follow-up 요구사항을 `260516_agent-mode-followup-jawdev/`로 분리했다. 기존 `_fin/260516_agent-mode-codex-rs-workspace/`는 완료 상태로 유지하고, queue/parallel/right-sidebar/session-spinner 작업은 새 active lane에서 추적한다.
+- 2026-05-17: Agent Mode UI polish/crash triage lane `260517_agent-ui-polish-jawdev/`와 Agent auto generation planning lane `260517_agent-mode-auto-generation-jawdev/`를 active lane에 추가했다. 후자는 request-aware variants/parallelism, text responses, `/question`, slash commands, and queue/tool/model observability를 차후 구현 scope로 기록한다.
+- 2026-05-17: `260517_agent-mode-auto-generation-jawdev/`에 deterministic planner, slash command parser, `/question` text bypass, planned parallelism runtime wiring, right sidebar tab split, composer slash hints, focused contract tests, reviewer concern closure, and Chrome/Computer Use QA closeout를 추가했다. 구현/검증 근거는 해당 lane의 `08_implementation_patch_log.md`가 source of truth이며, 폴더 이동은 별도 closeout 작업에서 처리한다.

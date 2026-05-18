@@ -7,6 +7,89 @@ export const AGENT_ALLOWED_TOOLS = [
 export type AgentToolName = typeof AGENT_ALLOWED_TOOLS[number];
 export type AgentTurnRole = "user" | "assistant" | "tool";
 export type AgentTurnStatus = "streaming" | "complete" | "error";
+export type AgentToolCallStatus = "queued" | "running" | "complete" | "error";
+export type AgentQueueStatus = "queued" | "running" | "succeeded" | "failed" | "canceled";
+export type AgentSessionRunStatus = "idle" | "queued" | "running" | "error";
+export type AgentGenerationStrategy = "auto" | "manual";
+export type AgentGenerationPlanMode = "single" | "fanout" | "question";
+export type AgentGenerationPlanSource = "auto-default" | "auto-request" | "manual-settings" | "slash-command" | "question-command";
+export type AgentSlashCommandName = "question" | "help" | "variants" | "generate" | "parallelism";
+
+export interface AgentGenerationSettings {
+  provider: "oauth" | "api";
+  model: string;
+  quality: "low" | "medium" | "high";
+  size: string;
+  format: "png" | "jpeg" | "webp";
+  moderation: "auto" | "low";
+  reasoningEffort: "low" | "medium" | "high" | "xhigh";
+  webSearchEnabled: boolean;
+  generationStrategy: AgentGenerationStrategy;
+  variants: number;
+  maxAutoVariants: number;
+  parallelism: number;
+}
+
+export interface AgentSlashCommand {
+  name: AgentSlashCommandName;
+  rawName: string;
+  raw: string;
+  prompt: string;
+  value?: number;
+}
+
+export interface AgentToolCallSummary {
+  id: string;
+  name: AgentToolName;
+  status: AgentToolCallStatus;
+  startedAt?: number | null;
+  finishedAt?: number | null;
+  durationMs?: number | null;
+  requestId?: string | null;
+  inputSummary?: string | null;
+  outputSummary?: string | null;
+  imageIds?: string[];
+  webFindingIds?: string[];
+  errorCode?: string | null;
+  errorMessage?: string | null;
+}
+
+export interface AgentQueueItem {
+  id: string;
+  sessionId: string;
+  requestId: string;
+  prompt: string;
+  status: AgentQueueStatus;
+  position: number;
+  resultImageIds: string[];
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  createdAt: number;
+  startedAt?: number | null;
+  finishedAt?: number | null;
+  options: AgentGenerationSettings;
+  plan: AgentGenerationPlan;
+}
+
+export interface AgentGenerationPlan {
+  mode: AgentGenerationPlanMode;
+  prompts: string[];
+  requestedVariants: number;
+  plannedVariants: number;
+  plannedParallelism: number;
+  source: AgentGenerationPlanSource;
+  reason: string;
+  command?: AgentSlashCommandName | null;
+  assistantText?: string | null;
+}
+
+export interface AgentSessionRunSummary {
+  status: AgentSessionRunStatus;
+  queuedCount: number;
+  runningCount: number;
+  lastQueueItemId?: string | null;
+  lastError?: string | null;
+}
 
 export interface AgentImageInput {
   id?: string | null;
@@ -41,6 +124,7 @@ export interface AgentSessionSummary {
   imageCount: number;
   compacted: boolean;
   webSearchEnabled: boolean;
+  generationSettings: AgentGenerationSettings;
   updatedAt: number;
 }
 
@@ -51,6 +135,7 @@ export interface AgentTurn {
   imageIds: string[];
   webFindingIds: string[];
   status: AgentTurnStatus;
+  toolCalls?: AgentToolCallSummary[];
   createdAt: number;
 }
 
@@ -63,4 +148,6 @@ export interface AgentWorkspacePayload {
   currentImageId: string | null;
   allowedTools: readonly AgentToolName[];
   manifest: string | null;
+  queueBySession: Record<string, AgentQueueItem[]>;
+  runSummaryBySession: Record<string, AgentSessionRunSummary>;
 }

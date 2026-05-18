@@ -83,13 +83,14 @@ function migrate(database: Database.Database) {
       codex_thread_id    TEXT,
       last_turn_id       TEXT,
       current_image_id   TEXT,
-      compacted          INTEGER NOT NULL DEFAULT 0,
-      web_search_enabled INTEGER NOT NULL DEFAULT 1,
-      style_locks        TEXT NOT NULL DEFAULT '[]',
-      subject_locks      TEXT NOT NULL DEFAULT '[]',
-      created_at         INTEGER NOT NULL,
-      updated_at         INTEGER NOT NULL
-    );
+	      compacted          INTEGER NOT NULL DEFAULT 0,
+	      web_search_enabled INTEGER NOT NULL DEFAULT 1,
+	      generation_settings TEXT NOT NULL DEFAULT '{}',
+	      style_locks        TEXT NOT NULL DEFAULT '[]',
+	      subject_locks      TEXT NOT NULL DEFAULT '[]',
+	      created_at         INTEGER NOT NULL,
+	      updated_at         INTEGER NOT NULL
+	    );
 
     CREATE TABLE IF NOT EXISTS agent_turns (
       id              TEXT PRIMARY KEY,
@@ -130,16 +131,34 @@ function migrate(database: Database.Database) {
       FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS agent_web_findings (
-      id         TEXT PRIMARY KEY,
-      session_id TEXT NOT NULL,
-      query      TEXT NOT NULL DEFAULT '',
-      url        TEXT,
+	    CREATE TABLE IF NOT EXISTS agent_web_findings (
+	      id         TEXT PRIMARY KEY,
+	      session_id TEXT NOT NULL,
+	      query      TEXT NOT NULL DEFAULT '',
+	      url        TEXT,
       title      TEXT,
       snippet    TEXT,
       created_at INTEGER NOT NULL,
-      FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
-    );
+	      FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
+	    );
+
+	    CREATE TABLE IF NOT EXISTS agent_queue_items (
+	      id               TEXT PRIMARY KEY,
+	      session_id       TEXT NOT NULL,
+	      request_id       TEXT NOT NULL,
+	      prompt           TEXT NOT NULL DEFAULT '',
+	      options          TEXT NOT NULL DEFAULT '{}',
+	      tool_plan        TEXT NOT NULL DEFAULT '{}',
+	      status           TEXT NOT NULL DEFAULT 'queued',
+	      position         INTEGER NOT NULL DEFAULT 0,
+	      result_image_ids TEXT NOT NULL DEFAULT '[]',
+	      error_code       TEXT,
+	      error_message    TEXT,
+	      created_at       INTEGER NOT NULL,
+	      started_at       INTEGER,
+	      finished_at      INTEGER,
+	      FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
+	    );
 
     CREATE INDEX IF NOT EXISTS idx_agent_sessions_updated
       ON agent_sessions(updated_at);
@@ -147,9 +166,13 @@ function migrate(database: Database.Database) {
       ON agent_turns(session_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_agent_images_session
       ON agent_images(session_id, created_at);
-    CREATE INDEX IF NOT EXISTS idx_agent_web_findings_session
-      ON agent_web_findings(session_id, created_at);
-  `);
+	    CREATE INDEX IF NOT EXISTS idx_agent_web_findings_session
+	      ON agent_web_findings(session_id, created_at);
+	    CREATE INDEX IF NOT EXISTS idx_agent_queue_session
+	      ON agent_queue_items(session_id, status, created_at);
+	    CREATE INDEX IF NOT EXISTS idx_agent_queue_status
+	      ON agent_queue_items(status, created_at);
+	  `);
 
   const sessionColumns = (database
     .prepare("PRAGMA table_info(sessions)")
@@ -163,11 +186,33 @@ function migrate(database: Database.Database) {
   if (!sessionColumns.includes("style_sheet")) {
     database.exec("ALTER TABLE sessions ADD COLUMN style_sheet TEXT");
   }
-  if (!sessionColumns.includes("style_sheet_enabled")) {
-    database.exec(
-      "ALTER TABLE sessions ADD COLUMN style_sheet_enabled INTEGER NOT NULL DEFAULT 0",
-    );
-  }
+	  if (!sessionColumns.includes("style_sheet_enabled")) {
+	    database.exec(
+	      "ALTER TABLE sessions ADD COLUMN style_sheet_enabled INTEGER NOT NULL DEFAULT 0",
+	    );
+	  }
+
+	  const agentSessionColumns = (database
+	    .prepare("PRAGMA table_info(agent_sessions)")
+	    .all() as Array<{ name: string }>)
+	    .map((row) => row.name);
+	  if (!agentSessionColumns.includes("generation_settings")) {
+	    database.exec("ALTER TABLE agent_sessions ADD COLUMN generation_settings TEXT NOT NULL DEFAULT '{}'");
+	  }
+
+  const agentQueueColumns = (database
+    .prepare("PRAGMA table_info(agent_queue_items)")
+    .all() as Array<{ name: string }>)
+    .map((row) => row.name);
+  addColumnIfMissing(database, agentQueueColumns, "agent_queue_items", "request_id", "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(database, agentQueueColumns, "agent_queue_items", "options", "TEXT NOT NULL DEFAULT '{}'");
+  addColumnIfMissing(database, agentQueueColumns, "agent_queue_items", "tool_plan", "TEXT NOT NULL DEFAULT '{}'");
+  addColumnIfMissing(database, agentQueueColumns, "agent_queue_items", "position", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing(database, agentQueueColumns, "agent_queue_items", "result_image_ids", "TEXT NOT NULL DEFAULT '[]'");
+  addColumnIfMissing(database, agentQueueColumns, "agent_queue_items", "error_code", "TEXT");
+  addColumnIfMissing(database, agentQueueColumns, "agent_queue_items", "error_message", "TEXT");
+  addColumnIfMissing(database, agentQueueColumns, "agent_queue_items", "started_at", "INTEGER");
+  addColumnIfMissing(database, agentQueueColumns, "agent_queue_items", "finished_at", "INTEGER");
 
   // ── Prompt Library (schema v4) ──
   database.exec(`
@@ -229,6 +274,17 @@ function migrate(database: Database.Database) {
       .prepare("UPDATE _meta SET value = '5' WHERE key = 'schema_version'")
       .run();
   }
+}
+
+function addColumnIfMissing(
+  database: Database.Database,
+  columns: readonly string[],
+  table: string,
+  name: string,
+  definition: string,
+) {
+  if (columns.includes(name)) return;
+  database.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
 }
 
 export function closeDb() {

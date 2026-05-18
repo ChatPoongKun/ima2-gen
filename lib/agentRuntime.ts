@@ -14,7 +14,12 @@ import {
   recordAgentWebFinding,
   restartAgentRuntimeSession,
 } from "./agentStore.js";
-import { AGENT_ALLOWED_TOOLS, type AgentToolName } from "./agentTypes.js";
+import {
+  AGENT_ALLOWED_TOOLS,
+  type AgentGenerationPlan,
+  type AgentToolCallSummary,
+  type AgentToolName,
+} from "./agentTypes.js";
 import { errInfo } from "./errInfo.js";
 import { type RuntimeContext } from "./runtimeContext.js";
 
@@ -27,6 +32,8 @@ type AgentRunOptions = {
   model?: string;
   reasoningEffort?: string;
   requestId?: string;
+  webSearchEnabled?: boolean;
+  parallelism?: number;
   signal?: AbortSignal | null;
 };
 
@@ -51,33 +58,151 @@ export function agentAllowedToolPayload() {
 }
 
 export async function runAgentTurn(ctx: RuntimeContext, sessionId: string, prompt: string, options: AgentRunOptions = {}) {
+  return runAgentGenerationPlan(
+    ctx,
+    sessionId,
+    prompt,
+    {
+      mode: "single",
+      prompts: [prompt],
+      requestedVariants: 1,
+      plannedVariants: 1,
+      plannedParallelism: cleanParallelism(options.parallelism),
+      source: "auto-default",
+      reason: "Direct turn endpoint defaults to one image.",
+      command: null,
+      assistantText: null,
+    },
+    options,
+    { appendUserTurn: true },
+  );
+}
+
+export async function runAgentGenerationPlan(
+  ctx: RuntimeContext,
+  sessionId: string,
+  prompt: string,
+  plan: AgentGenerationPlan,
+  options: AgentRunOptions = {},
+  behavior: { appendUserTurn?: boolean } = {},
+) {
   const session = getAgentSession(sessionId);
   if (!session) throw notFound(sessionId);
-  const enabledTools: AgentToolName[] = session.webSearchEnabled
+  const webSearchEnabled = options.webSearchEnabled ?? session.webSearchEnabled;
+  const enabledTools: AgentToolName[] = webSearchEnabled
     ? [...AGENT_ALLOWED_TOOLS]
     : ["ima2.get_image_context", "ima2.generate_image"];
   assertAgentAllowedTools(enabledTools);
-  appendAgentTurn({ sessionId, role: "user", text: prompt, status: "complete" });
-  appendAgentTurn({ sessionId, role: "tool", text: "ima2.get_image_context", status: "complete" });
+  if (behavior.appendUserTurn !== false) {
+    appendAgentTurn({ sessionId, role: "user", text: prompt, status: "complete" });
+  }
+  if (plan.mode === "question") {
+    const assistantTurn = appendAgentTurn({
+      sessionId,
+      role: "assistant",
+      text: plan.assistantText || plan.reason || "Question mode completed without image generation.",
+      imageIds: [],
+      webFindingIds: [],
+      status: "complete",
+    });
+    return { assistantTurn, imageIds: [], webFindingIds: [] };
+  }
   const manifest = buildImageContextManifest(sessionId);
-  const result = await runGeneratorWithRuntimeRecovery(ctx, sessionId, prompt, manifest, session.webSearchEnabled, options);
-  const findingIds = recordSearchFindings(sessionId, prompt, result.webSearchCalls);
+  const contextStartedAt = Date.now();
   appendAgentTurn({
     sessionId,
     role: "tool",
-    text: session.webSearchEnabled ? "ima2.web_search + ima2.generate_image" : "ima2.generate_image",
-    imageIds: [result.image.id],
+    text: "ima2.get_image_context",
+    status: "complete",
+    raw: {
+      toolCalls: [{
+        id: `tc_context_${ulid()}`,
+        name: "ima2.get_image_context",
+        status: "complete",
+        startedAt: contextStartedAt,
+        finishedAt: Date.now(),
+        durationMs: Date.now() - contextStartedAt,
+        outputSummary: "Loaded current image context manifest.",
+      } satisfies AgentToolCallSummary],
+    },
+  });
+  const generationPrompts = plan.prompts.length > 0 ? plan.prompts : [prompt];
+  const baseRequestId = options.requestId ?? `agent_${ulid()}`;
+  const generationResults = await mapWithLimit(generationPrompts, cleanParallelism(plan.plannedParallelism ?? options.parallelism), async (generationPrompt, index) => {
+    const requestId = generationPrompts.length > 1 ? `${baseRequestId}_${index + 1}` : baseRequestId;
+    const startedAt = Date.now();
+    const result = await runGeneratorWithRuntimeRecovery(ctx, sessionId, generationPrompt, manifest, webSearchEnabled, {
+      ...options,
+      requestId,
+    });
+    const findingIds = recordSearchFindings(sessionId, generationPrompt, result.webSearchCalls);
+    const finishedAt = Date.now();
+    return {
+      prompt: generationPrompt,
+      imageId: result.image.id,
+      text: result.text,
+      findingIds,
+      toolCall: {
+        id: `tc_generate_${ulid()}`,
+        name: "ima2.generate_image",
+        status: "complete",
+        startedAt,
+        finishedAt,
+        durationMs: finishedAt - startedAt,
+        requestId,
+        inputSummary: generationPrompt,
+        outputSummary: `Generated ${result.image.filename}. ${plan.reason}`,
+        imageIds: [result.image.id],
+        webFindingIds: findingIds,
+      } satisfies AgentToolCallSummary,
+    };
+  });
+  const imageIds = generationResults.map((result) => result.imageId);
+  const responseTexts = generationResults
+    .map((result) => result.text)
+    .filter((text): text is string => typeof text === "string" && text.trim().length > 0);
+  const findingIds = generationResults.flatMap((result) => result.findingIds);
+  const webToolCall: AgentToolCallSummary | null = webSearchEnabled ? {
+    id: `tc_web_${ulid()}`,
+    name: "ima2.web_search",
+    status: "complete",
+    outputSummary: findingIds.length > 0
+      ? `Recorded ${findingIds.length} web finding${findingIds.length === 1 ? "" : "s"}.`
+      : "Web search enabled; no findings were reported.",
+    webFindingIds: findingIds,
+  } : null;
+  appendAgentTurn({
+    sessionId,
+    role: "tool",
+    text: webSearchEnabled ? "ima2.web_search + ima2.generate_image" : "ima2.generate_image",
+    imageIds,
     webFindingIds: findingIds,
     status: "complete",
+    raw: {
+      toolCalls: [
+        ...(webToolCall ? [webToolCall] : []),
+        ...generationResults.map((result) => result.toolCall),
+      ],
+    },
   });
-  return appendAgentTurn({
+  const assistantTurn = appendAgentTurn({
     sessionId,
     role: "assistant",
-    text: "Generated an image artifact.",
-    imageIds: [result.image.id],
+    text: formatAgentAssistantText(plan, imageIds.length, responseTexts),
+    imageIds,
     webFindingIds: findingIds,
     status: "complete",
   });
+  return { assistantTurn, imageIds, webFindingIds: findingIds };
+}
+
+function formatAgentAssistantText(plan: AgentGenerationPlan, imageCount: number, responseTexts: readonly string[]): string {
+  const countText = imageCount === 1 ? "Generated 1 image artifact." : `Generated ${imageCount} image artifacts.`;
+  const modeText = plan.mode === "fanout"
+    ? `Fanout used ${plan.plannedParallelism} concurrent tool call${plan.plannedParallelism === 1 ? "" : "s"}.`
+    : "Single-image plan completed.";
+  const modelText = responseTexts.length > 0 ? `${responseTexts.join("\n\n")}\n\n` : "";
+  return `${modelText}${countText} ${modeText} ${plan.reason}`.trim();
 }
 
 async function runGeneratorWithRuntimeRecovery(
@@ -167,7 +292,7 @@ async function generateAgentImage(
     },
   );
   const image = await persistAgentImage(ctx, sessionId, prompt, format, requestId, response);
-  return { image, webSearchCalls: response.webSearchCalls || 0 };
+  return { image, webSearchCalls: response.webSearchCalls || 0, text: response.text ?? null };
 }
 
 async function persistAgentImage(
@@ -245,6 +370,30 @@ function textOnlyError(cause: unknown) {
   err.status = 422;
   err.cause = cause;
   return err;
+}
+
+async function mapWithLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let nextIndex = 0;
+  const workerCount = Math.min(limit, items.length);
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  }));
+  return results;
+}
+
+function cleanParallelism(value: unknown) {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return 2;
+  return Math.max(1, Math.min(8, Math.round(numeric)));
 }
 
 function notFound(sessionId: string) {

@@ -1,49 +1,32 @@
 import { ulid } from "ulid";
 import { getDb } from "./db.js";
+import { getAgentQueueProjection } from "./agentQueueStore.js";
+import {
+  DEFAULT_AGENT_GENERATION_SETTINGS,
+  mergeAgentGenerationSettings,
+} from "./agentSettings.js";
+import {
+  cleanString,
+  cleanStringArray,
+  imageFromRow,
+  jsonStringArray,
+  parseStringArray,
+  sessionFromRow,
+  turnFromRow,
+  type AgentImageRow,
+  type AgentSessionRow,
+  type AgentTurnRow,
+} from "./agentStoreRows.js";
 import {
   AGENT_ALLOWED_TOOLS,
+  type AgentGenerationSettings,
   type AgentImageHandle,
   type AgentImageInput,
-  type AgentSessionSummary,
   type AgentTurn,
   type AgentTurnRole,
   type AgentTurnStatus,
   type AgentWorkspacePayload,
 } from "./agentTypes.js";
-
-type AgentSessionRow = {
-  id: string;
-  title: string;
-  codexThreadId: string | null;
-  lastTurnId: string | null;
-  currentImageId: string | null;
-  compacted: number;
-  webSearchEnabled: number;
-  updatedAt: number;
-  imageCount: number;
-};
-
-type AgentTurnRow = {
-  id: string;
-  role: AgentTurnRole;
-  text: string;
-  status: AgentTurnStatus;
-  imageIds: string;
-  webFindingIds: string;
-  createdAt: number;
-};
-
-type AgentImageRow = {
-  id: string;
-  filename: string;
-  url: string;
-  thumbUrl: string | null;
-  prompt: string | null;
-  revisedPrompt: string | null;
-  width: number | null;
-  height: number | null;
-  createdAt: number;
-};
 
 type FindingRow = {
   id: string;
@@ -66,69 +49,6 @@ function now() {
   return Date.now();
 }
 
-function cleanString(value: unknown, fallback = "") {
-  if (typeof value !== "string") return fallback;
-  return value.trim().slice(0, 10_000) || fallback;
-}
-
-function parseStringArray(value: string) {
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function jsonStringArray(values: readonly string[] | undefined) {
-  return JSON.stringify(Array.isArray(values) ? values.filter(Boolean) : []);
-}
-
-function cleanStringArray(values: unknown) {
-  if (!Array.isArray(values)) return [];
-  return values.filter((value) => typeof value === "string" && value.trim()).map((value) => value.trim());
-}
-
-function sessionFromRow(row: AgentSessionRow): AgentSessionSummary {
-  return {
-    id: row.id,
-    title: row.title,
-    codexThreadId: row.codexThreadId,
-    lastTurnId: row.lastTurnId,
-    lastImageId: row.currentImageId,
-    imageCount: row.imageCount,
-    compacted: row.compacted === 1,
-    webSearchEnabled: row.webSearchEnabled === 1,
-    updatedAt: row.updatedAt,
-  };
-}
-
-function turnFromRow(row: AgentTurnRow): AgentTurn {
-  return {
-    id: row.id,
-    role: row.role,
-    text: row.text,
-    status: row.status,
-    imageIds: parseStringArray(row.imageIds),
-    webFindingIds: parseStringArray(row.webFindingIds),
-    createdAt: row.createdAt,
-  };
-}
-
-function imageFromRow(row: AgentImageRow): AgentImageHandle {
-  return {
-    id: row.id,
-    filename: row.filename,
-    url: row.url,
-    thumbUrl: row.thumbUrl,
-    prompt: row.prompt,
-    revisedPrompt: row.revisedPrompt,
-    width: row.width,
-    height: row.height,
-    createdAt: row.createdAt,
-  };
-}
-
 export function listAgentSessions() {
   const db = getDb();
   const rows = db.prepare(`
@@ -138,9 +58,10 @@ export function listAgentSessions() {
       s.codex_thread_id AS codexThreadId,
       s.last_turn_id AS lastTurnId,
       s.current_image_id AS currentImageId,
-      s.compacted,
-      s.web_search_enabled AS webSearchEnabled,
-      s.updated_at AS updatedAt,
+	      s.compacted,
+	      s.web_search_enabled AS webSearchEnabled,
+	      s.generation_settings AS generationSettings,
+	      s.updated_at AS updatedAt,
       COUNT(i.id) AS imageCount
     FROM agent_sessions s
     LEFT JOIN agent_images i ON i.session_id = s.id
@@ -162,11 +83,23 @@ export function createAgentSession(input: {
   const db = getDb();
   const id = `as_${ulid()}`;
   const t = now();
+  const generationSettings = {
+    ...DEFAULT_AGENT_GENERATION_SETTINGS,
+    webSearchEnabled: input.webSearchEnabled !== false,
+  };
   db.prepare(`
     INSERT INTO agent_sessions
-      (id, title, codex_thread_id, web_search_enabled, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(id, cleanString(input.title, "New Agent"), `codex_${ulid()}`, input.webSearchEnabled === false ? 0 : 1, t, t);
+      (id, title, codex_thread_id, web_search_enabled, generation_settings, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    cleanString(input.title, "New Agent"),
+    `codex_${ulid()}`,
+    input.webSearchEnabled === false ? 0 : 1,
+    JSON.stringify(generationSettings),
+    t,
+    t,
+  );
   if (input.currentImage) importAgentImage(id, input.currentImage);
   return getAgentSession(id)!;
 }
@@ -180,10 +113,25 @@ export function renameAgentSession(id: string, title: unknown) {
 }
 
 export function setAgentWebSearch(id: string, enabled: boolean) {
+  const current = getAgentSession(id)?.generationSettings ?? DEFAULT_AGENT_GENERATION_SETTINGS;
+  const next = { ...current, webSearchEnabled: enabled };
   const res = getDb()
-    .prepare("UPDATE agent_sessions SET web_search_enabled = ?, updated_at = ? WHERE id = ?")
-    .run(enabled ? 1 : 0, now(), id);
+    .prepare("UPDATE agent_sessions SET web_search_enabled = ?, generation_settings = ?, updated_at = ? WHERE id = ?")
+    .run(enabled ? 1 : 0, JSON.stringify(next), now(), id);
   return res.changes > 0;
+}
+
+export function setAgentGenerationSettings(id: string, patch: unknown) {
+  const current = getAgentSession(id)?.generationSettings ?? DEFAULT_AGENT_GENERATION_SETTINGS;
+  const next = mergeAgentGenerationSettings(current, patch);
+  const res = getDb()
+    .prepare("UPDATE agent_sessions SET generation_settings = ?, web_search_enabled = ?, updated_at = ? WHERE id = ?")
+    .run(JSON.stringify(next), next.webSearchEnabled ? 1 : 0, now(), id);
+  return res.changes > 0;
+}
+
+export function getAgentGenerationSettings(id: string): AgentGenerationSettings {
+  return getAgentSession(id)?.generationSettings ?? DEFAULT_AGENT_GENERATION_SETTINGS;
 }
 
 export function setAgentLocks(id: string, locks: { styleLocks?: unknown; subjectLocks?: unknown }) {
@@ -256,10 +204,11 @@ export function getAgentTurns(sessionId: string) {
       id,
       role,
       text,
-      status,
-      image_ids AS imageIds,
-      web_finding_ids AS webFindingIds,
-      created_at AS createdAt
+	      status,
+	      image_ids AS imageIds,
+	      web_finding_ids AS webFindingIds,
+	      raw,
+	      created_at AS createdAt
     FROM agent_turns
     WHERE session_id = ?
     ORDER BY created_at ASC
@@ -335,23 +284,26 @@ export function getAgentWorkspacePayload(selectedSessionId?: string | null): Age
   const turnsBySession: Record<string, AgentTurn[]> = {};
   const imagesById: Record<string, AgentImageHandle> = {};
   const imageIdsBySession: Record<string, string[]> = {};
-  for (const session of sessions) {
+	  for (const session of sessions) {
     turnsBySession[session.id] = getAgentTurns(session.id);
     const images = getAgentImages(session.id);
     imageIdsBySession[session.id] = images.map((image) => image.id);
     for (const image of images) imagesById[image.id] = image;
-  }
-  const currentImageId = selected ? getCurrentImageId(selected) : null;
-  return {
-    sessions,
-    turnsBySession,
-    imagesById,
-    imageIdsBySession,
-    selectedSessionId: selected,
-    currentImageId,
-    allowedTools: AGENT_ALLOWED_TOOLS,
-    manifest: selected ? buildImageContextManifest(selected) : null,
-  };
+	  }
+	  const currentImageId = selected ? getCurrentImageId(selected) : null;
+	  const queueProjection = getAgentQueueProjection(sessions.map((session) => session.id));
+	  return {
+	    sessions,
+	    turnsBySession,
+	    imagesById,
+	    imageIdsBySession,
+	    selectedSessionId: selected,
+	    currentImageId,
+	    allowedTools: AGENT_ALLOWED_TOOLS,
+	    manifest: selected ? buildImageContextManifest(selected) : null,
+	    queueBySession: queueProjection.queueBySession,
+	    runSummaryBySession: queueProjection.runSummaryBySession,
+	  };
 }
 
 export function buildImageContextManifest(sessionId: string) {

@@ -1,15 +1,27 @@
 import type { Express, Request, Response } from "express";
 import {
+  appendAgentTurn,
   compactAgentSession,
   createAgentSession,
   deleteAgentSession,
+  getAgentGenerationSettings,
   getAgentSession,
   getAgentWorkspacePayload,
   renameAgentSession,
   setAgentCurrentImage,
+  setAgentGenerationSettings,
   setAgentLocks,
   setAgentWebSearch,
 } from "../lib/agentStore.js";
+import {
+  cancelAgentQueueItem,
+  createAgentQueueItem,
+  getAgentQueueItem,
+  listAgentQueueItems,
+  retryAgentQueueItem,
+} from "../lib/agentQueueStore.js";
+import { ensureAgentQueueWorker, tickAgentQueueWorker } from "../lib/agentQueueWorker.js";
+import { parseAgentSlashCommand, formatAgentQuestionReply, formatAgentSlashHelp } from "../lib/agentCommandParser.js";
 import { agentAllowedToolPayload, runAgentTurn } from "../lib/agentRuntime.js";
 import { errInfo } from "../lib/errInfo.js";
 import { requireRuntimeContext, type RouteRuntimeContext } from "../lib/runtimeContext.js";
@@ -21,6 +33,7 @@ type AgentSessionBody = {
   currentImageId?: unknown;
   styleLocks?: unknown;
   subjectLocks?: unknown;
+  generationSettings?: unknown;
 };
 
 type AgentTurnBody = {
@@ -35,8 +48,13 @@ type AgentTurnBody = {
   requestId?: unknown;
 };
 
+type AgentQueueBody = AgentTurnBody & {
+  options?: unknown;
+};
+
 export function registerAgentRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
   const ctx = requireRuntimeContext(ctxRaw);
+  ensureAgentQueueWorker(ctx);
 
   app.get("/api/agent/tools", (_req: Request, res: Response) => {
     res.json(agentAllowedToolPayload());
@@ -72,6 +90,9 @@ export function registerAgentRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       const body = (req.body ?? {}) as AgentSessionBody;
       if (Object.prototype.hasOwnProperty.call(body, "title")) renameAgentSession(req.params.sessionId, body.title);
       if (typeof body.webSearchEnabled === "boolean") setAgentWebSearch(req.params.sessionId, body.webSearchEnabled);
+      if (Object.prototype.hasOwnProperty.call(body, "generationSettings")) {
+        setAgentGenerationSettings(req.params.sessionId, body.generationSettings);
+      }
       if (Object.prototype.hasOwnProperty.call(body, "currentImageId")) {
         const ok = setAgentCurrentImage(req.params.sessionId, body.currentImageId);
         if (!ok) throw imageNotFound(req.params.sessionId);
@@ -124,6 +145,62 @@ export function registerAgentRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       sendError(res, error);
     }
   });
+
+  app.get("/api/agent/queue", (_req: Request, res: Response) => {
+    res.json({ queue: listAgentQueueItems() });
+  });
+
+  app.get("/api/agent/sessions/:sessionId/queue", (req: Request<{ sessionId: string }>, res: Response) => {
+    if (!getAgentSession(req.params.sessionId)) return sendError(res, notFound(req.params.sessionId));
+    res.json({ queue: listAgentQueueItems(req.params.sessionId) });
+  });
+
+  app.post("/api/agent/sessions/:sessionId/queue", (req: Request<{ sessionId: string }>, res: Response) => {
+    try {
+      if (!getAgentSession(req.params.sessionId)) throw notFound(req.params.sessionId);
+      const body = (req.body ?? {}) as AgentQueueBody;
+      const rawPrompt = cleanPrompt(body.prompt);
+      const command = parseAgentSlashCommand(rawPrompt);
+      appendAgentTurn({ sessionId: req.params.sessionId, role: "user", text: rawPrompt, status: "complete" });
+      if (command?.name === "question" || command?.name === "help") {
+        appendAgentTurn({
+          sessionId: req.params.sessionId,
+          role: "assistant",
+          text: command.name === "help" ? formatAgentSlashHelp() : formatAgentQuestionReply(command.prompt),
+          status: "complete",
+        });
+        return res.status(200).json({ queueItem: null, workspace: getAgentWorkspacePayload(req.params.sessionId) });
+      }
+      const prompt = command ? cleanPrompt(command.prompt) : rawPrompt;
+      const queueItem = createAgentQueueItem({
+        sessionId: req.params.sessionId,
+        prompt,
+        options: normalizeQueueOptions(req.params.sessionId, body),
+        command,
+      });
+      void tickAgentQueueWorker(ctx);
+      res.status(202).json({ queueItem, workspace: getAgentWorkspacePayload(req.params.sessionId) });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post("/api/agent/queue/:itemId/cancel", (req: Request<{ itemId: string }>, res: Response) => {
+    const item = getAgentQueueItem(req.params.itemId);
+    if (!item) return sendError(res, queueItemNotFound(req.params.itemId));
+    const ok = cancelAgentQueueItem(item.id);
+    if (!ok) return sendError(res, queueActionError("AGENT_QUEUE_CANCEL_FAILED", "Only queued Agent work can be canceled."));
+    res.json(getAgentWorkspacePayload(item.sessionId));
+  });
+
+  app.post("/api/agent/queue/:itemId/retry", (req: Request<{ itemId: string }>, res: Response) => {
+    const item = getAgentQueueItem(req.params.itemId);
+    if (!item) return sendError(res, queueItemNotFound(req.params.itemId));
+    const ok = retryAgentQueueItem(item.id);
+    if (!ok) return sendError(res, queueActionError("AGENT_QUEUE_RETRY_FAILED", "Only failed or canceled Agent work can be retried."));
+    void tickAgentQueueWorker(ctx);
+    res.json(getAgentWorkspacePayload(item.sessionId));
+  });
 }
 
 function normalizeCurrentImage(value: unknown) {
@@ -151,6 +228,41 @@ function cleanPrompt(value: unknown) {
   err.code = "AGENT_PROMPT_REQUIRED";
   err.status = 400;
   throw err;
+}
+
+function normalizeQueueOptions(sessionId: string, body: AgentQueueBody) {
+  const current = getAgentGenerationSettings(sessionId);
+  const input = body.options && typeof body.options === "object" ? body.options as Record<string, unknown> : {};
+  return {
+    ...current,
+    ...input,
+    provider: cleanOption(body.provider) ?? input.provider ?? current.provider,
+    quality: cleanOption(body.quality) ?? input.quality ?? current.quality,
+    size: cleanOption(body.size) ?? input.size ?? current.size,
+    format: cleanOption(body.format) ?? input.format ?? current.format,
+    moderation: cleanOption(body.moderation) ?? input.moderation ?? current.moderation,
+    model: cleanOption(body.model) ?? input.model ?? current.model,
+    reasoningEffort: cleanOption(body.reasoningEffort) ?? input.reasoningEffort ?? current.reasoningEffort,
+    webSearchEnabled: typeof input.webSearchEnabled === "boolean" ? input.webSearchEnabled : current.webSearchEnabled,
+    generationStrategy: input.generationStrategy ?? current.generationStrategy,
+    variants: input.variants ?? current.variants,
+    maxAutoVariants: input.maxAutoVariants ?? current.maxAutoVariants,
+    parallelism: input.parallelism ?? current.parallelism,
+  };
+}
+
+function queueActionError(code: string, message: string) {
+  const err = new Error(message) as Error & { code?: string; status?: number };
+  err.code = code;
+  err.status = 409;
+  return err;
+}
+
+function queueItemNotFound(itemId: string) {
+  const err = new Error(`Agent queue item not found: ${itemId}`) as Error & { code?: string; status?: number };
+  err.code = "AGENT_QUEUE_ITEM_NOT_FOUND";
+  err.status = 404;
+  return err;
 }
 
 function sendError(res: Response, error: unknown) {
