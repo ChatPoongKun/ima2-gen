@@ -21,19 +21,27 @@ export function AgentComposer({ webSearchEnabled, insertedPrompt, onWebSearchCha
 
   const canSend = draft.trim().length > 0;
   const slashMatch = draft.trimStart().match(/^\/([a-z]*)$/i);
-  const showMenu = slashMatch !== null && !menuDismissed;
+  const inSlashMode = slashMatch !== null;
+  const showMenu = inSlashMode && !menuDismissed;
   const slashQuery = slashMatch?.[1] ?? "";
   const filtered = filterCommands(slashQuery);
   const menuVisible = showMenu && filtered.length > 0;
 
+  const safeIndex = filtered.length > 0
+    ? Math.min(highlightIndex, filtered.length - 1)
+    : 0;
   const activeOptionId = menuVisible
-    ? `${listboxId}-opt-${highlightIndex}`
+    ? `${listboxId}-opt-${safeIndex}`
     : undefined;
 
   useEffect(() => {
     setHighlightIndex(0);
     setMenuDismissed(false);
   }, [slashQuery]);
+
+  useEffect(() => {
+    if (inSlashMode) setMenuDismissed(false);
+  }, [inSlashMode]);
 
   useEffect(() => {
     if (!insertedPrompt?.text) return;
@@ -58,7 +66,7 @@ export function AgentComposer({ webSearchEnabled, insertedPrompt, onWebSearchCha
         <SlashCommandMenu
           listboxId={listboxId}
           query={slashQuery}
-          highlightIndex={highlightIndex}
+          highlightIndex={safeIndex}
           onSelect={handleSelect}
           onHighlightChange={setHighlightIndex}
         />
@@ -66,10 +74,10 @@ export function AgentComposer({ webSearchEnabled, insertedPrompt, onWebSearchCha
       <textarea
         ref={textareaRef}
         value={draft}
-        role="combobox"
         aria-autocomplete="list"
+        aria-label={t("agent.composerPlaceholder")}
         aria-expanded={menuVisible}
-        aria-controls={listboxId}
+        {...(menuVisible ? { "aria-controls": listboxId } : {})}
         aria-activedescendant={activeOptionId}
         autoCapitalize="off"
         autoCorrect="off"
@@ -86,22 +94,22 @@ export function AgentComposer({ webSearchEnabled, insertedPrompt, onWebSearchCha
             switch (event.key) {
               case "Tab": {
                 event.preventDefault();
-                handleSelect(filtered[highlightIndex]);
+                handleSelect(filtered[safeIndex]);
                 return;
               }
               case "ArrowDown": {
                 event.preventDefault();
-                setHighlightIndex((i) => (i + 1) % filtered.length);
+                setHighlightIndex((safeIndex + 1) % filtered.length);
                 return;
               }
               case "ArrowUp": {
                 event.preventDefault();
-                setHighlightIndex((i) => (i - 1 + filtered.length) % filtered.length);
+                setHighlightIndex((safeIndex - 1 + filtered.length) % filtered.length);
                 return;
               }
               case "Enter": {
                 event.preventDefault();
-                handleSelect(filtered[highlightIndex]);
+                handleSelect(filtered[safeIndex]);
                 return;
               }
               case "Escape": {
