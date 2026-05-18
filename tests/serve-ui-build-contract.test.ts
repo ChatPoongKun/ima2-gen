@@ -15,7 +15,7 @@ function makeProject() {
   return root;
 }
 
-function setMtime(path, seconds) {
+function setMtime(path: string, seconds: number) {
   const date = new Date(seconds * 1000);
   utimesSync(path, date, date);
 }
