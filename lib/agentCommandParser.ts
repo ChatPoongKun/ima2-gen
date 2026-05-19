@@ -30,7 +30,8 @@ export function parseAgentSlashCommand(input: string): AgentSlashCommand | null 
   if (!name) return null;
 
   const rest = (match[2] ?? "").trim();
-  const parsed = parseLeadingCount(rest);
+  const countCommands: AgentSlashCommandName[] = ["variants", "generate", "parallelism"];
+  const parsed = countCommands.includes(name) ? parseLeadingCount(rest) : { prompt: rest };
   return {
     name,
     rawName,

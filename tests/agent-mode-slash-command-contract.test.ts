@@ -111,7 +111,39 @@ describe("Agent Mode slash command contract", () => {
     });
   });
 
+  it("/question preserves leading numbers in text", async () => {
+    await withApp(async (baseUrl) => {
+      const created = await createSession(baseUrl);
+      const sessionId = created.selectedSessionId;
+      const res = await fetch(`${baseUrl}/api/agent/sessions/${sessionId}/queue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: "/question 2 options?" }),
+      });
+      const body = await res.json() as any;
+      assert.equal(res.status, 200);
+      assert.equal(body.queueItem, null);
+      assert.ok(body.workspace.turnsBySession[sessionId].some((turn: any) => (
+        turn.role === "assistant" &&
+        turn.text === "2 options?" &&
+        turn.imageIds.length === 0
+      )));
+    });
+  });
+
   it("/question is one-shot: next message queues normally", async () => {
+    const finalImage = await pngB64();
+    globalThis.fetch = async (url, init) => {
+      if (String(url).startsWith("http://127.0.0.1:")) return originalFetch(url, init);
+      return sseResponse([
+        {
+          type: "response.output_item.done",
+          item: { type: "image_generation_call", result: finalImage, revised_prompt: "one-shot follow-up" },
+        },
+        { type: "response.completed", response: { usage: { total_tokens: 1 } } },
+      ]);
+    };
+
     await withApp(async (baseUrl) => {
       const created = await createSession(baseUrl);
       const sessionId = created.selectedSessionId;
@@ -127,12 +159,18 @@ describe("Agent Mode slash command contract", () => {
       const followUpRes = await fetch(`${baseUrl}/api/agent/sessions/${sessionId}/queue`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: "warm tones please" }),
+        body: JSON.stringify({ prompt: "warm tones please", options: { provider: "api" } }),
       });
       assert.equal(followUpRes.status, 202);
       const followUpBody = await followUpRes.json() as any;
       assert.ok(followUpBody.queueItem, "follow-up after /question must create a queue item");
       assert.equal(followUpBody.queueItem.status, "queued");
+
+      await waitFor(async () => {
+        const queueRes = await fetch(`${baseUrl}/api/agent/sessions/${sessionId}/queue`);
+        const queue = (await queueRes.json() as any).queue as Array<any>;
+        return queue.find((item: any) => item.id === followUpBody.queueItem.id && item.status === "succeeded");
+      }, "one-shot follow-up queue item to finish");
     });
   });
 
