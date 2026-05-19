@@ -105,9 +105,34 @@ describe("Agent Mode slash command contract", () => {
       assert.equal(body.workspace.queueBySession[sessionId].length, 0);
       assert.ok(body.workspace.turnsBySession[sessionId].some((turn: any) => (
         turn.role === "assistant" &&
-        turn.text.includes("Question mode is active") &&
+        turn.text === "should we ask for style first?" &&
         turn.imageIds.length === 0
       )));
+    });
+  });
+
+  it("/question is one-shot: next message queues normally", async () => {
+    await withApp(async (baseUrl) => {
+      const created = await createSession(baseUrl);
+      const sessionId = created.selectedSessionId;
+      const questionRes = await fetch(`${baseUrl}/api/agent/sessions/${sessionId}/queue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: "/question warm or cool tones?" }),
+      });
+      assert.equal(questionRes.status, 200);
+      const questionBody = await questionRes.json() as any;
+      assert.equal(questionBody.queueItem, null);
+
+      const followUpRes = await fetch(`${baseUrl}/api/agent/sessions/${sessionId}/queue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: "warm tones please" }),
+      });
+      assert.equal(followUpRes.status, 202);
+      const followUpBody = await followUpRes.json() as any;
+      assert.ok(followUpBody.queueItem, "follow-up after /question must create a queue item");
+      assert.equal(followUpBody.queueItem.status, "queued");
     });
   });
 

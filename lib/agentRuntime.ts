@@ -100,7 +100,7 @@ export async function runAgentGenerationPlan(
     const assistantTurn = appendAgentTurn({
       sessionId,
       role: "assistant",
-      text: plan.assistantText || plan.reason || "Question mode completed without image generation.",
+      text: plan.assistantText || plan.reason || "What would you like to clarify before generating images?",
       imageIds: [],
       webFindingIds: [],
       status: "complete",

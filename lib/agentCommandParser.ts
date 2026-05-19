@@ -53,9 +53,9 @@ export function formatAgentSlashHelp(): string {
 export function formatAgentQuestionReply(prompt: string): string {
   const topic = prompt.trim();
   if (!topic) {
-    return "Question mode is active. Ask what should be clarified before image generation.";
+    return "What would you like to clarify before generating images?";
   }
-  return `Question mode is active. Clarify this before generation: ${topic}`;
+  return topic;
 }
 
 function parseLeadingCount(value: string): { value?: number; prompt: string } {
