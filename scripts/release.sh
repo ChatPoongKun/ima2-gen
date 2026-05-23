@@ -15,6 +15,13 @@ echo "========================="
 
 cd "$(dirname "$0")/.."
 
+# ─── Preflight: npm auth ───────────────────────────────
+if ! NPM_USER=$(npm whoami 2>/dev/null); then
+  echo "❌ Not logged in to npm. Run: npm login"
+  exit 1
+fi
+echo "🔐 npm user: $NPM_USER"
+
 if ! git diff --cached --quiet; then
   echo "❌ Refusing release: staged changes exist"
   exit 1
@@ -44,14 +51,37 @@ npm run build
 
 # ─── Version bump ──────────────────────────────────────
 BUMP_ARG="${1:-patch}"
-
+EXPLICIT_VERSION=0
 if [[ "$BUMP_ARG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  npm version "$BUMP_ARG" --no-git-tag-version
-else
-  npm version "$BUMP_ARG" --no-git-tag-version
+  EXPLICIT_VERSION=1
 fi
+npm version "$BUMP_ARG" --no-git-tag-version --allow-same-version
 
 VERSION=$(node -p "require('./package.json').version")
+
+# Auto-resolve tag collisions left by previous failed releases.
+# If user passed an explicit version, fail loudly instead of silently shifting.
+collision_check() {
+  local local_tag remote_tag npm_pub
+  local_tag=$(git rev-parse --verify "v$1" 2>/dev/null || true)
+  remote_tag=$(git ls-remote --tags origin "v$1" 2>/dev/null | awk '{print $1}')
+  npm_pub=$(npm view "$PKG_NAME@$1" version 2>/dev/null || true)
+  if [ -n "$npm_pub" ] || [ -n "$local_tag" ] || [ -n "$remote_tag" ]; then
+    return 0
+  fi
+  return 1
+}
+
+while collision_check "$VERSION"; do
+  if [ "$EXPLICIT_VERSION" = "1" ]; then
+    echo "❌ Version $VERSION already exists (tag or npm). Choose a different version."
+    exit 1
+  fi
+  echo "⚠️  v$VERSION already taken (tag or npm). Bumping patch and retrying..."
+  npm version patch --no-git-tag-version
+  VERSION=$(node -p "require('./package.json').version")
+done
+
 echo "📌 New version: $VERSION"
 
 # ─── Collect changelog ─────────────────────────────────
@@ -69,17 +99,33 @@ echo "📝 Changes since ${PREV_TAG:-'(none)'} ($COMMIT_COUNT commits):"
 echo "$CHANGELOG" | head -15
 echo ""
 
-# ─── Commit + Tag + Push ──────────────────────────────
-echo "🏷️  Creating git tag v$VERSION..."
-git add package.json package-lock.json
-git commit -m "chore: release v$VERSION" --allow-empty
-git tag "v$VERSION"
-git push origin main
-git push origin "v$VERSION"
+# ─── Commit + Tag ──────────────────────────────────────
+echo "🏷️  Preparing commit + tag v$VERSION..."
+HEAD_MSG=$(git log -1 --pretty=%s 2>/dev/null || echo "")
+if [ "$HEAD_MSG" = "chore: release v$VERSION" ] && git diff --quiet HEAD -- package.json package-lock.json; then
+  echo "ℹ️  HEAD already matches release commit, skipping commit"
+else
+  git add package.json package-lock.json
+  git commit -m "chore: release v$VERSION" --allow-empty
+fi
 
-# ─── npm publish ───────────────────────────────────────
+if git rev-parse --verify "v$VERSION" >/dev/null 2>&1; then
+  echo "ℹ️  Local tag v$VERSION already exists, skipping"
+else
+  git tag "v$VERSION"
+fi
+
+# ─── npm publish (BEFORE pushing tag — so failed publish leaves no dangling remote tag) ──
 echo "🚀 Publishing to npm..."
 npm publish --access public
+
+# ─── Push commit + tag ────────────────────────────────
+git push origin main
+if [ -z "$(git ls-remote --tags origin "v$VERSION" 2>/dev/null)" ]; then
+  git push origin "v$VERSION"
+else
+  echo "ℹ️  Remote tag v$VERSION already exists, skipping push"
+fi
 
 # ─── GitHub Release with changelog ─────────────────────
 echo "📋 Creating GitHub Release..."
