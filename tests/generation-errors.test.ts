@@ -145,13 +145,105 @@ test("empty response preserves sanitized Responses diagnostics", () => {
   };
 
   const normalized = normalizeGenerationFailure(err);
-  assert.equal(normalized.code, "EMPTY_RESPONSE");
+  assert.equal(normalized.code, "WEB_SEARCH_ONLY_RESPONSE");
   assert.equal(normalized.diagnosticReason, "web_search_only_response");
   assert.deepEqual(normalized.eventTypes, err.eventTypes);
   assert.equal(normalized.webSearchCalls, 1);
   assert.equal(normalized.responseDiagnostics.outputItemSummary[0].resultChars, 0);
   assert.deepEqual(normalized.toolTypes, ["web_search", "image_generation"]);
   assert.equal(normalized.toolChoiceKind, "required");
+});
+
+test("Responses diagnostic codes normalize without collapsing to INVALID_REQUEST", () => {
+  for (const code of [
+    "STREAM_PARSE_FAILED",
+    "IMAGE_TOOL_NOT_CALLED",
+    "IMAGE_TOOL_FAILED",
+    "IMAGE_TOOL_COMPLETED_WITHOUT_RESULT",
+    "RESPONSES_STREAM_ERROR",
+  ]) {
+    const err: any = new Error("classified no-image response");
+    err.code = code;
+    err.status = code === "RESPONSES_STREAM_ERROR" ? 502 : 422;
+    err.eventCount = 1;
+    err.responseDiagnostics = {
+      eventTypes: {},
+      streamStats: {
+        chunkCount: 1,
+        bytesRead: 10,
+        maxChunkBytes: 10,
+        parseSkipCount: 0,
+        finalBufferChars: 0,
+        sawDoneSentinel: false,
+        sawResponseCompleted: true,
+      },
+      outputItemSummary: [],
+      imageCallSeen: false,
+      imageCallCompleted: false,
+      imageCallFailed: false,
+      imageResultCount: 0,
+      webSearchCallSeen: false,
+      messageOutputSeen: false,
+      outputTextChars: 0,
+    };
+
+    const normalized = normalizeGenerationFailure(err);
+    assert.equal(normalized.code, code);
+    assert.equal(normalized.status, err.status);
+    assert.notEqual(normalized.code, "INVALID_REQUEST");
+    assert.ok(normalized.diagnosticReason);
+  }
+});
+
+test("Responses stream diagnostic code beats upstream event code classification", () => {
+  const err: any = new Error("Responses stream returned an error");
+  err.code = "RESPONSES_STREAM_ERROR";
+  err.status = 502;
+  err.upstreamCode = "invalid_value";
+  err.eventType = "error";
+  err.eventCount = 1;
+
+  const normalized = normalizeGenerationFailure(err);
+  assert.equal(normalized.code, "RESPONSES_STREAM_ERROR");
+  assert.equal(normalized.status, 502);
+  assert.equal(normalized.upstreamCode, "invalid_value");
+  assert.equal(normalized.eventType, "error");
+  assert.notEqual(normalized.code, "INVALID_REQUEST");
+});
+
+test("explicit generic EMPTY_RESPONSE with status 422 preserves empty metadata", () => {
+  const err: any = new Error("No image data received");
+  err.code = "EMPTY_RESPONSE";
+  err.status = 422;
+  err.eventCount = 1;
+  err.eventTypes = { "response.completed": 1 };
+  err.responseDiagnostics = {
+    eventTypes: err.eventTypes,
+    streamStats: {
+      chunkCount: 1,
+      bytesRead: 60,
+      maxChunkBytes: 60,
+      parseSkipCount: 0,
+      finalBufferChars: 0,
+      sawDoneSentinel: false,
+      sawResponseCompleted: true,
+    },
+    outputItemSummary: [],
+    imageCallSeen: false,
+    imageCallCompleted: false,
+    imageCallFailed: false,
+    imageResultCount: 0,
+    webSearchCallSeen: false,
+    messageOutputSeen: false,
+    outputTextChars: 0,
+  };
+
+  const normalized = normalizeGenerationFailure(err);
+  assert.equal(normalized.code, "EMPTY_RESPONSE");
+  assert.equal(normalized.status, 422);
+  assert.equal(normalized.eventCount, 1);
+  assert.deepEqual(normalized.eventTypes, err.eventTypes);
+  assert.notEqual(normalized.code, "INVALID_REQUEST");
 });
 
 test("empty response with reference mismatch preserves diagnostic metadata", () => {

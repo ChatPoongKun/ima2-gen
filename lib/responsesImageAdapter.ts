@@ -8,8 +8,8 @@ import { type RouteRuntimeContext, requireRuntimeContext } from "./runtimeContex
 import {
   parseJson,
   parseStream,
+  safeDiagnosticLabel,
   type FinalImageHandler,
-  type ParsedResponsesResult,
 } from "./responsesParse.js";
 import {
   imageToolChoice,
@@ -17,6 +17,8 @@ import {
   tools,
   toolTypes,
 } from "./responsesTools.js";
+import { emptyResponseError } from "./responsesErrors.js";
+import { retryPromptOnlyJsonImage } from "./responsesFallback.js";
 import {
   AUTO_PROMPT_FIDELITY_SUFFIX,
   DIRECT_PROMPT_FIDELITY_SUFFIX,
@@ -71,9 +73,9 @@ function parseOpenAIErrorBody(text: string): UpstreamError | null {
     const error = parsed?.error || {};
     return {
       message: typeof error.message === "string" && error.message ? error.message : "OpenAI request failed",
-      code: typeof error.code === "string" ? error.code : null,
-      type: typeof error.type === "string" ? error.type : null,
-      param: typeof error.param === "string" ? error.param : null,
+      code: safeDiagnosticLabel(error.code),
+      type: safeDiagnosticLabel(error.type),
+      param: safeDiagnosticLabel(error.param),
     };
   } catch {
     return null;
@@ -182,42 +184,6 @@ interface PostResponsesArgs {
   onFinalImage?: FinalImageHandler | null;
 }
 
-interface EmptyResponseMeta {
-  provider: string | undefined;
-  model: string;
-  toolTypes: string[];
-  toolChoiceKind: string;
-  quality?: string;
-  size?: string;
-  moderation?: string;
-  webSearchEnabled?: boolean;
-  refsCount?: number;
-  inputImageCount?: number;
-  promptChars?: number;
-}
-
-function emptyResponseError(message: string, result: ParsedResponsesResult, meta: EmptyResponseMeta): ResponsesError {
-  return makeError(message, {
-    status: 422,
-    code: "EMPTY_RESPONSE",
-    eventCount: result.eventCount,
-    eventTypes: result.eventTypes,
-    webSearchCalls: result.webSearchCalls,
-    responseDiagnostics: result.diagnostics,
-    provider: meta.provider,
-    model: meta.model,
-    quality: meta.quality,
-    size: meta.size,
-    moderation: meta.moderation,
-    webSearchEnabled: meta.webSearchEnabled,
-    refsCount: meta.refsCount,
-    inputImageCount: meta.inputImageCount,
-    promptChars: meta.promptChars,
-    toolTypes: meta.toolTypes,
-    toolChoiceKind: meta.toolChoiceKind,
-  });
-}
-
 function combineAbortSignals(signals: AbortSignal[]): AbortSignal {
   if (signals.length === 1) return signals[0];
   const controller = new AbortController();
@@ -318,6 +284,7 @@ interface GenerateOptions {
   mask?: string;
   signal?: AbortSignal | null;
   forceImageToolChoice?: boolean;
+  allowPromptOnlyOAuthFallback?: boolean;
 }
 
 export async function generateViaResponses(provider: string | undefined, prompt: string | undefined, quality: string | undefined, size: string | undefined, moderation: string = "low", references: ReferenceRef[] = [], requestId: string | null = null, mode: string = "auto", ctxRaw: RouteRuntimeContext = {}, options: GenerateOptions = {}) {
@@ -354,6 +321,26 @@ export async function generateViaResponses(provider: string | undefined, prompt:
   });
   const image = result.images[0];
   if (!image?.b64) {
+    if (options.allowPromptOnlyOAuthFallback === true) {
+      const fallback = await retryPromptOnlyJsonImage({
+        postResponses,
+        ctx,
+        provider,
+        prompt,
+        mode,
+        model,
+        quality,
+        size,
+        moderation,
+        requestId,
+        signal: options.signal,
+        initial: result,
+        referencesDroppedOnRetry: referenceInputs.length > 0,
+        webSearchDroppedOnRetry: webSearchEnabled,
+        reasoningEffort: options.reasoningEffort,
+      });
+      if (fallback) return fallback;
+    }
     throw emptyResponseError("No image data received from Responses API", result, {
       provider,
       model,

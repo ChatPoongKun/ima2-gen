@@ -932,6 +932,41 @@
       "body": "Codex responded but didn't include image data. This isn't a moderation block — it's likely a transient hiccup or an unsupported size/quality/model combination. Retry, or try a different size or model.",
       "cta": "Retry"
     },
+    "streamParseFailed": {
+      "title": "Could not parse the image response stream",
+      "body": "Response data arrived, but the app could not read the image stream cleanly. This can happen with a proxy or transient stream transport issue.",
+      "cta": "Retry"
+    },
+    "imageToolNotCalled": {
+      "title": "The image tool was not called",
+      "body": "The response completed, but no image-generation tool call was observed. Retry the same prompt, or try another model/search setting.",
+      "cta": "Retry"
+    },
+    "webSearchOnlyResponse": {
+      "title": "The image tool was not called",
+      "body": "Only web search ran; the image-generation tool did not. Turn off search or retry the request.",
+      "cta": "Retry"
+    },
+    "imageToolFailed": {
+      "title": "The image tool call failed",
+      "body": "The image-generation tool was called, but it ended in a failed state. If this repeats, report it with `ima2 doctor image-probe --json` output.",
+      "cta": "Retry"
+    },
+    "imageToolNoResult": {
+      "title": "The image result was empty",
+      "body": "The image tool call completed but did not include image data. This can point to an unsupported option combination or account capability issue.",
+      "cta": "Retry"
+    },
+    "oauthImageCapabilityUnavailable": {
+      "title": "This account may not have image-tool access",
+      "body": "OAuth is connected, but this account/model combination may not be entitled to use image generation. Compare with API-key mode or another model.",
+      "cta": "OK"
+    },
+    "responsesStreamError": {
+      "title": "The image response stream ended with an error",
+      "body": "OpenAI returned an error event inside the response stream. Retry shortly, and check the raw error details if it persists.",
+      "cta": "Retry"
+    },
     "upstream5xx": {
       "title": "OpenAI is currently busy",
       "body": "Retrying usually resolves this. Check status.openai.com if it persists.",

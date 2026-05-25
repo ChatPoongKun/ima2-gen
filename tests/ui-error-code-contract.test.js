@@ -8,6 +8,9 @@ test("UI maps proxy and network errors to card surfaces", () => {
   assert.match(source, /OAUTH_UNAVAILABLE:\s*\{ surface: "card", cardKey: "errorCard\.oauthUnavailable"/);
   assert.match(source, /INVALID_REQUEST:\s*\{ surface: "card", cardKey: "errorCard\.invalidRequest"/);
   assert.match(source, /EMPTY_RESPONSE:\s*\{ surface: "card", cardKey: "errorCard\.emptyResponse"/);
+  assert.match(source, /STREAM_PARSE_FAILED:\s*\{ surface: "card", cardKey: "errorCard\.streamParseFailed"/);
+  assert.match(source, /WEB_SEARCH_ONLY_RESPONSE:\s*\{ surface: "card", cardKey: "errorCard\.webSearchOnlyResponse"/);
+  assert.match(source, /IMAGE_TOOL_FAILED:\s*\{ surface: "card", cardKey: "errorCard\.imageToolFailed"/);
   assert.match(source, /invalid_value/);
   assert.match(source, /minimum pixel budget/);
   assert.doesNotMatch(source, /content generation refused[^}]+MODERATION_REFUSED/s);
@@ -44,4 +47,10 @@ test("invalid request and open-folder feedback i18n keys exist", () => {
   assert.match(ko, /"invalidRequest"/);
   assert.match(en, /"emptyResponse"/);
   assert.match(ko, /"emptyResponse"/);
+  assert.match(en, /"streamParseFailed"/);
+  assert.match(ko, /"streamParseFailed"/);
+  assert.match(en, /"webSearchOnlyResponse"/);
+  assert.match(ko, /"webSearchOnlyResponse"/);
+  assert.match(en, /"imageToolFailed"/);
+  assert.match(ko, /"imageToolFailed"/);
 });

@@ -313,8 +313,10 @@ interface ParseStreamOptions {
 }
 
 function makeStreamError(message: string, code: string, eventCount: number, eventType: string): Error {
-  const err = new Error(message) as Error & { code?: string; eventCount?: number; eventType?: string };
-  err.code = code;
+  const err = new Error(message) as Error & { code?: string; upstreamCode?: string; status?: number; eventCount?: number; eventType?: string };
+  err.code = "RESPONSES_STREAM_ERROR";
+  err.upstreamCode = code;
+  err.status = 502;
   err.eventCount = eventCount;
   err.eventType = eventType;
   Object.defineProperty(err, "ima2ResponsesError", { value: true });

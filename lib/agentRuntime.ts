@@ -252,7 +252,8 @@ async function generateAgentImageWithRetry(
       if (result.image) return result;
     } catch (error) {
       lastError = error;
-      if (!isTextOnlyResult(error) || attempt === 1) break;
+      if (!isTextOnlyResult(error)) throw error;
+      if (attempt === 1) break;
       appendAgentTurn({
         sessionId,
         role: "tool",
@@ -357,7 +358,12 @@ function forceImagePrompt(prompt: string) {
 
 function isTextOnlyResult(error: unknown) {
   const err = errInfo(error);
-  return err.code === "EMPTY_RESPONSE" || err.message.includes("No image data");
+  return [
+    "EMPTY_RESPONSE",
+    "IMAGE_TOOL_NOT_CALLED",
+    "WEB_SEARCH_ONLY_RESPONSE",
+    "IMAGE_TOOL_COMPLETED_WITHOUT_RESULT",
+  ].includes(err.code || "") || err.message.includes("No image data");
 }
 
 function textOnlyError(cause: unknown) {

@@ -169,6 +169,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
                 reasoningEffort,
                 webSearchEnabled,
                 signal: cancelController.signal,
+                allowPromptOnlyOAuthFallback: activeProvider !== "api",
               },
             );
             throwIfJobCanceled(requestId);
@@ -195,9 +196,28 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
       const images: Array<{ image: string; filename: string; revisedPrompt: any }> = [];
       let totalUsage: Record<string, number> | null = null;
       let totalWebSearchCalls = 0;
+      let firstRetryMeta: Record<string, unknown> | null = null;
       for (const r of results) {
         if (r.status === "fulfilled" && r.value.b64) {
           throwIfJobCanceled(requestId);
+          const retryValue = r.value as typeof r.value & {
+            retryKind?: string;
+            initialEventCount?: number;
+            initialEventTypes?: unknown;
+            referencesDroppedOnRetry?: boolean;
+            developerPromptDroppedOnRetry?: boolean;
+            webSearchDroppedOnRetry?: boolean;
+          };
+          if (!firstRetryMeta && retryValue.retryKind) {
+            firstRetryMeta = {
+              retryKind: retryValue.retryKind,
+              initialEventCount: retryValue.initialEventCount ?? null,
+              initialEventTypes: retryValue.initialEventTypes || null,
+              referencesDroppedOnRetry: retryValue.referencesDroppedOnRetry ?? null,
+              developerPromptDroppedOnRetry: retryValue.developerPromptDroppedOnRetry ?? null,
+              webSearchDroppedOnRetry: retryValue.webSearchDroppedOnRetry ?? null,
+            };
+          }
           const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
           const filename = `${Date.now()}_${rand}_${images.length}.${format}`;
           const meta = {
@@ -284,7 +304,15 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
             upstreamParam: firstErr.upstreamParam || null,
             diagnosticReason: firstErr.diagnosticReason || null,
             retryKind: firstErr.retryKind || null,
+            initialEventCount: firstErr.initialEventCount ?? null,
+            initialEventTypes: firstErr.initialEventTypes || null,
             referencesDroppedOnRetry: firstErr.referencesDroppedOnRetry ?? null,
+            developerPromptDroppedOnRetry: firstErr.developerPromptDroppedOnRetry ?? null,
+            webSearchDroppedOnRetry: firstErr.webSearchDroppedOnRetry ?? null,
+            fallbackEventCount: firstErr.fallbackEventCount ?? null,
+            fallbackEventTypes: firstErr.fallbackEventTypes || null,
+            fallbackImageCallSeen: firstErr.fallbackImageCallSeen ?? null,
+            fallbackImageResultCount: firstErr.fallbackImageResultCount ?? null,
             errorEventCount: firstErr.eventCount ?? null,
             eventTypes: firstErr.eventTypes || null,
             webSearchCalls: firstErr.webSearchCalls ?? null,
@@ -314,6 +342,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
         revisedPrompt: firstRevised,
         promptMode: normalizedPromptMode,
         webSearchEnabled,
+        ...(firstRetryMeta || {}),
       };
 
       if (count === 1) {
@@ -363,7 +392,15 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
         upstreamParam: ext.upstreamParam || null,
         diagnosticReason: ext.diagnosticReason || null,
         retryKind: ext.retryKind || null,
+        initialEventCount: ext.initialEventCount ?? null,
+        initialEventTypes: ext.initialEventTypes || null,
         referencesDroppedOnRetry: ext.referencesDroppedOnRetry ?? null,
+        developerPromptDroppedOnRetry: ext.developerPromptDroppedOnRetry ?? null,
+        webSearchDroppedOnRetry: ext.webSearchDroppedOnRetry ?? null,
+        fallbackEventCount: ext.fallbackEventCount ?? null,
+        fallbackEventTypes: ext.fallbackEventTypes || null,
+        fallbackImageCallSeen: ext.fallbackImageCallSeen ?? null,
+        fallbackImageResultCount: ext.fallbackImageResultCount ?? null,
         errorEventCount: ext.eventCount ?? null,
         eventTypes: ext.eventTypes || null,
         webSearchCalls: ext.webSearchCalls ?? null,

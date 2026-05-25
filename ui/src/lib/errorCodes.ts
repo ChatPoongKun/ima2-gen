@@ -10,6 +10,13 @@ export type ImaErrorCode =
   | "MODERATION_REFUSED"
   | "SAFETY_REFUSAL"
   | "EMPTY_RESPONSE"
+  | "STREAM_PARSE_FAILED"
+  | "IMAGE_TOOL_NOT_CALLED"
+  | "WEB_SEARCH_ONLY_RESPONSE"
+  | "IMAGE_TOOL_FAILED"
+  | "IMAGE_TOOL_COMPLETED_WITHOUT_RESULT"
+  | "OAUTH_IMAGE_CAPABILITY_UNAVAILABLE"
+  | "RESPONSES_STREAM_ERROR"
   | "UPSTREAM_5XX"
   | "AUTH_CHATGPT_EXPIRED"
   | "AUTH_API_KEY_INVALID"
@@ -44,6 +51,13 @@ export const errorCodes: Record<ImaErrorCode, ErrorSpec> = {
   MODERATION_REFUSED: { surface: "card", cardKey: "errorCard.moderationRefused", cta: "dismiss" },
   SAFETY_REFUSAL: { surface: "card", cardKey: "errorCard.moderationRefused", cta: "dismiss" },
   EMPTY_RESPONSE: { surface: "card", cardKey: "errorCard.emptyResponse", cta: "dismiss" },
+  STREAM_PARSE_FAILED: { surface: "card", cardKey: "errorCard.streamParseFailed", cta: "retry" },
+  IMAGE_TOOL_NOT_CALLED: { surface: "card", cardKey: "errorCard.imageToolNotCalled", cta: "retry" },
+  WEB_SEARCH_ONLY_RESPONSE: { surface: "card", cardKey: "errorCard.webSearchOnlyResponse", cta: "retry" },
+  IMAGE_TOOL_FAILED: { surface: "card", cardKey: "errorCard.imageToolFailed", cta: "retry" },
+  IMAGE_TOOL_COMPLETED_WITHOUT_RESULT: { surface: "card", cardKey: "errorCard.imageToolNoResult", cta: "retry" },
+  OAUTH_IMAGE_CAPABILITY_UNAVAILABLE: { surface: "card", cardKey: "errorCard.oauthImageCapabilityUnavailable", cta: "dismiss" },
+  RESPONSES_STREAM_ERROR: { surface: "card", cardKey: "errorCard.responsesStreamError", cta: "retry" },
   UPSTREAM_5XX: { surface: "card", cardKey: "errorCard.upstream5xx", cta: "retry" },
   AUTH_CHATGPT_EXPIRED: { surface: "card", cardKey: "errorCard.authChatgptExpired", cta: "reauth" },
   AUTH_API_KEY_INVALID: { surface: "card", cardKey: "errorCard.authApiKeyInvalid", cta: "dismiss" },
@@ -69,6 +83,11 @@ export function classifyError(message: string): ImaErrorCode {
   if (s.includes("no image data returned")) {
     return "EMPTY_RESPONSE";
   }
+  if (s.includes("stream could not be parsed")) return "STREAM_PARSE_FAILED";
+  if (s.includes("web search but not the image tool")) return "WEB_SEARCH_ONLY_RESPONSE";
+  if (s.includes("without calling the image tool")) return "IMAGE_TOOL_NOT_CALLED";
+  if (s.includes("image tool call failed")) return "IMAGE_TOOL_FAILED";
+  if (s.includes("image tool completed without image data")) return "IMAGE_TOOL_COMPLETED_WITHOUT_RESULT";
   if (
     s.includes("token is expired") ||
     s.includes("sign in again") ||

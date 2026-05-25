@@ -1,4 +1,6 @@
 import { classifyUpstreamError, classifyUpstreamErrorCode } from "./errorClassify.js";
+import { safeDiagnosticLabel } from "./responsesParse.js";
+import { RESPONSE_DIAGNOSTIC_CODES } from "./responsesErrors.js";
 
 const PASSTHROUGH_CODES = new Set([
   "OAUTH_UNAVAILABLE",
@@ -48,8 +50,15 @@ export interface UpstreamErr {
   inputImageCount?: number;
   referenceDiagnostics?: unknown;
   retryKind?: string;
+  initialEventCount?: number;
+  initialEventTypes?: unknown;
   referencesDroppedOnRetry?: boolean;
   developerPromptDroppedOnRetry?: boolean;
+  webSearchDroppedOnRetry?: boolean;
+  fallbackEventCount?: number;
+  fallbackEventTypes?: unknown;
+  fallbackImageCallSeen?: boolean;
+  fallbackImageResultCount?: number;
   name?: string;
   stack?: string;
 }
@@ -82,18 +91,32 @@ function responseDiagnosticReasonFrom(err: UpstreamErr | null | undefined) {
   return null;
 }
 
+function responseDiagnosticCodeFrom(err: UpstreamErr | null | undefined) {
+  const reason = responseDiagnosticReasonFrom(err);
+  if (reason === "stream_parse_failed") return "STREAM_PARSE_FAILED";
+  if (reason === "web_search_only_response") return "WEB_SEARCH_ONLY_RESPONSE";
+  if (reason === "image_tool_not_called") return "IMAGE_TOOL_NOT_CALLED";
+  if (reason === "image_tool_failed") return "IMAGE_TOOL_FAILED";
+  if (reason === "image_tool_completed_without_result") return "IMAGE_TOOL_COMPLETED_WITHOUT_RESULT";
+  return null;
+}
+
 export function errorCodeFrom(err: UpstreamErr | null | undefined): string {
   if (!err) return "UNKNOWN";
+  const appCode = err.code as string;
+  if (RESPONSE_DIAGNOSTIC_CODES.has(appCode) || appCode === "EMPTY_RESPONSE") return appCode;
   const upstreamCode = classifyUpstreamErrorCode(err.upstreamCode);
   if (upstreamCode !== "UNKNOWN") return upstreamCode;
   const upstreamType = classifyUpstreamErrorCode(err.upstreamType);
   if (upstreamType !== "UNKNOWN") return upstreamType;
   // Known app-level codes pass through directly (before message heuristic)
-  if (PASSTHROUGH_CODES.has(err.code as string) || SAFETY_CODES.has(err.code as string)) return err.code as string;
+  if (PASSTHROUGH_CODES.has(appCode) || SAFETY_CODES.has(appCode)) return appCode;
   const rawCode = classifyUpstreamErrorCode(err.code);
   if (rawCode !== "UNKNOWN") return rawCode;
   const direct = classifyUpstreamError(err.message);
   if (direct !== "UNKNOWN") return direct;
+  const responseDiagnosticCode = responseDiagnosticCodeFrom(err);
+  if (responseDiagnosticCode) return responseDiagnosticCode;
   const status = Number(err.status);
   if (Number.isFinite(status) && status >= 400 && status < 500 && !SAFETY_CODES.has(err.code as string)) {
     return "INVALID_REQUEST";
@@ -115,10 +138,38 @@ export function statusForErrorCode(code: string, fallback = 500) {
   if (code === "AUTH_CHATGPT_EXPIRED" || code === "AUTH_API_KEY_INVALID") return 401;
   if (code === "API_KEY_REQUIRED") return 401;
   if (code === "UPSTREAM_5XX") return 502;
+  if (code === "RESPONSES_STREAM_ERROR") return 502;
   if (code === "OAUTH_IMAGE_TIMEOUT") return 504;
   if (code === "INVALID_REQUEST") return 400;
+  if (RESPONSE_DIAGNOSTIC_CODES.has(code)) return 422;
   if (code === "SAFETY_REFUSAL" || code === "MODERATION_REFUSED" || code === "moderation_blocked") return 422;
   return fallback;
+}
+
+function copyEmptyResponseMetadata(target: any, source: UpstreamErr | null | undefined) {
+  if (!source) return;
+  if (typeof source.eventCount === "number") target.eventCount = source.eventCount;
+  if (source.eventTypes) target.eventTypes = source.eventTypes;
+  if (typeof source.webSearchCalls === "number") target.webSearchCalls = source.webSearchCalls;
+  if (source.responseDiagnostics) target.responseDiagnostics = source.responseDiagnostics;
+  if (typeof source.webSearchEnabled === "boolean") target.webSearchEnabled = source.webSearchEnabled;
+  if (Array.isArray(source.toolTypes)) target.toolTypes = source.toolTypes;
+  if (source.toolChoiceKind) target.toolChoiceKind = source.toolChoiceKind;
+  if (typeof source.promptChars === "number") target.promptChars = source.promptChars;
+  if (typeof source.refsCount === "number") target.refsCount = source.refsCount;
+  if (typeof source.inputImageCount === "number") target.inputImageCount = source.inputImageCount;
+  if (Array.isArray(source.referenceDiagnostics)) target.referenceDiagnostics = source.referenceDiagnostics;
+  if (typeof source.referenceMismatchCount === "number") target.referenceMismatchCount = source.referenceMismatchCount;
+  if (source.retryKind) target.retryKind = source.retryKind;
+  if (typeof source.initialEventCount === "number") target.initialEventCount = source.initialEventCount;
+  if (source.initialEventTypes) target.initialEventTypes = source.initialEventTypes;
+  if (typeof source.referencesDroppedOnRetry === "boolean") target.referencesDroppedOnRetry = source.referencesDroppedOnRetry;
+  if (typeof source.developerPromptDroppedOnRetry === "boolean") target.developerPromptDroppedOnRetry = source.developerPromptDroppedOnRetry;
+  if (typeof source.webSearchDroppedOnRetry === "boolean") target.webSearchDroppedOnRetry = source.webSearchDroppedOnRetry;
+  if (typeof source.fallbackEventCount === "number") target.fallbackEventCount = source.fallbackEventCount;
+  if (source.fallbackEventTypes) target.fallbackEventTypes = source.fallbackEventTypes;
+  if (typeof source.fallbackImageCallSeen === "boolean") target.fallbackImageCallSeen = source.fallbackImageCallSeen;
+  if (typeof source.fallbackImageResultCount === "number") target.fallbackImageResultCount = source.fallbackImageResultCount;
 }
 
 export function normalizeGenerationFailure(lastErr: UpstreamErr | null | undefined, options: any = {}) {
@@ -128,9 +179,9 @@ export function normalizeGenerationFailure(lastErr: UpstreamErr | null | undefin
     err.code = code;
     err.status = lastErr?.status || statusForErrorCode(code);
     err.cause = lastErr;
-    if (lastErr?.upstreamCode) err.upstreamCode = lastErr.upstreamCode;
-    if (lastErr?.upstreamType) err.upstreamType = lastErr.upstreamType;
-    if (lastErr?.upstreamParam) err.upstreamParam = lastErr.upstreamParam;
+    if (lastErr?.upstreamCode) err.upstreamCode = safeDiagnosticLabel(lastErr.upstreamCode);
+    if (lastErr?.upstreamType) err.upstreamType = safeDiagnosticLabel(lastErr.upstreamType);
+    if (lastErr?.upstreamParam) err.upstreamParam = safeDiagnosticLabel(lastErr.upstreamParam);
     if (lastErr?.eventType) err.eventType = lastErr.eventType;
     if (typeof lastErr?.eventCount === "number") err.eventCount = lastErr.eventCount;
     return err;
@@ -140,6 +191,19 @@ export function normalizeGenerationFailure(lastErr: UpstreamErr | null | undefin
     err.code = "SAFETY_REFUSAL";
     err.status = 422;
     err.cause = lastErr;
+    return err;
+  }
+  if (RESPONSE_DIAGNOSTIC_CODES.has(code)) {
+    const err: any = new Error(lastErr?.message || "Image generation did not return image data");
+    err.code = code;
+    err.status = lastErr?.status || statusForErrorCode(code, 422);
+    err.cause = lastErr;
+    if (lastErr?.upstreamCode) err.upstreamCode = safeDiagnosticLabel(lastErr.upstreamCode);
+    if (lastErr?.upstreamType) err.upstreamType = safeDiagnosticLabel(lastErr.upstreamType);
+    if (lastErr?.upstreamParam) err.upstreamParam = safeDiagnosticLabel(lastErr.upstreamParam);
+    if (lastErr?.eventType) err.eventType = lastErr.eventType;
+    copyEmptyResponseMetadata(err, lastErr);
+    err.diagnosticReason = diagnosticReasonFrom(lastErr) || code.toLowerCase();
     return err;
   }
   // Empty response with metadata → likely a technical limitation (unsupported size/quality/model)
@@ -160,21 +224,7 @@ export function normalizeGenerationFailure(lastErr: UpstreamErr | null | undefin
     if (lastErr.model) err.model = lastErr.model;
     if (lastErr.provider) err.provider = lastErr.provider;
     if (lastErr.moderation) err.moderation = lastErr.moderation;
-    if (typeof lastErr.eventCount === "number") err.eventCount = lastErr.eventCount;
-    if (lastErr.eventTypes) err.eventTypes = lastErr.eventTypes;
-    if (typeof lastErr.webSearchCalls === "number") err.webSearchCalls = lastErr.webSearchCalls;
-    if (lastErr.responseDiagnostics) err.responseDiagnostics = lastErr.responseDiagnostics;
-    if (typeof lastErr.webSearchEnabled === "boolean") err.webSearchEnabled = lastErr.webSearchEnabled;
-    if (Array.isArray(lastErr.toolTypes)) err.toolTypes = lastErr.toolTypes;
-    if (lastErr.toolChoiceKind) err.toolChoiceKind = lastErr.toolChoiceKind;
-    if (typeof lastErr.promptChars === "number") err.promptChars = lastErr.promptChars;
-    if (typeof lastErr.refsCount === "number") err.refsCount = lastErr.refsCount;
-    if (typeof lastErr.inputImageCount === "number") err.inputImageCount = lastErr.inputImageCount;
-    if (Array.isArray(lastErr.referenceDiagnostics)) err.referenceDiagnostics = lastErr.referenceDiagnostics;
-    if (typeof lastErr.referenceMismatchCount === "number") err.referenceMismatchCount = lastErr.referenceMismatchCount;
-    if (lastErr.retryKind) err.retryKind = lastErr.retryKind;
-    if (typeof lastErr.referencesDroppedOnRetry === "boolean") err.referencesDroppedOnRetry = lastErr.referencesDroppedOnRetry;
-    if (typeof lastErr.developerPromptDroppedOnRetry === "boolean") err.developerPromptDroppedOnRetry = lastErr.developerPromptDroppedOnRetry;
+    copyEmptyResponseMetadata(err, lastErr);
     const diagnosticReason = diagnosticReasonFrom(lastErr);
     if (diagnosticReason) err.diagnosticReason = diagnosticReason;
     return err;

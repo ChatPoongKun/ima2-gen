@@ -135,7 +135,9 @@ test("Responses adapter preserves marked stream errors", async () => {
         { webSearchEnabled: false },
       ),
       (err: any) => {
-        assert.equal(err.code, "rate_limit_exceeded");
+        assert.equal(err.code, "RESPONSES_STREAM_ERROR");
+        assert.equal(err.upstreamCode, "rate_limit_exceeded");
+        assert.equal(err.status, 502);
         assert.equal(err.eventCount, 1);
         return true;
       },
