@@ -1,6 +1,6 @@
 ---
 created: 2026-04-23
-updated: 2026-05-17
+updated: 2026-05-25
 tags: [ima2-gen, devlog, roadmap]
 aliases: [ima2 active plan, image_gen current roadmap, ima2 개발계획]
 ---
@@ -35,6 +35,7 @@ Deferred / 미래 항목은 `_plan/`이 아니라 `devlog/_future/`에 둔다.
 | 9 | `260517_agent-ui-polish-jawdev/` | plan | Agent Mode polish and crash triage: workspace payload safety, layout breakpoint mismatch, settings visual polish, tool height, top model chip, sidebar tab separation. |
 | 10 | `260517_agent-mode-auto-generation-jawdev/` | implementation-patched | Agent Mode auto generation policy: deterministic request-aware variants/parallelism, text responses, `/question`, slash commands, manual caps, and queue/tool observability. |
 | 11 | `260519_issue72-slash-command-dropup/` | plan | GitHub #72. Agent Composer slash command dropup menu + tab autocomplete. 정적 pill → floating dropup, prefix 필터, 키보드 내비게이션, browser QA. |
+| 12 | `260525_empty-response-diagnostics-jawdev/` | P / plan | GitHub #76. DCInside/Windows OAuth `EMPTY_RESPONSE` triage lane. Adds sanitized stream fingerprint, image doctor probes, parser/payload hardening, image-tool-call hardening, prompt-only fallback, and support-safe repro playbook. Public phase reports live in #76 comments; the detailed lane folder is a local ignored working note unless explicitly force-added. |
 
 ## 2026-05-16 GH / Devlog Closeout
 
@@ -59,10 +60,10 @@ Detailed issue-to-evidence matrix:
 - `_fin/260516_gh-issue-hardening-jawdev/README.md`
 - `_fin/260515_issue64-70-hardening-pabcd/README.md`
 
-## 남은 GitHub Open Scope
+## 남은 Active Scope
 
-As of the 2026-05-16 audit, the only devlog-backed GitHub issues that still
-require implementation are:
+As of the current roadmap, the remaining devlog-backed implementation,
+verification, or triage scopes are:
 
 | Issue | Devlog | Next implementation gate |
 |---|---|---|
@@ -70,6 +71,7 @@ require implementation are:
 | #27 | `260430_issue27-canvas-svg-export/` | Build direct SVG serializer from current annotation model. |
 | #28 | `260430_issue28-canvas-pptx-export/` | Add PptxGenJS export, preferably reusing #27 overlay output. |
 | #72 | `260519_issue72-slash-command-dropup/` | Slash command dropup menu + tab autocomplete. 정적 pill 뱃지 → floating dropup, 키보드 내비게이션, prefix 필터링. |
+| #76 | `260525_empty-response-diagnostics-jawdev/` | Classify and harden OAuth/Responses `EMPTY_RESPONSE` failures. Public phase reports live in #76 comments; the detailed lane folder is a local ignored working note unless explicitly force-added. |
 
 ## 다음 작업 원칙
 
@@ -87,3 +89,4 @@ require implementation are:
 - 2026-05-17: Agent Mode UI polish/crash triage lane `260517_agent-ui-polish-jawdev/`와 Agent auto generation planning lane `260517_agent-mode-auto-generation-jawdev/`를 active lane에 추가했다. 후자는 request-aware variants/parallelism, text responses, `/question`, slash commands, and queue/tool/model observability를 차후 구현 scope로 기록한다.
 - 2026-05-17: `260517_agent-mode-auto-generation-jawdev/`에 deterministic planner, slash command parser, `/question` text bypass, planned parallelism runtime wiring, right sidebar tab split, composer slash hints, focused contract tests, reviewer concern closure, and Chrome/Computer Use QA closeout를 추가했다. 구현/검증 근거는 해당 lane의 `08_implementation_patch_log.md`가 source of truth이며, 폴더 이동은 별도 closeout 작업에서 처리한다.
 - 2026-05-19: GitHub #72를 열고 `260519_issue72-slash-command-dropup/` planning lane을 추가했다. Agent Composer의 정적 slash command pill 뱃지를 floating dropup 메뉴 + Tab 자동완성 + 화살표 키 내비게이션으로 교체하는 작업이다. browser 스킬 기반 QA 체크리스트 포함.
+- 2026-05-25: DCInside Windows OAuth `EMPTY_RESPONSE` 제보를 바탕으로 GitHub #76과 `260525_empty-response-diagnostics-jawdev/` planning lane을 추가했다. Classic `generateViaResponses()`의 stream parser, `web_search`/`tool_choice`, image-tool-call hardening, OAuth capability, non-stream fallback, support-safe Windows repro를 분리해 검증한다. 상세 lane 폴더는 로컬 ignored working note이고, 공개 phase report는 #76 comment로 남긴다.
