@@ -215,6 +215,7 @@ VITE_IMA2_API_TARGET=http://localhost:3334 npm run ui:dev
 - 로컬 OAuth 프록시가 아직 준비되지 않았습니다.
 - 서버가 재시작되었습니다.
 - VPN, 프록시, 방화벽이 요청을 막았습니다.
+- Windows에서 자동 실행되는 DNS/파편화 우회 프로그램(예: SecretDNS)이 OAuth 또는 스트리밍 이미지 응답을 깨뜨렸습니다.
 - Codex/ChatGPT OAuth 사용 중 네트워크가 끊겼습니다.
 
 먼저 확인하세요.
@@ -259,6 +260,7 @@ credential URL, base64 image data는 담지 않습니다.
 - 저장했다면 `ima2-cat-no-search.json`, `ima2-cat-current.json`
 - `ima2-gen` 버전과 Windows 버전
 - VPN, 회사 프록시, 백신 TLS 검사, custom CA 사용 여부
+- Windows에서 SecretDNS 같은 DNS/파편화 우회 프로그램이 자동 실행 중인지 여부
 - API 키가 이미 설정되어 있다면 같은 PC에서 `provider: "api"`가 동작하는지
 
 ChatGPT 쿠키, OAuth token 파일, API key, raw upstream response, prompt history,
@@ -282,7 +284,7 @@ generated base64는 공유하지 마세요.
 npx openai-oauth --port 10531
 ```
 
-프록시가 필요한 네트워크라면 터미널 프로세스도 프록시를 타도록 프록시 클라이언트의 TUN/TURN류 모드를 켜세요. 그래도 안 되면 `openai-oauth` 또는 `ima2 serve`를 실행하는 같은 터미널에 프록시 환경 변수를 설정합니다.
+프록시가 필요한 네트워크라면 터미널 프로세스도 프록시를 타도록 프록시 클라이언트의 TUN/TURN류 모드를 켜세요. Windows에서는 SecretDNS처럼 부팅 때 자동 실행되는 DNS/파편화 우회 프로그램도 잠시 끄고 재시도해 보세요. 그래도 안 되면 `openai-oauth` 또는 `ima2 serve`를 실행하는 같은 터미널에 프록시 환경 변수를 설정합니다.
 
 ```bash
 export HTTP_PROXY=http://127.0.0.1:7890

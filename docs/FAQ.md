@@ -223,6 +223,8 @@ Usually one of these:
 - the local OAuth proxy is not ready,
 - the server was restarted,
 - a VPN/proxy/firewall blocked the request,
+- an auto-start Windows network interception tool, including a DNS/fragmentation
+  bypass tool such as SecretDNS, broke OAuth or streaming image transport,
 - the network dropped while Codex/ChatGPT OAuth was being used.
 
 Try:
@@ -267,6 +269,8 @@ When opening an issue, include:
 - `ima2-cat-no-search.json` and `ima2-cat-current.json`, if you captured them.
 - `ima2-gen` version and Windows version.
 - Whether you use VPN, corporate proxy, antivirus TLS inspection, or a custom CA.
+- Whether a Windows DNS/fragmentation bypass tool such as SecretDNS is running
+  automatically.
 - Whether `provider: "api"` works on the same machine, if you already have an API key configured.
 
 Do not share ChatGPT cookies, OAuth token files, API keys, raw upstream
@@ -290,7 +294,7 @@ Try:
 npx openai-oauth --port 10531
 ```
 
-If your network requires a proxy, enable your proxy client's TUN/TURN-style mode so terminal processes can use it. If that is not enough, set the proxy variables in the same terminal that runs `openai-oauth` or `ima2 serve`:
+If your network requires a proxy, enable your proxy client's TUN/TURN-style mode so terminal processes can use it. On Windows, also temporarily disable auto-start DNS or fragmentation bypass tools such as SecretDNS and retry. If that is not enough, set the proxy variables in the same terminal that runs `openai-oauth` or `ima2 serve`:
 
 ```bash
 export HTTP_PROXY=http://127.0.0.1:7890

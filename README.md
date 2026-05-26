@@ -232,7 +232,7 @@ Start `ima2 serve`, then check `~/.ima2/server.json`. You can also run `ima2 pin
 Run `npx @openai/codex login`, confirm `ima2 status`, then restart `ima2 serve`.
 
 **`fetch failed` repeats on a proxy/VPN network**
-Check that the local OAuth proxy is reachable. On networks that require a proxy, enable your proxy client's TUN/TURN-style mode, then retry `npx openai-oauth --port 10531`. If it still fails, set `HTTP_PROXY` and `HTTPS_PROXY` in the same terminal that runs `ima2 serve` or `openai-oauth`.
+Check that the local OAuth proxy is reachable. On networks that require a proxy, enable your proxy client's TUN/TURN-style mode, then retry `npx openai-oauth --port 10531`. If it still fails, set `HTTP_PROXY` and `HTTPS_PROXY` in the same terminal that runs `ima2 serve` or `openai-oauth`. On Windows, also check for auto-start network interception tools, including DNS/fragmentation bypass tools such as SecretDNS, because they can break OAuth or streaming image responses even when the browser appears connected.
 
 **Images fail with `API_KEY_REQUIRED`**
 Set `OPENAI_API_KEY` or configure an API key before using `provider: "api"`. The default OAuth path still works without an API key.

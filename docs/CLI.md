@@ -116,8 +116,8 @@ ima2 gen "고양이" --json > ima2-cat-current.json
 
 Do not share ChatGPT cookies, OAuth token files, API keys, prompt history, raw
 upstream responses, or generated base64. Share `ima2-gen` version, OS version,
-and whether VPN, corporate proxy, antivirus TLS inspection, or a custom CA is in
-use.
+and whether VPN, corporate proxy, antivirus TLS inspection, a custom CA, or a
+Windows DNS/fragmentation bypass tool such as SecretDNS is in use.
 
 ## History and metadata
 
