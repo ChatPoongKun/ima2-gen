@@ -55,3 +55,5 @@ generation setting.
 - Read-only sub-agent verification returned PASS for quick-menu state,
   persisted reasoning selection, settings preservation, keyboard behavior, and
   mobile clipping coverage.
+- GPT Pro focused recheck returned PASS with no findings, using the pushed
+  commit URL plus a local zip/inline review bundle.
