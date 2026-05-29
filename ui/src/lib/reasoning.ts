@@ -33,6 +33,8 @@ const REASONING_SHORT: Record<Exclude<ReasoningEffort, "none">, string> = {
 export function formatReasoningLabel(
   effort: ReasoningEffort | undefined | null,
 ): string | null {
-  if (!effort || effort === "none") return null;
+  // Guard with isReasoningEffort so a non-canonical persisted string can never
+  // produce "R:undefined" (it just hides, like "none").
+  if (!isReasoningEffort(effort) || effort === "none") return null;
   return `R:${REASONING_SHORT[effort]}`;
 }
