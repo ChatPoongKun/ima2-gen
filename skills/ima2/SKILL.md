@@ -140,6 +140,13 @@ ima2 gen "variation 4" --quality high
 Treat `capabilities.limits.maxParallel` as advisory client-side queue guidance only.
 It is not a guaranteed server-side semaphore.
 
+## Agent Mode (web UI only)
+
+Agent Mode is a conversational image workspace (sessions, turns, a durable per-session queue, slash
+commands, `/question`). It is served at `/api/agent/*` and lives in the web UI — there is no
+`ima2 agent` CLI command. From the CLI, drive generation with `ima2 gen`, `ima2 edit`,
+`ima2 multimode`, and `ima2 node generate` instead.
+
 ## Watching Jobs
 
 Use JSON when another agent needs to reason about active work:
