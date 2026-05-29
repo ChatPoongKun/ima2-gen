@@ -18,3 +18,21 @@ export const REASONING_EFFORT_OPTIONS: Array<{
 export function isReasoningEffort(value: unknown): value is ReasoningEffort {
   return REASONING_EFFORT_OPTIONS.some((option) => option.value === value);
 }
+
+// Compact single-char labels for the result metadata bar.
+// NOTE: deliberately NOT REASONING_EFFORT_OPTIONS.shortLabel (off/low/med/high/xhigh) —
+// those are multi-char dropdown labels and "med" collides with quality "m".
+// The "R:" prefix disambiguates reasoning from quality (which already renders l/m/h).
+const REASONING_SHORT: Record<Exclude<ReasoningEffort, "none">, string> = {
+  low: "l",
+  medium: "m",
+  high: "h",
+  xhigh: "x",
+};
+
+export function formatReasoningLabel(
+  effort: ReasoningEffort | undefined | null,
+): string | null {
+  if (!effort || effort === "none") return null;
+  return `R:${REASONING_SHORT[effort]}`;
+}

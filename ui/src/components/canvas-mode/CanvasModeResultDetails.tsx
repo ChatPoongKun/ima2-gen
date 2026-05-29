@@ -1,5 +1,6 @@
 import { useI18n } from "../../i18n";
 import type { GenerateItem } from "../../types";
+import { formatReasoningLabel } from "../../lib/reasoning";
 import { ResultActions } from "../ResultActions";
 import { ResultPromptSummary } from "../ResultPromptSummary";
 
@@ -30,6 +31,7 @@ export function CanvasModeResultDetails({
     currentImage.usage
       ? t("canvas.tokens", { n: currentImage.usage.total_tokens ?? "?" })
       : null,
+    formatReasoningLabel(currentImage.reasoningEffort),
     displayQuality,
     displaySize,
     displayModel,

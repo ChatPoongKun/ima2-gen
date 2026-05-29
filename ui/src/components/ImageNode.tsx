@@ -3,6 +3,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useAppStore, type ImageNodeData, type GraphNode } from "../store/useAppStore";
 import { useI18n } from "../i18n";
 import { getImageModelShortLabel } from "../lib/imageModels";
+import { formatReasoningLabel } from "../lib/reasoning";
 import { SavePromptPopover } from "./SavePromptPopover";
 
 const MAX_NODE_REFS = 5;
@@ -157,6 +158,7 @@ function ImageNodeImpl({ id, data, selected }: NodeProps<GraphNode>) {
               searches: d.webSearchCalls,
             })
             : t("node.ready", { elapsed: d.elapsed ?? "?" }),
+          formatReasoningLabel(d.reasoningEffort),
           getImageModelShortLabel(d.model),
         ].filter(Boolean).join(" · ");
       case "stale":

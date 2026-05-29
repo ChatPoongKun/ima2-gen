@@ -17,6 +17,7 @@ import { ViewerControls } from "./viewer/ViewerControls";
 import { useI18n } from "../i18n";
 import { isEditableTarget } from "../lib/domEvents";
 import { getImageModelShortLabel } from "../lib/imageModels";
+import { formatReasoningLabel } from "../lib/reasoning";
 import type { GenerateItem } from "../types";
 import {
   useViewerTransform,
@@ -231,6 +232,7 @@ export function Canvas() {
               currentImage.usage
                 ? t("canvas.tokens", { n: currentImage.usage.total_tokens ?? "?" })
                 : null,
+              formatReasoningLabel(currentImage.reasoningEffort),
               displayQuality,
               displaySize,
               displayModel,
