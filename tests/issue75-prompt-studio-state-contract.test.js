@@ -45,7 +45,8 @@ describe("issue #75 Prompt Studio state contract", () => {
 
     assert.match(workspace, /PROMPT_STUDIO_WORKSPACE_PRESET[\s\S]*restoreComposerFromHistory:\s*false/);
     assert.match(store, /resolveWorkspaceSettings\(get\(\)\.workspaceProfile\)\.restoreComposerFromHistory/);
-    assert.match(store, /const composerPatch = shouldRestoreComposer && target \? getHistoryComposerPatch\(target\) : \{\}/);
+    assert.match(store, /const composerPatch =\s+shouldRestoreComposer && target && !isComposerDirty/);
+    assert.match(store, /getHistoryComposerPatch\(target\)/);
   });
 
   it("navigates Prompt Studio shortcuts through the grouped sidebar history domain", () => {

@@ -201,6 +201,7 @@ export function Canvas() {
               key={imageKey ?? undefined}
               src={imageSrc}
               alt={t("canvas.resultAlt")}
+              decoding="async"
               style={{
                 transform: `translate(${viewer.pan.x}px, ${viewer.pan.y}px) scale(${viewer.zoom})`,
               }}

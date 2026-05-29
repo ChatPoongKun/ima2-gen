@@ -3083,10 +3083,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       : resolveVisibleShortcutCurrent(history, item) ?? item;
     saveSelectedFilename(target?.filename ?? null);
     const shouldRestoreComposer = resolveWorkspaceSettings(get().workspaceProfile).restoreComposerFromHistory;
-    const composerPatch = shouldRestoreComposer && target ? getHistoryComposerPatch(target) : {};
-    if (Object.keys(composerPatch).length > 0) {
-      saveGenerationDefaultsPatch(composerPatch);
-    }
+    const currentPrompt = get().prompt;
+    const currentInserted = get().insertedPrompts;
+    const isComposerDirty = currentPrompt.trim() !== "" || currentInserted.length > 0;
+    const composerPatch =
+      shouldRestoreComposer && target && !isComposerDirty
+        ? getHistoryComposerPatch(target)
+        : {};
     set({
       currentImage: target,
       unseenGeneratedCount: 0,

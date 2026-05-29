@@ -84,9 +84,9 @@ export function MultimodeSequencePreview() {
                 {t("multimode.stageLabel", { index: index + 1 })}
               </div>
               {image ? (
-                <img src={image.url ?? image.image} alt={t("canvas.resultAlt")} />
+                <img src={image.url ?? image.image} alt={t("canvas.resultAlt")} loading="lazy" decoding="async" />
               ) : partial ? (
-                <img src={partial.image} alt={t("multimode.partialAlt")} />
+                <img src={partial.image} alt={t("multimode.partialAlt")} loading="lazy" decoding="async" />
               ) : (
                 <div className="multimode-sequence__empty">
                   {sequence.status === "error"

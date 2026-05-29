@@ -106,11 +106,19 @@ export function PromptComposer({ variant = "sidebar" }: PromptComposerProps) {
     void addReferences(files.slice(0, room));
   };
 
+  const maxHeightRef = useRef<number | null>(null);
+  const lastVariantRef = useRef(variant);
+
   useLayoutEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    if (maxHeightRef.current === null || lastVariantRef.current !== variant) {
+      maxHeightRef.current =
+        parseCssPixelValue(window.getComputedStyle(el).maxHeight) ?? 0;
+      lastVariantRef.current = variant;
+    }
     el.style.height = "auto";
-    const maxHeight = parseCssPixelValue(window.getComputedStyle(el).maxHeight);
+    const maxHeight = maxHeightRef.current;
     const nextHeight = maxHeight ? Math.min(el.scrollHeight, maxHeight) : el.scrollHeight;
     el.style.height = `${nextHeight}px`;
   }, [prompt, variant]);
@@ -215,7 +223,7 @@ export function PromptComposer({ variant = "sidebar" }: PromptComposerProps) {
         <div className="composer__chips">
           {refs.map((src, i) => (
             <div key={i} className="composer__chip" title={t("prompt.refChipTitle", { n: i + 1 })}>
-              <img src={src} alt={t("prompt.refChipAlt", { n: i + 1 })} />
+              <img src={src} alt={t("prompt.refChipAlt", { n: i + 1 })} loading="lazy" decoding="async" />
               <button
                 type="button"
                 className="composer__chip-remove"

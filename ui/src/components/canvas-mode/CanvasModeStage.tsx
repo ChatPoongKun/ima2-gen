@@ -58,6 +58,7 @@ export function CanvasModeStage({
         key={imageKey}
         src={imageSrc ?? fallbackImage}
         alt={alt}
+        decoding="async"
         onDoubleClick={(event) => {
           event.stopPropagation();
           onOpenCanvas();
@@ -69,6 +70,7 @@ export function CanvasModeStage({
           src={maskOverlayUrl}
           alt=""
           aria-hidden="true"
+          decoding="async"
         />
       ) : null}
       {canvasOpen ? cleanupLayer : null}

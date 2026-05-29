@@ -61,6 +61,8 @@ export function HistoryStrip() {
             src={item.thumb || item.url || item.image}
             alt=""
             className={`history-thumb${active ? " active" : ""}`}
+            loading="lazy"
+            decoding="async"
             onClick={() => selectHistory(item)}
           />
         );
