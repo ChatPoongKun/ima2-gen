@@ -58,6 +58,7 @@ export type GenerateItem = {
   composerPrompt?: string | null;
   composerInsertedPrompts?: ComposerInsertedPromptSnapshot[] | null;
   elapsed?: number;
+  reasoningEffort?: "none" | "low" | "medium" | "high" | "xhigh";
   provider?: string;
   quality?: string;
   size?: string;
@@ -125,11 +126,14 @@ export type EmbeddedGenerationMetadata = {
   requestId?: string | null;
   refsCount?: number;
   webSearchCalls?: number;
+  elapsed?: number | null;
+  reasoningEffort?: string | null;
 };
 
 export type GenerateSingleResponse = {
   image: string;
   elapsed: number;
+  reasoningEffort?: "none" | "low" | "medium" | "high" | "xhigh";
   filename: string;
   requestId?: string | null;
   usage?: GenerateItem["usage"];
@@ -145,6 +149,7 @@ export type GenerateSingleResponse = {
 export type GenerateMultiResponse = {
   images: Array<{ image: string; filename: string }>;
   elapsed: number;
+  reasoningEffort?: "none" | "low" | "medium" | "high" | "xhigh";
   count: number;
   requestId?: string | null;
   usage?: GenerateItem["usage"];

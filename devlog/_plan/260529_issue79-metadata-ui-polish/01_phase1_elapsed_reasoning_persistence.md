@@ -65,6 +65,13 @@ tags: [bug, metadata, elapsed, reasoning, server, p1]
 
 ### 2. 서버 sidecar 저장 (`routes/generate.ts`)
 
+> ⚠️ **A-AUDIT 정정 (elapsed 타이밍). 아래 옛 `diff` 블록의 `+ elapsed,` 줄은 폐기 — 적용 금지.**
+> `meta` 생성·embed·sidecar write는 루프 안(`:223-259`)에서 일어나는데 `elapsed`는 루프 종료 후(`:331`)에야 계산됨 → `:223` 시점엔 스코프에 `elapsed`가 없음. **확정 전략:**
+> 1. `reasoningEffort`(`:80` resolve)만 `meta`(`:223`)에 직접 추가 (스코프 OK).
+> 2. `elapsed`는 `:331`에서 **number**로 계산(`+((Date.now()-startTime)/1000).toFixed(1)`), 응답(`:357/:366`)도 number로 통일 (`GenerateSingleResponse.elapsed: number` `types.ts:132`와 정합).
+> 3. `:331` 직후 생성 이미지들의 **sidecar JSON(`<file>.json`)을 순회 패치**해 `elapsed`(number) 주입. batch(n>1)는 총 elapsed 공유(클라 `:3631`과 일치). (`readFile` import 추가 — 현재 `writeFile`만, N5)
+> 4. embed(`:247`)는 `:331` 이전이라 XMP에 elapsed 없을 수 있음 — sidecar-first + forward-fix 정책상 history reload는 sidecar가 커버하므로 허용.
+
 ⚠️ 서버 코드의 실제 변수명 주의:
 - elapsed는 route 후반에서 `const elapsed = ...toFixed(1)` 로 계산됨 (`routes/generate.ts:331`)
 - reasoningEffort는 `req.body.reasoningEffort` 로 수신 (`routes/generate.ts:80`)
@@ -97,8 +104,8 @@ tags: [bug, metadata, elapsed, reasoning, server, p1]
   const meta = JSON.parse(sidecarContent);
   return {
     // ...existing fields...
-+   elapsed: meta.elapsed ?? embedded?.elapsed,
-+   reasoningEffort: meta.reasoningEffort ?? embedded?.reasoningEffort,
++   elapsed: meta?.elapsed ?? null,
++   reasoningEffort: meta?.reasoningEffort ?? null,
   };
 ```
 
@@ -150,17 +157,36 @@ Node mode에서 reasoning을 표시하려면 (`ImageNode.tsx:153-161`):
 - `routes/nodes.ts:441-462` 응답에 reasoningEffort 포함
 - `ui/src/lib/nodeApi.ts:23-42` — NodeResponse 타입에 reasoningEffort 추가
 
+### 8. Canvas edit 경로 (`routes/edit.ts` + `canvasModeHelpers.ts`) — ⚠️ A-AUDIT 추가 (F2)
+
+scope가 Classic + **Canvas** + Node이므로 Canvas mask-edit 생성 경로도 포함.
+- `routes/edit.ts:209-226` meta — 현재 elapsed/reasoningEffort 둘 다 없음. elapsed는 `:204`에서 이미 계산되어 **스코프에 있음**(generate와 달리 timing 문제 없음) → meta에 `elapsed`(number) + `reasoningEffort` 직접 추가. 응답(`:240`)도 string→number 통일 (generate와 동일, N2).
+- `ui/src/components/canvas-mode/canvasModeHelpers.ts:48-82` `responseToGenerateItem` — `:71` elapsed만, reasoningEffort 미포함 → 결과 GenerateItem에 `reasoningEffort` thread-through. ⚠️ 영속(sidecar)은 위 edit.ts meta로 충족; **즉시 표시**까지 원하면 edit 응답에 reasoningEffort 추가 또는 call-site(`useCanvasModeSession.ts:~222`) merge 필요 (N3).
+
+### 9. Embedded fallback (`lib/imageMetadata.ts`) — ⚠️ A-AUDIT 추가 (F3)
+
+`buildIma2MetadataPayload`(`:35-63`)에 `elapsed?`(number) + `reasoningEffort?`(string) 필드 추가.
+이유: `historyList.ts:98-108`은 sidecar 없으면 embedded XMP로 fallback → `types.ts`만 고치면 런타임 payload builder는 필드를 안 실어 sidecar write 실패 시 영구 유실.
+
+### 10. 범위 제외 (명시)
+
+- `routes/multimode.ts:225-252` sidecar는 이번 범위 **제외** (Classic+Canvas+Node만). multimode parity는 후속.
+- cardnews history rows(`historyList.ts:122-165`)도 범위 밖.
+
 ## 영향 범위
 
 | 변경 파일 | 변경 유형 |
 |---|---|
-| `ui/src/types.ts` | 타입 추가 (GenerateItem, EmbeddedGenerationMetadata) |
-| `ui/src/lib/api.ts` | HistoryItem 타입에 elapsed, reasoningEffort 추가 |
-| `routes/generate.ts` | sidecar meta에 2 필드 추가 + elapsed 타입 통일 |
-| `lib/historyList.ts` | 히스토리 반환에 2 필드 추가 |
-| `ui/src/store/useAppStore.ts` | mapHistoryItem + 생성 결과 + ImageNodeData 타입 + node mapping |
-| `ui/src/lib/nodeApi.ts` | NodeResponse 타입에 reasoningEffort 추가 |
-| `routes/nodes.ts` | sidecar에 reasoningEffort 추가 + 응답에 포함 |
+| `ui/src/types.ts` | GenerateItem.reasoningEffort + EmbeddedGenerationMetadata.{elapsed,reasoningEffort} |
+| `ui/src/lib/api.ts` | HistoryItem에 elapsed, reasoningEffort |
+| `routes/generate.ts` | meta에 reasoningEffort + `:331` 후 sidecar elapsed(number) 패치 + 응답 number 통일 |
+| `routes/edit.ts` | Canvas edit meta에 elapsed(number)+reasoningEffort (A-audit F2) |
+| `lib/imageMetadata.ts` | buildIma2MetadataPayload에 elapsed+reasoningEffort (A-audit F3) |
+| `lib/historyList.ts` | 히스토리 반환에 2 필드 |
+| `ui/src/components/canvas-mode/canvasModeHelpers.ts` | responseToGenerateItem에 reasoningEffort thread |
+| `ui/src/store/useAppStore.ts` | mapHistoryItem + classic 결과 + ImageNodeData 타입 + node/recovery mapping |
+| `ui/src/lib/nodeApi.ts` | NodeGenerateResponse에 reasoningEffort |
+| `routes/nodes.ts` | sidecar에 reasoningEffort + 응답 포함 |
 
 ## Acceptance Criteria
 
@@ -169,6 +195,7 @@ Node mode에서 reasoning을 표시하려면 (`ImageNode.tsx:153-161`):
 3. 브라우저 새로고침 후에도 elapsed 유지 (sidecar에서 로드)
 4. reasoningEffort가 per-item으로 저장됨
 5. 서버 재시작 후에도 메타데이터 유지
+6. **forward-fix only**: 기존(고치기 전 생성) 디스크 항목은 elapsed/reasoning 소스가 없어 빈칸 유지 — 마이그레이션·backfill 없음. 신규 생성분부터 영속.
 
 ## Verification
 
@@ -180,3 +207,35 @@ npm test
 ```
 
 + 직원 검증: 이미지 생성 → 갤러리 왕복 → elapsed/reasoning 유지 확인
+
+---
+
+## 🔍 검증 정정 (audit 2026-05-29, post-#78 커밋)
+
+> 이 계획서는 #78 커밋(cbb18ed) 직전에 작성되어 줄 번호가 밀렸음. 아래는 현재 코드 기준 정정 + 추가 발견.
+
+### 줄 번호 정정
+
+| 계획 표기 | 실제 현재 위치 | 비고 |
+|---|---|---|
+| `routes/generate.ts:80` reasoningEffort 수신 | **`:58`** | `req.body` 디스트럭처 |
+| `useAppStore.ts:3607` 요청에 reasoningEffort | **`:3610`** | |
+| `useAppStore.ts:3649,3664` elapsed 결과 | **`:3631, :3652, :3667`** | 3곳 (계획은 2곳만, `:3667` 누락) |
+| `lib/historyList.ts:34-73` | **`:27-83`** | 함수는 27부터 |
+| `useAppStore.ts:4011-4025` node recovery | **`:4014-4028`** | |
+| `routes/nodes.ts:407` elapsed in meta | `:407` ✅ | node sidecar는 **이미** elapsed 저장함 |
+
+### ⚠️ 계획이 놓친 함정 (구현 전 필독)
+
+1. **elapsed 타입 불일치 (string vs number)**
+   - `routes/generate.ts:331` → `((Date.now()-startTime)/1000).toFixed(1)` = **string**
+   - `routes/nodes.ts:393` → `+(...).toFixed(1)` = **number** (이미 올바름)
+   - 클라 타입(`GenerateSingleResponse.elapsed`, `ImageNodeData.elapsed`)은 `number`
+   - → sidecar 영속 저장 시 **number로 통일**. classic 경로의 string을 그대로 저장하면 타입 깨짐.
+
+2. **reasoningEffort는 디스크 어디에도 저장 안 됨 (전 계층 누락)**
+   - `EmbeddedGenerationMetadata`, classic sidecar meta(`generate.ts:223-245`, **elapsed도 누락**), node sidecar meta(`nodes.ts`), `historyList.ts` row, `HistoryItem`(`api.ts:213-261`), `mapHistoryItem`(`useAppStore.ts:568-612`)
+   - → 한 군데만 고치면 계속 `undefined`. 전 계층 thread-through 필요.
+
+3. **node recovery 경로의 타입 narrowing**
+   - `recoverGraphNodesFromHistory`(`useAppStore.ts:~3977`)가 history item을 `url/createdAt/size/...`로만 좁혀서, `HistoryItem`에 elapsed를 추가해도 **이 경로에선 떨어짐**. 로컬 타입 + 매핑(`:4014-4028`)까지 같이 수정해야 노드 모드 영속 완성.

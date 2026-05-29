@@ -584,6 +584,8 @@ function mapHistoryItem(it: Awaited<ReturnType<typeof getHistory>>["items"][numb
     quality: it.quality ?? undefined,
     format: it.format as Format | undefined,
     model: it.model ?? undefined,
+    reasoningEffort: (it.reasoningEffort as GenerateItem["reasoningEffort"]) ?? undefined,
+    elapsed: it.elapsed ?? undefined,
     provider: it.provider,
     usage: (it.usage as GenerateItem["usage"]) ?? undefined,
     createdAt: it.createdAt,
@@ -698,6 +700,7 @@ export type ImageNodeData = {
   partialImageUrl?: string | null;
   error?: string;
   elapsed?: number;
+  reasoningEffort?: "none" | "low" | "medium" | "high" | "xhigh";
   webSearchCalls?: number;
   model?: string | null;
   size?: string | null;
@@ -773,6 +776,7 @@ function mapSessionToGraph(session: SessionFull): {
       partialImageUrl: null,
       error: d.error as string | undefined,
       elapsed: d.elapsed as number | undefined,
+      reasoningEffort: d.reasoningEffort as ImageNodeData["reasoningEffort"] | undefined,
       webSearchCalls: d.webSearchCalls as number | undefined,
       model: (d.model ?? null) as string | null,
       size: (d.size ?? null) as string | null,
@@ -2727,6 +2731,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 pendingPhase: null,
                 pendingStartedAt: null,
                 elapsed: res.elapsed,
+                reasoningEffort: res.reasoningEffort,
                 webSearchCalls: res.webSearchCalls,
                 model: res.model ?? null,
                 size: res.size ?? size,
@@ -3625,6 +3630,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           const item: GenerateItem = {
             image: img.image,
             filename: img.filename,
+            reasoningEffort: res.reasoningEffort ?? s.reasoningEffort,
             prompt,
             composerPrompt,
             composerInsertedPrompts,
@@ -3646,6 +3652,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           item = {
             image: first.image,
             filename: first.filename,
+            reasoningEffort: res.reasoningEffort ?? s.reasoningEffort,
             prompt,
             composerPrompt,
             composerInsertedPrompts,
@@ -3661,6 +3668,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           item = {
             image: res.image,
             filename: res.filename,
+            reasoningEffort: res.reasoningEffort ?? s.reasoningEffort,
             prompt,
             composerPrompt,
             composerInsertedPrompts,
@@ -3978,6 +3986,8 @@ async function recoverGraphNodesFromHistory(
     url: string;
     createdAt: number;
     size?: string | null;
+    elapsed?: number | null;
+    reasoningEffort?: string | null;
     sessionId?: string | null;
     nodeId?: string | null;
     clientNodeId?: string | null;
@@ -4019,6 +4029,8 @@ async function recoverGraphNodesFromHistory(
         imageUrl: recovered.url, // canonical — jpeg/webp all covered
         serverNodeId: recovered.nodeId ?? n.data.serverNodeId,
         size: recovered.size ?? n.data.size ?? null,
+        elapsed: recovered.elapsed ?? n.data.elapsed,
+        reasoningEffort: (recovered.reasoningEffort as ImageNodeData["reasoningEffort"]) ?? n.data.reasoningEffort,
         pendingRequestId: null,
         recoveryRequestId: null,
         pendingPhase: null,

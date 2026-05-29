@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { randomBytes } from "crypto";
 import type { Express, Request, Response } from "express";
@@ -236,6 +236,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
             format,
             moderation,
             model: imageModel,
+            reasoningEffort,
             provider: activeProvider,
             createdAt: Date.now(),
             usage: r.value.usage || null,
@@ -328,11 +329,27 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
         return res.status(500).json({ error: "All generation attempts failed" });
       }
 
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      const elapsed = +((Date.now() - startTime) / 1000).toFixed(1);
+      // Persist elapsed (computed after the generation loop) into each image's sidecar.
+      // forward-fix: only newly generated items get elapsed. The embedded XMP is written
+      // earlier in the loop (before elapsed exists), so history reload relies on this sidecar patch.
+      await Promise.all(
+        images.map(async ({ filename }) => {
+          try {
+            const sidecarPath = join(ctx.config.storage.generatedDir, filename + ".json");
+            const sidecarMeta = JSON.parse(await readFile(sidecarPath, "utf-8"));
+            sidecarMeta.elapsed = elapsed;
+            await writeFile(sidecarPath, JSON.stringify(sidecarMeta));
+          } catch {
+            /* best-effort, matches the sidecar write .catch(() => {}) above */
+          }
+        }),
+      );
       const firstRevised = images[0]?.revisedPrompt || null;
       const extra = {
         usage: totalUsage,
         provider: activeProvider,
+        reasoningEffort,
         webSearchCalls: totalWebSearchCalls,
         quality,
         size: effectiveSize,

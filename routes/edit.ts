@@ -201,7 +201,7 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       );
       throwIfJobCanceled(requestId);
 
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      const elapsed = +((Date.now() - startTime) / 1000).toFixed(1);
       await mkdir(ctx.config.storage.generatedDir, { recursive: true });
       throwIfJobCanceled(requestId);
       const filename = `${Date.now()}_${randomBytes(ctx.config.ids.generatedHexBytes).toString("hex")}.png`;
@@ -215,6 +215,8 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         size: effectiveSize,
         moderation,
         model: imageModel,
+        reasoningEffort,
+        elapsed,
         format: "png",
         provider: activeProvider,
         kind: "edit",
@@ -238,6 +240,7 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       res.json({
         image: `data:image/png;base64,${resultB64}`,
         elapsed,
+        reasoningEffort,
         filename,
         usage,
         provider: activeProvider,

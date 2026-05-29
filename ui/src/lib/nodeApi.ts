@@ -28,6 +28,7 @@ export type NodeGenerateResponse = {
   filename: string;
   url: string;
   elapsed: number;
+  reasoningEffort?: "none" | "low" | "medium" | "high" | "xhigh";
   usage?: { total_tokens?: number } & Record<string, unknown>;
   webSearchCalls: number;
   provider: Provider;

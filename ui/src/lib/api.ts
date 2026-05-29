@@ -224,6 +224,8 @@ export type HistoryItem = {
   size: string | null;
   moderation?: string | null;
   model?: string | null;
+  reasoningEffort?: string | null;
+  elapsed?: number | null;
   format: string;
   provider: string;
   usage: Record<string, unknown> | null;

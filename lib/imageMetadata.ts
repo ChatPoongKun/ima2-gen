@@ -52,6 +52,8 @@ export function buildIma2MetadataPayload(meta: any = {}, context: any = {}) {
     format: stringOrNull(meta.format, 20),
     moderation: stringOrNull(meta.moderation, 40),
     model: stringOrNull(meta.model, 80),
+    reasoningEffort: stringOrNull(meta.reasoningEffort, 40),
+    elapsed: numberOrNull(meta.elapsed),
     provider: stringOrNull(meta.provider, 40),
     sessionId: stringOrNull(meta.sessionId, 120),
     nodeId: stringOrNull(meta.nodeId, 120),

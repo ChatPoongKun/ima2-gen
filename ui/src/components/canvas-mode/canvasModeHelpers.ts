@@ -52,6 +52,7 @@ export function responseToGenerateItem(response: GenerateResponse, prompt: strin
     return {
       ...first,
       prompt,
+      reasoningEffort: response.reasoningEffort,
       provider: response.provider,
       quality: response.quality,
       size: response.size,
@@ -69,6 +70,7 @@ export function responseToGenerateItem(response: GenerateResponse, prompt: strin
     filename: response.filename,
     prompt,
     elapsed: response.elapsed,
+    reasoningEffort: response.reasoningEffort,
     provider: response.provider,
     quality: response.quality,
     size: response.size,
