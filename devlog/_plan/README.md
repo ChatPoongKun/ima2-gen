@@ -35,9 +35,9 @@ Deferred / 미래 항목은 `_plan/`이 아니라 `devlog/_future/`에 둔다.
 | 9 | `260517_agent-ui-polish-jawdev/` | plan | Agent Mode polish and crash triage: workspace payload safety, layout breakpoint mismatch, settings visual polish, tool height, top model chip, sidebar tab separation. |
 | 10 | `260517_agent-mode-auto-generation-jawdev/` | implementation-patched | Agent Mode auto generation policy: deterministic request-aware variants/parallelism, text responses, `/question`, slash commands, manual caps, and queue/tool observability. |
 | 11 | `260519_issue72-slash-command-dropup/` | plan | GitHub #72. Agent Composer slash command dropup menu + tab autocomplete. 정적 pill → floating dropup, prefix 필터, 키보드 내비게이션, browser QA. |
-| 12 | `260525_empty-response-diagnostics-jawdev/` | completed / pending fin move | GitHub #76. DCInside/Windows OAuth `EMPTY_RESPONSE` diagnostics hardening. Final closeout comment posted and issue closed as completed on 2026-05-27. |
-| 13 | `260526_issue75-prompt-studio-regressions/` | completed / pending fin move | GitHub #75. Prompt Studio selection/navigation, viewer/composer layout, multimode/direct state, quick reasoning settings, and manual gaps. Final closeout comment posted and issue closed as completed on 2026-05-27. |
-| 14 | `260527_issue77-long-prompt-preview/` | active / phase implementation | GitHub #77. Long generated prompts can make the web preview look clipped or nearly invisible even though the downloaded image is intact. Phase 1 clamps/folds result prompt metadata and reserves image preview height. |
+| 12 | `260529_issue78-prompt-autofill-perf/` | planning | GitHub #78. 히스토리 이미지 클릭 시 프롬프트 자동 덮어쓰기 + 고해상도 이미지 성능 렉. default workspace `restoreComposerFromHistory: true` + useLayoutEffect 리플로우 + 이미지 lazy/async 누락. |
+| 13 | `260529_issue79-metadata-ui-polish/` | planning | GitHub #79. (1) elapsed 표시 사라짐 — mapHistoryItem 매핑 누락 (2) reasoning level 메타 미표시 — GenerateItem에 필드 없음 (3) 모델 선택 모달 짤림 — max-height 부족. |
+| 14 | `260529_issue80-batch-comparison-matrix/` | planning / P2 | GitHub #80. Prompt-locked batch comparison matrix — 모델/추론/품질/해상도 조합 일괄 생성 + 그리드 비교. Agent Mode queue 재사용 가능. 대형 기능이라 MVP 기획 후 별도 마일스톤. |
 
 ## 2026-05-16 GH / Devlog Closeout
 
@@ -73,7 +73,9 @@ verification, or triage scopes are:
 | #27 | `260430_issue27-canvas-svg-export/` | Build direct SVG serializer from current annotation model. |
 | #28 | `260430_issue28-canvas-pptx-export/` | Add PptxGenJS export, preferably reusing #27 overlay output. |
 | #72 | `260519_issue72-slash-command-dropup/` | Slash command dropup menu + tab autocomplete. 정적 pill 뱃지 → floating dropup, 키보드 내비게이션, prefix 필터링. |
-| #77 | `260527_issue77-long-prompt-preview/` | Clamp/fold long result prompts and reserve preview height so the web preview remains visible when generation/download succeed. |
+| #78 | `260529_issue78-prompt-autofill-perf/` | 프롬프트 자동 덮어쓰기 수정 + 고해상도 이미지 성능 최적화 (lazy/async, useLayoutEffect 디바운스). |
+| #79 | `260529_issue79-metadata-ui-polish/` | elapsed 영구 보존 + reasoning 메타데이터 표시 + 모델 선택 모달 높이 수정. |
+| #80 | `260529_issue80-batch-comparison-matrix/` | Prompt-locked batch comparison matrix. MVP 기획 후 별도 마일스톤 (P2). |
 
 ## 다음 작업 원칙
 
@@ -94,3 +96,5 @@ verification, or triage scopes are:
 - 2026-05-25: DCInside Windows OAuth `EMPTY_RESPONSE` 제보를 바탕으로 GitHub #76과 `260525_empty-response-diagnostics-jawdev/` planning lane을 추가했다. Classic `generateViaResponses()`의 stream parser, `web_search`/`tool_choice`, image-tool-call hardening, OAuth capability, non-stream fallback, support-safe Windows repro를 분리해 검증한다. 상세 lane 폴더는 로컬 ignored working note이고, 공개 phase report는 #76 comment로 남긴다.
 - 2026-05-26: GitHub #75를 `260526_issue75-prompt-studio-regressions/` active lane으로 추가했다. Prompt Studio의 선택/탐색 상태, viewer/composer layout, multimode/direct 상태 표시, quick reasoning 설정, 수동 매뉴얼 보강을 phase별로 구현/검증한다.
 - 2026-05-27: GitHub #75/#76은 final closeout comment 후 completed로 닫혔고, `_fin` 이동만 남은 상태로 표시했다. GitHub #77을 `260527_issue77-long-prompt-preview/` active lane으로 추가했다. 긴 생성 프롬프트가 result prompt metadata를 통해 preview height를 잠식하는 frontend layout regression을 phase 1에서 고친다.
+- 2026-05-29: #75/#76/#77 완료 lane을 `_fin`으로 이동. 외부 사용자 이슈 3건 분석 후 active lane 추가: #78 프롬프트 자동채움+성능(P0/P1), #79 메타데이터 UI 3건(P1), #80 배치 비교 매트릭스(P2). #78은 `restoreComposerFromHistory` + `useLayoutEffect` 리플로우 + 이미지 lazy/async 누락이 핵심. #79는 `elapsed` mapHistoryItem 매핑 누락 + `GenerateItem.reasoningEffort` 필드 부재 + 모달 max-height 부족. #80은 Agent Queue 재사용 가능한 대형 기능으로 MVP 기획 필요.
+- 2026-05-29: 3개 lane 전체 소스코드 검증 + phase 문서 작성 완료. #78: 3 phase (01 autofill fix, 02 img perf, 03 pointer throttle) — `saveGenerationDefaultsPatch` localStorage 오염 추가 발견. #79: 3 phase (01 elapsed/reasoning persistence, 02 metadata display, 03 modal overflow) — overview 원인 정정: 모달 짤림은 `max-height`가 아니라 sidebar `overflow: hidden`이 진짜 원인, AgentModelSheet는 정상. #80: 1 phase (01 MVP design) — Agent Queue/Planner/Runtime 인프라 검증, N개 독립 QueueItem 방식 MVP 설계.

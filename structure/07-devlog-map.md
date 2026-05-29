@@ -31,9 +31,9 @@ contradicts current code, prefer current code plus the active roadmap.
 | `devlog/_plan/260517_agent-ui-polish-jawdev/` | plan | Agent Mode UI polish and runtime crash triage after the follow-up implementation. |
 | `devlog/_plan/260517_agent-mode-auto-generation-jawdev/` | implementation-patched | Agent Mode auto generation policy: deterministic request-aware variants/parallelism, text responses, `/question`, slash commands, and plan observability. |
 | `devlog/_plan/260519_issue72-slash-command-dropup/` | plan | GitHub #72 Agent Composer slash command dropup menu plus tab autocomplete. |
-| `devlog/_plan/260525_empty-response-diagnostics-jawdev/` | completed / pending fin move | GitHub #76 OAuth/Responses `EMPTY_RESPONSE` diagnostics hardening. Final closeout comment posted and issue closed as completed on 2026-05-27. |
-| `devlog/_plan/260526_issue75-prompt-studio-regressions/` | completed / pending fin move | GitHub #75 Prompt Studio regressions. Final closeout comment posted and issue closed as completed on 2026-05-27. |
-| `devlog/_plan/260527_issue77-long-prompt-preview/` | active / phase implementation | GitHub #77 long prompt preview layout regression: clamp/fold result prompt metadata and reserve web preview height. |
+| `devlog/_plan/260529_issue78-prompt-autofill-perf/` | planning | GitHub #78 히스토리 이미지 선택 시 프롬프트 자동 덮어쓰기 + 고해상도 이미지 성능 렉. P0/P1. |
+| `devlog/_plan/260529_issue79-metadata-ui-polish/` | planning | GitHub #79 (1) elapsed 사라짐 (2) reasoning 메타 미표시 (3) 모달 짤림. P1. |
+| `devlog/_plan/260529_issue80-batch-comparison-matrix/` | planning / P2 | GitHub #80 Prompt-locked batch comparison matrix. Agent Queue 재사용 가능, MVP 기획 후 별도 마일스톤. |
 
 ## 2026-05-16 Completion References
 
@@ -59,9 +59,12 @@ contradicts current code, prefer current code plus the active roadmap.
 | #28 | Open. Build client-side PPTX export, preferably using #27 overlay output. |
 | #71 | Active planning. Classic current prompt injection and quality element context before Prompt Studio. |
 | #72 | Active planning. Slash command dropup menu, prefix filtering, tab autocomplete, and keyboard navigation. |
-| #76 | Completed on GitHub. Awaiting `_fin` movement of the existing lane. |
-| #75 | Completed on GitHub. Awaiting `_fin` movement of the existing lane. |
-| #77 | Active phase implementation. Long result prompt metadata must not hide or squeeze the generated image preview. |
+| #76 | Completed. Moved to `_fin/260525_empty-response-diagnostics-jawdev/` on 2026-05-29. |
+| #75 | Completed. Moved to `_fin/260526_issue75-prompt-studio-regressions/` on 2026-05-29. |
+| #77 | Completed. Moved to `_fin/260527_issue77-long-prompt-preview/` on 2026-05-29. |
+| #78 | Planning. 히스토리 이미지 선택 시 프롬프트 자동 덮어쓰기 + 고해상도 이미지 성능 렉. P0/P1. |
+| #79 | Planning. elapsed 사라짐 + reasoning 메타 미표시 + 모달 짤림. P1. |
+| #80 | Planning / P2. Prompt-locked batch comparison matrix. Agent Queue 재사용 가능, MVP 기획 후 별도 마일스톤. |
 | #59 | Implemented, moved to `_fin`, and closed on GitHub during the 2026-05-16 closeout. |
 | #64-#70 | Implemented, moved to `_fin`, and closed on GitHub during the 2026-05-16 closeout. |
 | #68/#69 | Implemented as UX hardening under the #64-#70 closeout and closed on GitHub. |
@@ -87,3 +90,4 @@ contradicts current code, prefer current code plus the active roadmap.
 - 2026-05-25: Added GitHub #76 and `260525_empty-response-diagnostics-jawdev/` for DCInside Windows OAuth `EMPTY_RESPONSE` triage and planned Responses/OAuth diagnostic hardening, including image-tool-call hardening. Recorded that public phase reports live in #76 comments while the detailed lane folder remains a local ignored working note unless force-added.
 - 2026-05-26: Added GitHub #75 and `260526_issue75-prompt-studio-regressions/` for Prompt Studio regression implementation. Phase 1 covers prompt selection side effects, sidebar shortcut domain bounds, fixed gallery opener, and gallery viewport preservation.
 - 2026-05-27: Marked GitHub #75/#76 as completed after final closeout comments, and added GitHub #77 plus `260527_issue77-long-prompt-preview/` for long-prompt result preview layout hardening.
+- 2026-05-29: Moved #75/#76/#77 completed lanes to `_fin`. Added 3 external user issue lanes: #78 prompt autofill + perf (P0/P1), #79 metadata UI polish (P1), #80 batch comparison matrix (P2). Root causes identified: #78 is `restoreComposerFromHistory` + `useLayoutEffect` reflow + missing img lazy/async; #79 is `mapHistoryItem` elapsed gap + missing `GenerateItem.reasoningEffort` + modal max-height; #80 is large feature — Agent Queue reuse path available.
