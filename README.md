@@ -199,9 +199,10 @@ environment variables > ~/.ima2/config.json > built-in defaults
 | `IMA2_ADVERTISE_FILE` | `~/.ima2/server.json` | Runtime discovery file |
 | `IMA2_GENERATED_DIR` | `~/.ima2/generated` | Generated image directory |
 | `IMA2_IMAGE_MODEL_DEFAULT` | `gpt-5.4-mini` | Server fallback image model |
+| `IMA2_REASONING_EFFORT` | `medium` | Default reasoning effort for the default (OAuth) path; one of `none`, `low`, `medium`, `high`, `xhigh` |
 | `IMA2_NO_OAUTH_PROXY` | — | Set `1` to disable the auto-started OAuth proxy |
-| `IMA2_LOG_LEVEL` | `warn` | Normal serve defaults to `warn`; dev mode defaults to `debug`; supports `debug`, `info`, `warn`, `error`, or `silent` |
-| `IMA2_INFLIGHT_TERMINAL_TTL_MS` | `30000` | Recent terminal job retention for debug views |
+| `IMA2_LOG_LEVEL` | `info` | Normal serve defaults to `info`; dev mode defaults to `debug`; supports `debug`, `info`, `warn`, `error`, or `silent` |
+| `IMA2_INFLIGHT_TERMINAL_TTL_MS` | `300000` | Recent terminal job retention for debug views |
 | `OPENAI_API_KEY` | — | API key for the `provider: "api"` Responses API image path and auxiliary API-key features |
 | `IMA2_API_IMAGE_MODEL_DEFAULT` | `gpt-5.4-mini` | Default image model for `provider: "api"` |
 | `IMA2_API_REASONING_EFFORT` | `low` | Default reasoning effort for `provider: "api"` |
