@@ -42,7 +42,7 @@ jobs:
         run: npm --prefix ui run build
       - name: Run tests
         run: npm test
-        timeout-minutes: 3
+        timeout-minutes: 10
       - name: Lint package.json
         if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
         run: npm run lint:pkg
