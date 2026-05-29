@@ -67,7 +67,7 @@ Runtime responses expose configured and actual ports separately. The backend can
 | `POST` | `/api/edit` | `{ prompt, image, mask?, quality?, size?, moderation?, model?, provider?, sessionId?, requestId?, reasoningEffort?, webSearchEnabled? }` | `{ image, elapsed, filename, usage, provider, moderation, model, requestId }` |
 | `POST` | `/api/generate/multimode` | `{ prompt, maxImages?, references?, quality?, size?, moderation?, model?, provider?, mode?, sessionId?, requestId?, reasoningEffort?, webSearchEnabled? }` | SSE events: `phase`, `partial`, `image`, `done`, `error` |
 
-`/api/generate` accepts up to 5 `references`. `n` is clamped from 1 to 8. Result files are written to the configured generated directory, usually `~/.ima2/generated`, and sidecar JSON stores prompt, quality, size, format, moderation, model, provider, usage, and web search counts.
+`/api/generate` accepts up to 5 `references`. `n` is clamped from 1 to 8. Result files are written to the configured generated directory, usually `~/.ima2/generated`, and sidecar JSON stores prompt, quality, size, format, moderation, model, provider, usage, web search counts, generation time (`elapsed`, numeric seconds), and `reasoningEffort`. `elapsed` and `reasoningEffort` are also embedded in the PNG XMP and returned by `/api/history`, so per-image metadata survives reload (#79, forward-fix — only items generated after the fix carry them).
 
 Image generation model selection is explicit. If omitted, the server defaults to `gpt-5.4-mini`. Supported image models are `gpt-5.4-mini`, `gpt-5.4`, and `gpt-5.5`. `gpt-5.3-codex-spark` can appear in OAuth model status, but it does not support the `image_generation` tool, so generation endpoints reject it with `IMAGE_MODEL_UNSUPPORTED` before calling OAuth.
 
@@ -292,6 +292,7 @@ Node retry diagnostics include safe context such as `operation`, `clientNodeId`,
 - 2026-04-28: Added PR2 prompt import curated-source, curated-search, and curated-refresh API contracts plus file-cache and tag-based attribution notes.
 - 2026-05-06: Documented API-key Responses parity for generate/edit/multimode/node (#49) via `lib/responsesImageAdapter.ts` and the `IMA2_API_*` env defaults; documented the `IMA2_OAUTH_MASKED_EDIT_ENABLED` feature flag and its `lib/oauthProxy/generators.ts` guard for #31; documented prompt safety intent policy injection from `lib/promptSafetyPolicy.ts` into `lib/oauthProxy/prompts.ts` and the API-key adapter.
 - 2026-05-13: Added `/api/capabilities` as the agent-facing runtime metadata endpoint for #62.
+- 2026-05-29: Persisted per-image `elapsed` (numeric seconds) and `reasoningEffort` in sidecar + embedded XMP and exposed both through `/api/history` for Classic, Canvas edit, and Node modes (#79, forward-fix; older items stay blank). Classic/edit `elapsed` responses are now numeric.
 
 Previous document: `[[02-command-reference]]`
 
