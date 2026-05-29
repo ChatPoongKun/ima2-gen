@@ -19,6 +19,7 @@ const en: Dict = {
   'header.nav.local': 'Local',
   'header.nav.install': 'Install',
   'header.nav.faq': 'FAQ',
+  'header.nav.docs': 'Docs',
   'header.gh': 'GitHub ↗',
 
   // Hero
@@ -111,7 +112,7 @@ const en: Dict = {
   'install.h.before': 'One command. ',
   'install.h.em': 'Then iterate.',
   'install.lede': 'Run it with npx. Sign in once with Codex. Start branching.',
-  'install.badge.npm': 'npm v1.1.8',
+  'install.badge.npm': 'npm v1.1.14',
   'install.badge.node': 'Node ≥20',
   'install.badge.mit': 'MIT',
   'install.links.aria': 'Project links',
@@ -210,6 +211,7 @@ const ko: Dict = {
   'header.nav.local': '로컬',
   'header.nav.install': '설치',
   'header.nav.faq': 'FAQ',
+  'header.nav.docs': '문서',
   'header.gh': 'GitHub ↗',
 
   // Hero
@@ -305,7 +307,7 @@ const ko: Dict = {
   'install.h.em': '바로 반복하세요.',
   'install.lede':
     'npx로 열고, Codex로 로그인하세요. 마음에 드는 결과가 나오면 바로 다음 방향을 펼칠 수 있습니다.',
-  'install.badge.npm': 'npm v1.1.8',
+  'install.badge.npm': 'npm v1.1.14',
   'install.badge.node': 'Node ≥20',
   'install.badge.mit': 'MIT',
   'install.links.aria': '프로젝트 링크',
