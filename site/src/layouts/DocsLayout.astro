@@ -66,11 +66,11 @@ const koAlt = `${siteRoot}ko/docs${slugSuffix}`;
     />
   </head>
   <body>
-    <button class="docs-menu-toggle" aria-label="Toggle navigation" data-docs-toggle>☰</button>
+    <button class="docs-menu-toggle" aria-label={docsT(lang, 'nav.toggle')} data-docs-toggle>☰</button>
     <div class="docs-backdrop" data-docs-backdrop></div>
 
     <div class="docs-layout">
-      <nav class="docs-sidebar" aria-label="Documentation navigation">
+      <nav class="docs-sidebar" aria-label={docsT(lang, 'nav.aria')}>
         <a class="docs-brand" href={siteHref('')}>
           <span class="dot" aria-hidden="true"></span>
           <span>ima2-gen</span>

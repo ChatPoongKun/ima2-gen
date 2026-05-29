@@ -6,6 +6,8 @@
 
 > 🌐 **Live site**: [lidge-jun.github.io/ima2-gen](https://lidge-jun.github.io/ima2-gen/) · [한국어 페이지](https://lidge-jun.github.io/ima2-gen/ko/)
 >
+> 📖 **개발자 문서**: [문서 사이트](https://lidge-jun.github.io/ima2-gen/ko/docs) · [English](https://lidge-jun.github.io/ima2-gen/docs)
+>
 > **다른 언어로 읽기**: [English](../README.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
 
 `ima2-gen`은 ChatGPT/Codex OAuth 이미지 생성 흐름을 로컬 웹앱처럼 쓸 수 있게 만든 이미지 생성 스튜디오입니다.

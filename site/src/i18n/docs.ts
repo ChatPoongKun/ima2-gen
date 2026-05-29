@@ -73,6 +73,8 @@ const DOCS_UI: Record<Lang, Record<string, string>> = {
     'search.empty': 'No matching pages',
     'nav.github': 'GitHub ↗',
     'nav.home': '← Back to site',
+    'nav.toggle': 'Toggle navigation',
+    'nav.aria': 'Documentation navigation',
     'meta.suffix': 'ima2-gen Docs',
   },
   ko: {
@@ -81,6 +83,8 @@ const DOCS_UI: Record<Lang, Record<string, string>> = {
     'search.empty': '일치하는 페이지가 없어요',
     'nav.github': 'GitHub ↗',
     'nav.home': '← 사이트로 돌아가기',
+    'nav.toggle': '내비게이션 열기/닫기',
+    'nav.aria': '문서 내비게이션',
     'meta.suffix': 'ima2-gen 문서',
   },
 };
