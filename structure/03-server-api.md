@@ -28,6 +28,8 @@ graph TD
     API --> COMFY["comfy bridge<br/>local upload"]
     API --> MULTI["multimode<br/>sequence generation"]
     API --> PROMPTS["prompt library<br/>crud folders import export"]
+    API --> AGENT["agent mode<br/>sessions turns queue"]
+    API --> BUILDER["prompt builder<br/>chat assist"]
     API --> CARD["cardnews dev-only<br/>templates jobs sets"]
     IMG --> FILES["~/.ima2/generated<br/>sidecar metadata + embedded XMP"]
     NODE --> FILES
@@ -141,6 +143,37 @@ Node context is explicit. `contextMode` defaults to `parent-plus-refs`, meaning 
 Upstream request/validation failures are normalized to `INVALID_REQUEST` while preserving raw provider diagnostics as `upstreamCode`, `upstreamType`, and `upstreamParam`. In SSE mode these fields travel inside the `error` event payload together with `status`.
 
 Node sidecars include `requestId` as recovery metadata. `/api/history` exposes the same field so a reloaded graph can match completed assets by request id before falling back to `(sessionId, clientNodeId, createdAt)`.
+
+## Agent Mode API
+
+Agent Mode is a conversational image workspace. Each agent session holds a current image, a web-search toggle, generation settings, style/subject locks, a turn history, and a durable per-session job queue. These routes are always registered (not feature-gated). Implementation is split across `lib/agentStore.ts` (sessions, workspace payload, XML manifest, locks, current image, generation settings), `lib/agentQueueStore.ts` + `lib/agentQueueWorker.ts` (durable queue and worker), `lib/agentCommandParser.ts` (`/question` and slash commands), `lib/agentQuestionResponder.ts`, and `lib/agentRuntime.ts` (`runAgentTurn`, allowed-tool payload).
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/agent/tools` | Allowed tool payload for the agent runtime |
+| `GET` | `/api/agent/sessions` | Workspace payload (session list + selected); `selectedSessionId` query selects |
+| `POST` | `/api/agent/sessions` | Create a session (`title?`, `currentImage?`, `webSearchEnabled?`) |
+| `GET` | `/api/agent/sessions/:sessionId` | Load one session workspace |
+| `PATCH` | `/api/agent/sessions/:sessionId` | Update title, web search, generation settings, current image, or style/subject locks |
+| `DELETE` | `/api/agent/sessions/:sessionId` | Delete a session |
+| `POST` | `/api/agent/sessions/:sessionId/compact` | Compact the session turn history |
+| `GET` | `/api/agent/sessions/:sessionId/manifest` | XML manifest of the session workspace |
+| `POST` | `/api/agent/sessions/:sessionId/turns` | Run an agent turn (prompt + generation options); supports slash commands and `/question` |
+| `GET` | `/api/agent/queue` | Global queue snapshot |
+| `GET` | `/api/agent/sessions/:sessionId/queue` | Per-session queue |
+| `POST` | `/api/agent/sessions/:sessionId/queue` | Enqueue a generation turn |
+| `POST` | `/api/agent/queue/:itemId/cancel` | Cancel a queued item |
+| `POST` | `/api/agent/queue/:itemId/retry` | Retry a queued item |
+
+Agent Mode is a server + web-UI feature (`ui/src/components/agent/*`, `ui/src/lib/agentApi.ts`, `ui/src/styles/agent-workspace*.css`). There is no `ima2 agent` CLI command; drive it from the web UI or `/api/agent/*` directly. Turns run through the durable queue worker so parallel/auto-generation work survives reconnects.
+
+## Prompt Builder API
+
+| Method | Path | Body | Response |
+|---|---|---|---|
+| `POST` | `/api/prompt-builder/chat` | prompt-builder chat turn (see `lib/promptBuilder/client.ts`) | builder chat result |
+
+`/api/prompt-builder/chat` powers the in-UI prompt-builder assistant. Errors normalize to `PROMPT_BUILDER_UNKNOWN` when no specific upstream code is available. Like Agent Mode, it has no CLI wrapper.
 
 ## Session DB API
 
@@ -293,6 +326,7 @@ Node retry diagnostics include safe context such as `operation`, `clientNodeId`,
 - 2026-05-06: Documented API-key Responses parity for generate/edit/multimode/node (#49) via `lib/responsesImageAdapter.ts` and the `IMA2_API_*` env defaults; documented the `IMA2_OAUTH_MASKED_EDIT_ENABLED` feature flag and its `lib/oauthProxy/generators.ts` guard for #31; documented prompt safety intent policy injection from `lib/promptSafetyPolicy.ts` into `lib/oauthProxy/prompts.ts` and the API-key adapter.
 - 2026-05-13: Added `/api/capabilities` as the agent-facing runtime metadata endpoint for #62.
 - 2026-05-29: Persisted per-image `elapsed` (numeric seconds) and `reasoningEffort` in sidecar + embedded XMP and exposed both through `/api/history` for Classic, Canvas edit, and Node modes (#79, forward-fix; older items stay blank). Classic/edit `elapsed` responses are now numeric.
+- 2026-05-30: Documented the Agent Mode API (`/api/agent/*` — sessions, turns, durable queue, compact, manifest, tools; backed by `lib/agentStore.ts`, `lib/agentQueueStore.ts`, `lib/agentQueueWorker.ts`, `lib/agentRuntime.ts`) and the Prompt Builder endpoint (`POST /api/prompt-builder/chat`). Both are always-registered routes with no CLI wrapper (server + web UI only). Re-grounded the API map against current code at ima2-gen 1.1.14.
 
 Previous document: `[[02-command-reference]]`
 

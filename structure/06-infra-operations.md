@@ -34,7 +34,7 @@ graph TD
 | Item | Current value |
 |---|---|
 | package name | `ima2-gen` |
-| version | `1.1.10` |
+| version | `1.1.14` |
 | type | `module` |
 | bin | `ima2` -> `./bin/ima2.js` |
 | package engine | `node >=20` |
@@ -188,6 +188,7 @@ Logs intentionally use counts rather than sensitive values: `promptChars`, `refs
 - 2026-04-30: Bumped package metadata to ima2-gen 1.1.8 — added `trash` as a major dependency for OS-trash soft delete (`lib/systemTrash.ts`), expanded the publish files list with `assets/card-news/templates/`, `integrations/comfyui/ima2_gen_bridge/*`, and TypeScript-source pairs (`server.ts`, `config.ts`), introduced the `prepack` artifact-refresh chain, added `build:server`, `build:cli`, `typecheck` scripts, switched `dev:server` to `tsx watch server.ts`, and removed `npm test` from the `prepublishOnly` chain (run tests explicitly before publish).
 - 2026-05-06: Bumped package metadata to ima2-gen 1.1.10. Added `npm run typecheck:tests` (`tsconfig.tests.json`) and `npm run test:inventory` (`scripts/classify-tests.mjs --check --fail-js-runtime`) as pre-publish gates and updated the `prepublishOnly` chain accordingly. Added env vars `IMA2_API_IMAGE_MODEL_DEFAULT`, `IMA2_API_REASONING_EFFORT`, `IMA2_API_IMAGE_SIZE`, `IMA2_API_ALLOW_WEB_SEARCH` (API-key Responses defaults, #49) and `IMA2_OAUTH_MASKED_EDIT_ENABLED` (#31 masked-edit feature flag). Noted the `lib/oauthProxy.ts` → `lib/oauthProxy/*` subtree split (#50) — no env-var or publish-file change.
 - 2026-05-13: Added `skills/` to the package contract for #62 and documented `IMA2_REASONING_EFFORT` as the OAuth/default reasoning env override exposed by `ima2 defaults`.
+- 2026-05-30: Updated the package version snapshot to `ima2-gen` 1.1.14 (re-grounding pass). Agent Mode (`routes/agent.ts` + `lib/agent*.ts`) and the prompt builder (`routes/promptBuilder.ts`) ship inside the existing `routes/` and `lib/` publish paths; see `[[00-structure-hub]]` and `[[03-server-api]]` for the added runtime surface since 1.1.10.
 
 Previous document: `[[05-node-mode]]`
 

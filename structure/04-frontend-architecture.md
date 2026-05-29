@@ -16,6 +16,8 @@ Snapshot note, 2026-04-30: mobile UI has dedicated components (`MobileAppBar`, `
 
 Snapshot note, 2026-05-06: gallery now defaults to the current session with an "All Images" toggle (#42, commit bbf9b08). The store exposes `galleryScope: "current-session" | "all"`, `galleryDefaultScope`, and matching setters; opening the gallery resets `galleryScope` to `galleryDefaultScope` so the default is sticky across sessions. All `ima2.*` localStorage key names — including `ima2.galleryScope` and `ima2.galleryDefaultScope` — are now centralized in `ui/src/store/persistenceRegistry.ts` (#43, commit 246696d), preventing drift between hydration helpers and setters; settings/canvas persistence hardening (commit 5e3aed3) consumes the same registry. Error toasts now stack at the bottom-right with per-toast dismissal instead of replacing each other (commit 78cb6d4 + `tests/toast-stack-contract.test.js`); `Toast.tsx` is the renderer and the store keeps an array of error entries. Mobile compose/settings flows received UX polish (commits ad78853 / c812598) with an explicit mobile generate entry (`tests/mobile-generate-entry-contract.test.js`). Reasoning-effort controls are disabled for image-only models (commit 18b9123). `useAppStore.ts` grew to 3715 lines.
 
+Snapshot note, 2026-05-30: **Agent Mode** shipped a dedicated React workspace under `ui/src/components/agent/` (`ui/src/lib/agentApi.ts`, `ui/src/hooks/useAgentWorkspaceLayout.ts`, `ui/src/lib/agentLayout.ts`, and `ui/src/styles/agent-workspace*.css`). It adds a session list, a turn/conversation view, a durable queue panel with cancel/retry, right-sidebar model/quality/form controls, per-session spinners, and slash-command / `/question` handling, talking to the always-on `/api/agent/*` routes. Agent Mode has no CLI surface; it is web-UI only.
+
 ---
 
 ## Render Flow
@@ -47,6 +49,7 @@ Settings are a workspace replacement, not a modal overlay. `SettingsButton` live
 | App shell | `ui/src/App.tsx` | Initialization, storage sync, beforeunload save, canvas/settings switch |
 | Left panel | `Sidebar.tsx`, `PromptComposer.tsx`, `SettingsButton.tsx` | Focused generation entry plus settings access |
 | Center workspace | `Canvas.tsx`, `NodeCanvas.tsx`, `SettingsWorkspace.tsx`, `ImageNode.tsx`, `card-news/CardNewsWorkspace.tsx` | Classic image display, graph canvas, settings, or dev-only card-news workspace |
+| Agent workspace | `components/agent/*`, `lib/agentApi.ts`, `hooks/useAgentWorkspaceLayout.ts` | Agent Mode conversational image workspace: sessions, turns, durable queue panel, right-sidebar controls (`/api/agent/*`, no CLI) |
 | Right panel | `RightPanel.tsx`, `SizePicker.tsx`, `CostEstimate.tsx` | Quality, size, format, moderation, count |
 | History | `HistoryStrip.tsx`, `GalleryModal.tsx`, `ResultActions.tsx` | Saved image browsing, favorite, restore, drag-out, and metadata-restore actions |
 | Status | `InFlightList.tsx`, `Toast.tsx`, `BillingBar.tsx`, `AccountSettings.tsx` | Pending jobs, notifications, billing/provider status |
@@ -167,6 +170,7 @@ Error handling is centralized. API helpers preserve `err.code` where the server 
 - 2026-04-30: Documented the Canvas Mode workspace split (`refactor(ui): split canvas mode workspace`, #11bc214) into `ui/src/components/canvas-mode/` (~3300 lines, 23 files), refreshed `useAppStore.ts` to 3555 and `index.css` to 5780, and called out multimode preview, web-search/reasoning-effort controls, trash undo, and the history strip as active surfaces.
 - 2026-05-06: Added gallery scope state (#42 — `current-session` default with All Images toggle, sticky default), the `persistenceRegistry.ts` single source of truth for `ima2.*` localStorage keys (#43), error-toast stacking with per-toast dismissal (commit 78cb6d4), mobile compose/settings polish (commits ad78853 / c812598) plus the mobile generate entry contract, and the reasoning-effort disable for image-only models (commit 18b9123). Bumped `useAppStore.ts` to 3715.
 - 2026-05-29: Added the `R:l`/`R:m`/`R:h`/`R:x` reasoning label (`formatReasoningLabel`, none hidden) to Classic/Canvas/Node result metadata, persisted `elapsed`/`reasoningEffort` across reload + session restore, and portaled the sidebar model dropdown to `document.body` (fixed, z-index 160, scroll-close, `max-height`) so it no longer clips (#79).
+- 2026-05-30: Documented the Agent Mode workspace (`ui/src/components/agent/*`, `lib/agentApi.ts`, `hooks/useAgentWorkspaceLayout.ts`, `styles/agent-workspace*.css`) — session list, turn view, durable queue panel, right-sidebar controls, slash commands / `/question` — talking to the always-on `/api/agent/*` routes (no CLI). Re-grounding pass for ima2-gen 1.1.14.
 
 Previous document: `[[03-server-api]]`
 

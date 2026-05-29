@@ -12,6 +12,8 @@ This matters because `ima2-gen` is both a browser app and an automation tool. Us
 
 Before using client commands, make sure a server is running. `ima2 serve` starts the server and OAuth proxy, then advertises the actual bound URL in `~/.ima2/server.json`. Client commands such as `ima2 gen`, `ima2 edit`, `ima2 ls`, `ima2 ps`, and `ima2 ping` use that advertisement file or an override to find the server, including fallback ports when the default is busy.
 
+Not every server surface has a CLI wrapper. **Agent Mode** (`/api/agent/*`) and the **prompt-builder** assistant (`POST /api/prompt-builder/chat`) are server + web-UI features with no `ima2` subcommand. For agent-facing discovery, `ima2 capabilities --json` reports supported models, valid quality/reasoning/moderation/provider/mode values, writable config keys, limits, and the package/server version, and `ima2 skill` prints the packaged agent skill.
+
 ---
 
 ## Execution Flow
