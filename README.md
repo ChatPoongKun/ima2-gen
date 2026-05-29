@@ -10,6 +10,8 @@
 
 > 🌐 **Live site**: [lidge-jun.github.io/ima2-gen](https://lidge-jun.github.io/ima2-gen/) · [한국어](https://lidge-jun.github.io/ima2-gen/ko/)
 >
+> 📖 **Developer docs**: [Documentation site](https://lidge-jun.github.io/ima2-gen/docs) · [한국어](https://lidge-jun.github.io/ima2-gen/ko/docs)
+>
 > **Read in other languages**: [한국어](docs/README.ko.md) · [日本語](docs/README.ja.md) · [简体中文](docs/README.zh-CN.md)
 
 `ima2-gen` is a local image generation studio for people who want the ChatGPT/Codex image workflow in a small desktop-like web app.
@@ -219,6 +221,7 @@ The endpoint list moved to [docs/API.md](docs/API.md) so this README can stay fo
 
 Useful references:
 
+- [Developer documentation site](https://lidge-jun.github.io/ima2-gen/docs) — Overview, Quickstart, Architecture, Modes, Providers, CLI, Config, and Server API
 - [CLI Reference](docs/CLI.md)
 - [API Reference](docs/API.md)
 - [Prompt Studio manual](docs/PROMPT_STUDIO.md)
