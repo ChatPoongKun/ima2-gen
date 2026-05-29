@@ -1,6 +1,6 @@
 # CLI Reference
 
-Every server route under `/api/*` has a CLI wrapper. The CLI is a thin shell over the local server, so most commands require a running `ima2 serve` (the few exceptions — `serve`, `setup`, `doctor`, `status`, `open`, `reset`, `config`, `skill`, `capabilities`, and local `defaults` inspection — work without a live server).
+Most server routes under `/api/*` have a CLI wrapper; Agent Mode (`/api/agent/*`) and the prompt builder (`POST /api/prompt-builder/chat`) are web-UI-only and have no `ima2` subcommand. The CLI is a thin shell over the local server, so most commands require a running `ima2 serve` (the few exceptions — `serve`, `setup`, `doctor`, `status`, `open`, `reset`, `config`, `skill`, `capabilities`, and local `defaults` inspection — work without a live server).
 
 For a quick start, see the [main README](../README.md). For endpoint mapping, see [API.md](API.md).
 

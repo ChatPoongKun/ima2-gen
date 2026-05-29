@@ -226,13 +226,13 @@ Style-sheet extraction can require an API key/openai client. Image generation al
 
 ## Endpoint → CLI Mapping
 
-As of 0.09.x, every server route under `/api/*` has a CLI wrapper. Use this table to find the command that calls a given endpoint. (See README.md "Client" section for full flag lists.)
+Most server routes under `/api/*` have a CLI wrapper. The exceptions are server + web-UI-only surfaces: **Agent Mode** (`/api/agent/*`) and the **prompt builder** (`POST /api/prompt-builder/chat`) have no `ima2` subcommand. Use this table to find the command that calls a given endpoint. (See README.md "Client" section for full flag lists.)
 
 | Endpoint | CLI |
 |---|---|
 | `POST /api/generate` | `ima2 gen` |
 | `POST /api/edit` | `ima2 edit` |
-| `POST /api/generate/multi` (SSE) | `ima2 multimode` |
+| `POST /api/generate/multimode` (SSE) | `ima2 multimode` |
 | `POST /api/node/generate` (SSE) / `GET /api/node/:id` | `ima2 node generate` / `ima2 node show` |
 | `GET /api/history` | `ima2 ls` |
 | `DELETE /api/history/:name` / `…/permanent` | `ima2 history rm [--permanent]` |
@@ -246,14 +246,17 @@ As of 0.09.x, every server route under `/api/*` has a CLI wrapper. Use this tabl
 | `GET/PUT/DELETE /api/annotations/:name` | `ima2 annotate get/set/rm` |
 | `POST /api/canvas-versions` / `PUT /api/canvas-versions/:name` | `ima2 canvas-versions save/update` |
 | `GET/POST/PUT/DELETE /api/prompts[/…]` | `ima2 prompt …` |
-| `GET/POST/PUT/DELETE /api/prompt-folders[/…]` | `ima2 prompt folder …` |
-| `…/api/prompt-import/…` | `ima2 prompt import sources/refresh/curated/discovery/folder` |
+| `GET/POST/PATCH/DELETE /api/prompts/folders[/…]` | `ima2 prompt folder …` |
+| `…/api/prompts/import/…` | `ima2 prompt import sources/refresh/curated/discovery/folder` |
 | `…/api/cardnews/…` (gated on `features.cardNews`) | `ima2 cardnews …` |
 | `POST /api/comfy/export-image` | `ima2 comfy export` |
 | `GET /api/inflight` / `DELETE /api/inflight/:id` | `ima2 inflight ls` (alias `ps`) / `ima2 inflight rm` (alias `cancel`) |
 | `GET /api/storage/status` / `POST /api/storage/open-generated-dir` | `ima2 storage status` / `ima2 storage open` |
 | `GET /api/billing` / `GET /api/providers` / `GET /api/oauth/status` | `ima2 billing` / `ima2 providers` / `ima2 oauth status` |
 | `GET /api/health` | `ima2 ping` |
+| `GET /api/capabilities` | `ima2 capabilities` |
+| `GET/POST/PATCH/DELETE /api/agent/*` (sessions, turns, queue) | — (Agent Mode; web UI only, no CLI) |
+| `POST /api/prompt-builder/chat` | — (prompt builder; web UI only, no CLI) |
 
 Notes:
 - `ima2 history favorite` and `ima2 annotate …` send `X-Ima2-Browser-Id: cli-<sha1prefix>` derived from the config dir, so CLI activity does not collide with browser sessions.
