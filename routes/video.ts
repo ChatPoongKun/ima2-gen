@@ -12,6 +12,9 @@ import {
   normalizeVideoResolution,
   normalizeVideoAspectRatio,
   normalizeVideoDuration,
+  deriveVideoMode,
+  clampVideoDuration,
+  MAX_REF2V_REFERENCES,
   type VideoMode,
 } from "../lib/imageModels.js";
 import { errInfo } from "../lib/errInfo.js";
@@ -20,6 +23,10 @@ import { requireRuntimeContext, type RouteRuntimeContext, type RuntimeContext } 
 function sendSse(res: Response, event: string, data: unknown) {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+function toArray(v: unknown): unknown[] {
+  return Array.isArray(v) ? v : [];
 }
 
 type NormalizeError = { error: string; code: string; status: number };
@@ -75,7 +82,7 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
     };
 
     try {
-      const { prompt, provider = "grok", model: rawModel, mode: rawMode } = req.body || {};
+      const { prompt, provider = "grok", model: rawModel } = req.body || {};
       const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId : null;
       const clientNodeId = typeof req.body?.clientNodeId === "string" ? req.body.clientNodeId : null;
 
@@ -91,29 +98,38 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       const aspectCheck = normalizeVideoAspectRatio(req.body?.aspectRatio);
       if (isNormalizeError(aspectCheck)) return fail(aspectCheck.status, aspectCheck.code, aspectCheck.error);
 
-      let source: { b64: string | null; filename: string | null };
+      // Resolve reference inputs: base64 list + existing-file list + legacy single source.
+      const refInputs: Array<{ image?: unknown; filename?: unknown }> = [
+        ...toArray(req.body?.referenceImages).map((image) => ({ image })),
+        ...toArray(req.body?.referenceFilenames).map((filename) => ({ filename })),
+        ...(req.body?.sourceImage || req.body?.sourceFilename
+          ? [{ image: req.body?.sourceImage, filename: req.body?.sourceFilename }]
+          : []),
+      ];
+      let resolved: Array<{ b64: string; filename: string | null }>;
       try {
-        source = await resolveSourceImage(ctx, req.body?.sourceImage, req.body?.sourceFilename);
+        const all = await Promise.all(refInputs.map((r) => resolveSourceImage(ctx, r.image, r.filename)));
+        resolved = all.filter((r): r is { b64: string; filename: string | null } => Boolean(r.b64));
       } catch (e: any) {
-        return fail(e?.status || 400, e?.code || "GROK_VIDEO_INVALID_MODE", e?.message || "invalid source image");
+        return fail(e?.status || 400, e?.code || "GROK_VIDEO_INVALID_MODE", e?.message || "invalid reference image");
       }
-      const mode: VideoMode = rawMode === "text-to-video" || rawMode === "image-to-video"
-        ? rawMode
-        : source.b64
-          ? "image-to-video"
-          : "text-to-video";
-      if (mode === "image-to-video" && !source.b64) return fail(400, "GROK_VIDEO_INVALID_MODE", "image-to-video requires a source image");
+      if (resolved.length > MAX_REF2V_REFERENCES) return fail(400, "GROK_VIDEO_REF_TOO_MANY", `at most ${MAX_REF2V_REFERENCES} reference images`);
+      const mode: VideoMode = deriveVideoMode(resolved.length);
+      const duration = clampVideoDuration(durationCheck.duration, mode);
+      const referenceImages = mode === "reference-to-video" ? resolved.map((r) => r.b64) : undefined;
+      const sourceB64 = mode === "image-to-video" ? resolved[0]?.b64 : undefined;
+      const sourceFilename = resolved[0]?.filename ?? null;
 
       startJob({
         requestId,
         kind: "video",
         prompt,
-        meta: { kind: "video", sessionId, clientNodeId, model: modelCheck.model, mode, duration: durationCheck.duration, resolution: resolutionCheck.resolution },
+        meta: { kind: "video", sessionId, clientNodeId, model: modelCheck.model, mode, duration, resolution: resolutionCheck.resolution },
       });
       registerJobAbortController(requestId, cancelController);
       await mkdir(ctx.config.storage.generatedDir, { recursive: true });
 
-      logEvent("video", "request", { requestId, mode, duration: durationCheck.duration, resolution: resolutionCheck.resolution, aspectRatio: aspectCheck.aspectRatio });
+      logEvent("video", "request", { requestId, mode, duration, resolution: resolutionCheck.resolution, aspectRatio: aspectCheck.aspectRatio });
       const startTime = Date.now();
 
       const onEvent = (ev: GrokVideoEvent) => {
@@ -125,10 +141,11 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       const result = await generateVideoViaGrok(prompt, ctx, {
         model: modelCheck.model,
         mode,
-        duration: durationCheck.duration,
+        duration,
         resolution: resolutionCheck.resolution,
         aspectRatio: aspectCheck.aspectRatio,
-        sourceImage: source.b64 || undefined,
+        sourceImage: sourceB64,
+        referenceImages,
         signal: cancelController.signal,
         requestId,
         onEvent,
@@ -156,7 +173,7 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
           duration: result.duration,
           resolution: result.resolution,
           aspectRatio: result.aspectRatio,
-          sourceImageFilename: source.filename,
+          sourceImageFilename: sourceFilename,
           xaiVideoRequestId: result.xaiVideoRequestId,
         },
       };

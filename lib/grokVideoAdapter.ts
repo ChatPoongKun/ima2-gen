@@ -4,6 +4,7 @@ import { getGrokProxyUrl } from "./grokRuntime.js";
 import { grokError, searchGrokVisualContext } from "./grokImageAdapter.js";
 import { detectImageMimeFromB64 } from "./refs.js";
 import type { VideoAspectRatio, VideoMode, VideoResolution } from "./imageModels.js";
+import { MAX_REF2V_REFERENCES } from "./imageModels.js";
 
 export interface GrokVideoPlan {
   prompt: string;
@@ -55,6 +56,7 @@ export interface GrokVideoOptions {
   aspectRatio?: VideoAspectRatio;
   sourceImage?: string;
   sourceMime?: string | null;
+  referenceImages?: string[];
   signal?: AbortSignal;
   requestId?: string;
   plannedPrompt?: string;
@@ -132,10 +134,13 @@ const FAILED_CODE_MAP: Record<string, { code: string; status: number }> = {
 
 export function buildGrokVideoPlannerPayload(
   prompt: string,
-  opts: { model: string; mode: VideoMode; duration: number; resolution: VideoResolution; aspectRatio: VideoAspectRatio; plannerModel?: string; searchSummary?: string; sourceImageUrl?: string },
+  opts: { model: string; mode: VideoMode; duration: number; resolution: VideoResolution; aspectRatio: VideoAspectRatio; plannerModel?: string; searchSummary?: string; sourceImageUrl?: string; referenceImageUrls?: string[] },
 ) {
   const isI2V = opts.mode === "image-to-video";
-  const continuity = isI2V
+  const isRef2V = opts.mode === "reference-to-video";
+  const continuity = isRef2V
+    ? "This is reference-to-video: use the provided reference images (referred to as <IMAGE_1>..<IMAGE_N>) as subject/style guidance and keep their subjects recognizable in the generated video."
+    : isI2V
     ? "This is image-to-video: preserve subject identity and composition unless asked otherwise, and use the source image as the first frame / starting point."
     : "This is text-to-video: describe motion, camera, and action clearly.";
   const userContent: any[] = [
@@ -155,6 +160,11 @@ export function buildGrokVideoPlannerPayload(
   ];
   if (isI2V && opts.sourceImageUrl) {
     userContent.push({ type: "image_url", image_url: { url: opts.sourceImageUrl, detail: "high" } });
+  }
+  if (isRef2V) {
+    for (const url of opts.referenceImageUrls ?? []) {
+      userContent.push({ type: "image_url", image_url: { url, detail: "high" } });
+    }
   }
   return {
     model: opts.plannerModel || "grok-4.3",
@@ -184,7 +194,7 @@ export function buildGrokVideoPlannerPayload(
             properties: {
               prompt: { type: "string", description: "Final video-generation prompt to send to xAI Videos API." },
               model: { type: "string", enum: ["grok-imagine-video"] },
-              mode: { type: "string", enum: ["text-to-video", "image-to-video"] },
+              mode: { type: "string", enum: ["text-to-video", "image-to-video", "reference-to-video"] },
               duration: { type: "number" },
               aspect_ratio: { type: "string" },
               resolution: { type: "string", enum: ["480p", "720p"] },
@@ -223,6 +233,7 @@ export async function planGrokVideo(prompt: string, ctx: RouteRuntimeContext, op
   const resolution = options.resolution || "480p";
   const aspectRatio = options.aspectRatio || "auto";
   const search = await searchGrokVisualContext(prompt, ctx, { signal: options.signal, requestId: options.requestId });
+  const referenceImageUrls = (options.referenceImages ?? []).map((img) => sourceImageUrl(img, undefined));
   const payload = buildGrokVideoPlannerPayload(prompt, {
     model: cfg.model,
     mode,
@@ -232,6 +243,7 @@ export async function planGrokVideo(prompt: string, ctx: RouteRuntimeContext, op
     plannerModel: cfg.plannerModel,
     searchSummary: search.summary,
     sourceImageUrl: options.sourceImage ? sourceImageUrl(options.sourceImage, options.sourceMime) : undefined,
+    referenceImageUrls,
   });
   const { url, headers } = videoEndpoint(ctx, "/v1/chat/completions");
   const { combinedSignal, timer } = withTimeoutSignal(options.signal, cfg.plannerTimeoutMs);
@@ -257,13 +269,20 @@ export async function planGrokVideo(prompt: string, ctx: RouteRuntimeContext, op
   }
 }
 
-export function buildVideoGenerationPayload(plan: GrokVideoPlan, opts: { model: string; sourceImageUrl?: string }): Record<string, unknown> {
+export function buildVideoGenerationPayload(plan: GrokVideoPlan, opts: { model: string; sourceImageUrl?: string; referenceImageUrls?: string[] }): Record<string, unknown> {
   if (plan.mode === "image-to-video" && !opts.sourceImageUrl) {
     throw grokError("image-to-video requires a source image", 400, "GROK_VIDEO_INVALID_MODE");
+  }
+  const refs = opts.referenceImageUrls ?? [];
+  if (plan.mode === "reference-to-video") {
+    if (refs.length < 2) throw grokError("reference-to-video requires at least 2 reference images", 400, "GROK_VIDEO_INVALID_MODE");
+    if (refs.length > MAX_REF2V_REFERENCES) throw grokError(`reference-to-video allows at most ${MAX_REF2V_REFERENCES} reference images`, 400, "GROK_VIDEO_REF_TOO_MANY");
+    if (opts.sourceImageUrl) throw grokError("reference-to-video cannot be combined with a single source image", 400, "GROK_VIDEO_INVALID_MODE");
   }
   const payload: Record<string, unknown> = { model: opts.model, prompt: plan.prompt, duration: plan.duration, resolution: plan.resolution };
   if (plan.aspectRatio && plan.aspectRatio !== "auto") payload.aspect_ratio = plan.aspectRatio;
   if (plan.mode === "image-to-video") payload.image = { url: opts.sourceImageUrl };
+  if (plan.mode === "reference-to-video") payload.reference_images = refs.map((url) => ({ url }));
   return payload;
 }
 
@@ -382,6 +401,7 @@ export async function generateVideoViaGrok(prompt: string, ctx: RouteRuntimeCont
   const cfg = videoConfig(ctx);
   const model = options.model || cfg.model;
   const srcUrl = options.sourceImage ? sourceImageUrl(options.sourceImage, options.sourceMime) : undefined;
+  const refUrls = (options.referenceImages ?? []).map((img) => sourceImageUrl(img, undefined));
   options.onEvent?.({ phase: "planning" });
   const plan = options.plannedPrompt
     ? {
@@ -393,7 +413,7 @@ export async function generateVideoViaGrok(prompt: string, ctx: RouteRuntimeCont
         webSearchCalls: options.webSearchCalls ?? 1,
       }
     : await planGrokVideo(prompt, ctx, options);
-  const payload = buildVideoGenerationPayload(plan, { model, sourceImageUrl: srcUrl });
+  const payload = buildVideoGenerationPayload(plan, { model, sourceImageUrl: srcUrl, referenceImageUrls: refUrls });
   const xaiVideoRequestId = await startVideoRequest(ctx, payload, options);
   options.onEvent?.({ phase: "submitted", xaiVideoRequestId });
   logEvent("grok", "video:submitted", { requestId: options.requestId, xaiVideoRequestId, mode: plan.mode });
