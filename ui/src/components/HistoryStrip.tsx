@@ -66,6 +66,11 @@ export function HistoryStrip() {
               preload="metadata"
               className={`history-thumb history-thumb--video${active ? " active" : ""}`}
               onClick={() => selectHistory(item)}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("application/ima2-ref", JSON.stringify({ image: item.url || item.image, filename: item.filename }));
+                e.dataTransfer.effectAllowed = "copy";
+              }}
             />
           );
         }
@@ -81,6 +86,11 @@ export function HistoryStrip() {
             loading="lazy"
             decoding="async"
             onClick={() => selectHistory(item)}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData("application/ima2-ref", JSON.stringify({ image: item.url || item.image, filename: item.filename }));
+              e.dataTransfer.effectAllowed = "copy";
+            }}
           />
         );
       })}

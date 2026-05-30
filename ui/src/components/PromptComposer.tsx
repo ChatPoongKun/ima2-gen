@@ -69,6 +69,15 @@ export function PromptComposer({ variant = "sidebar" }: PromptComposerProps) {
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragOver(false);
+    // Internal gallery drag — add as reference only (no prompt injection)
+    const refData = e.dataTransfer.getData("application/ima2-ref");
+    if (refData) {
+      try {
+        const item = JSON.parse(refData) as { image: string; filename?: string };
+        void useAppStore.getState().useImageAsReference(item as any);
+      } catch { /* ignore malformed */ }
+      return;
+    }
     const files = Array.from(e.dataTransfer.files).filter((f) =>
       f.type.startsWith("image/"),
     );
