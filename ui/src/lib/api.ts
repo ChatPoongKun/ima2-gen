@@ -1053,3 +1053,95 @@ export function postPromptBuilderChat(
     body: JSON.stringify(body),
   });
 }
+
+export type VideoGenerateRequest = {
+  prompt: string;
+  provider?: "grok";
+  model?: string;
+  mode?: "text-to-video" | "image-to-video";
+  sourceImage?: string;
+  sourceFilename?: string;
+  duration?: number;
+  resolution?: string;
+  aspectRatio?: string;
+  sessionId?: string | null;
+  clientNodeId?: string | null;
+  clientRequestId?: string;
+};
+
+export type VideoGenerateDone = {
+  requestId: string;
+  filename: string;
+  url: string;
+  mediaType: "video";
+  revisedPrompt?: string | null;
+  elapsed?: number;
+  video?: Record<string, unknown>;
+};
+
+export async function postVideoGenerateStream(
+  payload: VideoGenerateRequest,
+  handlers: {
+    onPlanning?: () => void;
+    onSubmitted?: (d: { xaiVideoRequestId?: string }) => void;
+    onProgress?: (d: { progress?: number | null; stalled?: boolean }) => void;
+  } = {},
+  options: { signal?: AbortSignal } = {},
+): Promise<VideoGenerateDone> {
+  const res = await fetch("/api/video/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+    body: JSON.stringify({ provider: "grok", ...payload }),
+    signal: options.signal,
+  });
+
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/event-stream")) {
+    const data = await res.json().catch(() => ({}));
+    const err = data as { error?: string; code?: string; status?: number };
+    const e = new Error(err.error ?? `Request failed: ${res.status}`) as Error & { code?: string; status?: number };
+    e.code = err.code;
+    e.status = err.status ?? res.status;
+    throw e;
+  }
+  if (!res.ok || !res.body) throw new Error(`Request failed: ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let done: VideoGenerateDone | null = null;
+
+  while (true) {
+    const { done: streamDone, value } = await reader.read();
+    if (streamDone) break;
+    buffer += decoder.decode(value, { stream: true });
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary !== -1) {
+      const block = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      const parsed = parseSseBlock(block);
+      if (parsed) {
+        if (parsed.event === "planning") handlers.onPlanning?.();
+        else if (parsed.event === "submitted") handlers.onSubmitted?.(parsed.data as { xaiVideoRequestId?: string });
+        else if (parsed.event === "progress") handlers.onProgress?.(parsed.data as { progress?: number | null; stalled?: boolean });
+        else if (parsed.event === "done") done = parsed.data as VideoGenerateDone;
+        else if (parsed.event === "error") {
+          const err = parsed.data as { error?: string; code?: string; status?: number };
+          const e = new Error(err.error ?? "Video generation failed") as Error & { code?: string; status?: number };
+          e.code = err.code;
+          e.status = err.status;
+          throw e;
+        }
+      }
+      boundary = buffer.indexOf("\n\n");
+    }
+  }
+
+  if (!done) {
+    const e = new Error("No video returned from the stream") as Error & { code?: string; status?: number };
+    e.code = "EMPTY_RESPONSE";
+    e.status = 422;
+    throw e;
+  }
+  return done;
+}

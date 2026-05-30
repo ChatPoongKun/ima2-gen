@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { useI18n } from "../i18n";
-import { exportImageToComfy } from "../lib/api";
+import { exportImageToComfy, postVideoGenerateStream } from "../lib/api";
+import { isVideoItem } from "../lib/videoMedia";
 import type { GenerateItem } from "../types";
 
 interface ResultActionsProps {
@@ -37,10 +38,40 @@ export function ResultActions({
   const canvasOpen = useAppStore((s) => s.canvasOpen);
   const openCanvas = useAppStore((s) => s.openCanvas);
   const [comfyExporting, setComfyExporting] = useState(false);
+  const [animating, setAnimating] = useState(false);
 
   const actionImage = imageOverride ?? currentImage;
   if (!actionImage) return null;
   const canExportToComfy = Boolean(actionImage.filename);
+  const canAnimate = Boolean(actionImage.filename) && !isVideoItem(actionImage);
+
+  const animate = async () => {
+    if (!actionImage.filename || animating) return;
+    setAnimating(true);
+    showToast(t("toast.animateStarted"));
+    try {
+      await postVideoGenerateStream(
+        {
+          prompt: actionImage.prompt?.trim() || "Animate this image with subtle, natural motion.",
+          mode: "image-to-video",
+          sourceFilename: actionImage.filename,
+          duration: 5,
+          resolution: "480p",
+          aspectRatio: "auto",
+        },
+        {
+          onProgress: ({ progress }) =>
+            showToast(t("toast.animateProgress", { n: Math.round((progress ?? 0) * 100) })),
+        },
+      );
+      showToast(t("toast.animateDone"));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("toast.animateFailed");
+      showToast(message, true);
+    } finally {
+      setAnimating(false);
+    }
+  };
 
   const download = () => {
     const a = document.createElement("a");
@@ -153,6 +184,17 @@ export function ResultActions({
       >
         {t("result.continueHere")}
       </button>
+      {canAnimate && (
+        <button
+          type="button"
+          className="action-btn"
+          onClick={() => void animate()}
+          disabled={animating}
+          title={t("result.animateTitle")}
+        >
+          {animating ? t("result.animating") : t("result.animate")}
+        </button>
+      )}
       <button
         type="button"
         className="action-btn"

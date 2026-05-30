@@ -1,5 +1,6 @@
 import type { MouseEvent } from "react";
 import type { GenerateItem } from "../types";
+import { isVideoItem } from "../lib/videoMedia";
 
 type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -25,12 +26,22 @@ export function GalleryImageTile({ item, active, itemRef, onSelect, onDelete, on
         onClick={() => onSelect(item)}
         title={item.prompt ?? ""}
       >
-        <img
-          src={item.thumb || item.image}
-          alt={item.prompt ?? t("gallery.imageAltFallback")}
-          loading="lazy"
-          decoding="async"
-        />
+        {isVideoItem(item) ? (
+          <video
+            src={item.url || item.image}
+            muted
+            playsInline
+            preload="metadata"
+            className="gallery__tile-video"
+          />
+        ) : (
+          <img
+            src={item.thumb || item.image}
+            alt={item.prompt ?? t("gallery.imageAltFallback")}
+            loading="lazy"
+            decoding="async"
+          />
+        )}
         {item.prompt && (
           <div className="gallery__caption">
             <span className="gallery__caption-text">{item.prompt}</span>

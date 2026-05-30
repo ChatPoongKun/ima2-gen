@@ -17,6 +17,7 @@ import { ViewerControls } from "./viewer/ViewerControls";
 import { useI18n } from "../i18n";
 import { isEditableTarget } from "../lib/domEvents";
 import { getImageModelShortLabel } from "../lib/imageModels";
+import { isVideoItem } from "../lib/videoMedia";
 import { formatReasoningLabel } from "../lib/reasoning";
 import type { GenerateItem } from "../types";
 import {
@@ -197,20 +198,35 @@ export function Canvas() {
             onPointerUp={viewer.handlePointerUp}
             onPointerCancel={viewer.handlePointerUp}
           >
-            <img
-              className="result-img"
-              key={imageKey ?? undefined}
-              src={imageSrc}
-              alt={t("canvas.resultAlt")}
-              decoding="async"
-              style={{
-                transform: `translate(${viewer.pan.x}px, ${viewer.pan.y}px) scale(${viewer.zoom})`,
-              }}
-              onDoubleClick={(event) => {
-                event.stopPropagation();
-                openCanvas();
-              }}
-            />
+            {isVideoItem(currentImage) ? (
+              <video
+                className="result-img"
+                key={imageKey ?? undefined}
+                src={imageSrc}
+                controls
+                autoPlay
+                loop
+                playsInline
+                style={{
+                  transform: `translate(${viewer.pan.x}px, ${viewer.pan.y}px) scale(${viewer.zoom})`,
+                }}
+              />
+            ) : (
+              <img
+                className="result-img"
+                key={imageKey ?? undefined}
+                src={imageSrc}
+                alt={t("canvas.resultAlt")}
+                decoding="async"
+                style={{
+                  transform: `translate(${viewer.pan.x}px, ${viewer.pan.y}px) scale(${viewer.zoom})`,
+                }}
+                onDoubleClick={(event) => {
+                  event.stopPropagation();
+                  openCanvas();
+                }}
+              />
+            )}
             <ViewerControls
               zoom={viewer.zoom}
               minZoom={VIEWER_MIN_ZOOM}

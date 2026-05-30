@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { useI18n } from "../i18n";
 import { handleHorizontalWheel } from "../lib/horizontalWheel";
+import { isVideoItem } from "../lib/videoMedia";
 import {
   getGalleryItemKey,
   isGalleryVisibleItem,
@@ -14,7 +15,7 @@ export function HistoryStrip() {
   const historyStripLayout = useAppStore((s) => s.historyStripLayout);
   const selectHistory = useAppStore((s) => s.selectHistory);
   const openGallery = useAppStore((s) => s.openGallery);
-  const thumbRefs = useRef<Record<string, HTMLImageElement | null>>({});
+  const thumbRefs = useRef<Record<string, HTMLElement | null>>({});
   const { t } = useI18n();
   const activeKey = currentImage ? getGalleryItemKey(currentImage) : null;
   const visibleHistory = useMemo(() => {
@@ -52,6 +53,22 @@ export function HistoryStrip() {
       {visibleHistory.map((item) => {
         const key = getGalleryItemKey(item);
         const active = activeKey === key;
+        if (isVideoItem(item)) {
+          return (
+            <video
+              key={key}
+              ref={(node) => {
+                thumbRefs.current[key] = node;
+              }}
+              src={item.url || item.image}
+              muted
+              playsInline
+              preload="metadata"
+              className={`history-thumb history-thumb--video${active ? " active" : ""}`}
+              onClick={() => selectHistory(item)}
+            />
+          );
+        }
         return (
           <img
             key={key}
