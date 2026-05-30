@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { useI18n } from "../i18n";
 import { exportImageToComfy, postVideoGenerateStream } from "../lib/api";
-import { isVideoItem } from "../lib/videoMedia";
+import { isVideoItem, extractLastFrame } from "../lib/videoMedia";
 import type { GenerateItem } from "../types";
 
 interface ResultActionsProps {
@@ -101,7 +101,12 @@ export function ResultActions({
     const hasPrompt = Boolean(actionImage.prompt);
     if (hasPrompt) setPrompt(actionImage.prompt as string);
     try {
-      await useImageAsReference(actionImage);
+      if (isVideoItem(actionImage)) {
+        const frameDataUrl = await extractLastFrame(actionImage.image);
+        useAppStore.getState().addReferenceDataUrl(frameDataUrl);
+      } else {
+        await useImageAsReference(actionImage);
+      }
     } catch {
       // non-fatal — fall back to prompt-only fork
     }

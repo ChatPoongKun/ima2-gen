@@ -138,6 +138,7 @@ import {
 } from "../lib/galleryShortcuts";
 import { compareSequenceItems, getSidebarHistoryShortcutTarget } from "../lib/history/sidebarHistory";
 import { resolveWorkspaceSettings } from "../lib/workspaceProfile";
+import { isVideoUrl, extractLastFrame } from "../lib/videoMedia";
 
 export type GalleryScope = "current-session" | "all";
 
@@ -2299,6 +2300,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       graphEdges: [...get().graphEdges, edge],
     });
     get().scheduleGraphSave();
+
+    // If parent is a video node, extract last frame as child reference
+    if (parent.data.imageUrl && isVideoUrl(parent.data.imageUrl)) {
+      const videoSrc = parent.data.imageUrl;
+      void (async () => {
+        try {
+          const frameDataUrl = await extractLastFrame(videoSrc);
+          set({
+            graphNodes: get().graphNodes.map((n) =>
+              n.id === clientId
+                ? { ...n, data: { ...n.data, referenceImages: [frameDataUrl] } }
+                : n,
+            ),
+          });
+          get().scheduleGraphSave();
+        } catch { /* non-fatal */ }
+      })();
+    }
+
     return clientId;
   },
 
