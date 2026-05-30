@@ -18,7 +18,11 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number }>({
+    top: 0,
+    left: 12,
+    width: 280,
+  });
   const imageModel = useAppStore((s) => s.imageModel);
   const setImageModel = useAppStore((s) => s.setImageModel);
   const provider = useAppStore((s) => s.provider);
@@ -114,7 +118,14 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
     if (variant !== "sidebar" || !open) return;
     const measure = () => {
       const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) setMenuPos({ top: rect.bottom + 7, right: window.innerWidth - rect.right });
+      if (rect) {
+        const gutter = 12;
+        const width = Math.min(280, Math.max(218, window.innerWidth - gutter * 2));
+        const preferredLeft = rect.right - width;
+        const maxLeft = window.innerWidth - width - gutter;
+        const left = Math.max(gutter, Math.min(preferredLeft, maxLeft));
+        setMenuPos({ top: rect.bottom + 7, left, width });
+      }
     };
     measure();
     const close = () => setOpen(false);
@@ -173,7 +184,13 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
             role="menu"
             aria-label={t("sidebar.quickSettingsMenu")}
             onKeyDown={handleMenuKeyDown}
-            style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 160 }}
+            style={{
+              position: "fixed",
+              top: menuPos.top,
+              left: menuPos.left,
+              width: menuPos.width,
+              zIndex: 160,
+            }}
           >
             <div className="image-model-select__section" role="group" aria-label={t("sidebar.imageModelLabel")}>
               <div className="image-model-select__section-title">{t("sidebar.imageModelLabel")}</div>

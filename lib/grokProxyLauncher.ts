@@ -40,7 +40,7 @@ export function startGrokProxy(options: GrokProxyOptions = {}) {
   let restartTimer: NodeJS.Timeout | null = null;
 
   const spawnProxy = () => {
-    console.log(`Starting progrok proxy on ${host}:${port}...`);
+    console.log(`Starting bundled progrok proxy for Grok images at http://${host}:${port}/v1 (managed by ima2 serve)...`);
     const child = spawnBin("progrok", ["proxy", "--host", host, "--port", String(port)], {
       stdio: ["ignore", "pipe", "pipe"],
       env: {
@@ -57,6 +57,7 @@ export function startGrokProxy(options: GrokProxyOptions = {}) {
       for (const line of msg.split(/\r?\n/)) {
         const ready = parseListeningUrl(line);
         if (!ready) continue;
+        console.log(`[grok] ready for ima2 Grok provider at ${ready.url}`);
         options.onReady?.({ url: ready.url, port: ready.port, requestedPort: port });
       }
     });

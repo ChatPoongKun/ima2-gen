@@ -493,7 +493,7 @@
     "parentConflict": "A node can only have one parent connection."
   },
   "provider": {
-    "authTitle": "Authentication",
+    "authTitle": "Provider",
     "apiLabel": "API Key",
     "oauthNotReady": "OAuth proxy is not ready yet.",
     "codexLoginRequired": "Codex login required.",
@@ -504,11 +504,12 @@
     "grokOffline": "Grok proxy is not running.",
     "grokNoImageModel": "No Grok image generation model found.",
     "grokNotReady": "Grok is not available.",
-    "grokOfflineHint": "Run `progrok proxy` in your terminal, then refresh this page.",
+    "grokOfflineHint": "Run `ima2 grok login` once if needed, then start `ima2 serve`; ima2 starts the bundled Grok proxy automatically.",
+    "grokManagedByIma2": "Grok runs locally inside `ima2 serve` through the bundled progrok proxy at 127.0.0.1:18645.",
     "grokClassicOnly": "Grok image generation is available in Classic mode only.",
     "grokClassicOnlyHint": "Switch to Classic mode before using Grok.",
     "grokCompatTitle": "Grok image API",
-    "grokCompatBody": "Size, output format, moderation, reasoning, and web search are handled by xAI. High quality uses the quality image model.",
+    "grokCompatBody": "ima2 serve manages the bundled progrok proxy at 127.0.0.1:18645. Size, output format, moderation, reasoning, and web search are handled by xAI.",
     "settingsBody": "Choose which provider future generation requests use.",
     "availableTitle": "{name} available",
     "availableAria": "{name}: available",

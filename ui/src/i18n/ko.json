@@ -493,7 +493,7 @@
     "parentConflict": "한 노드에는 부모 연결을 하나만 둘 수 있습니다."
   },
   "provider": {
-    "authTitle": "인증 방식",
+    "authTitle": "공급자",
     "apiLabel": "API 키",
     "oauthNotReady": "OAuth 프록시가 아직 준비되지 않았습니다.",
     "codexLoginRequired": "Codex 로그인이 필요합니다.",
@@ -504,11 +504,12 @@
     "grokOffline": "Grok 프록시가 실행되지 않고 있습니다.",
     "grokNoImageModel": "Grok 이미지 생성 모델을 찾을 수 없습니다.",
     "grokNotReady": "Grok을 사용할 수 없습니다.",
-    "grokOfflineHint": "터미널에서 `progrok proxy`를 실행한 후 새로고침하세요.",
+    "grokOfflineHint": "필요하면 `ima2 grok login`을 한 번 실행한 뒤 `ima2 serve`를 시작하세요. ima2가 번들된 Grok 프록시를 자동으로 띄웁니다.",
+    "grokManagedByIma2": "Grok은 `ima2 serve` 안에서 번들된 progrok 프록시(127.0.0.1:18645)로 로컬 실행됩니다.",
     "grokClassicOnly": "Grok 이미지 생성은 클래식 모드에서만 사용할 수 있습니다.",
     "grokClassicOnlyHint": "Grok을 쓰려면 클래식 모드로 전환하세요.",
     "grokCompatTitle": "Grok 이미지 API",
-    "grokCompatBody": "크기, 출력 포맷, 모더레이션, 추론, 웹 검색은 xAI 쪽에서 처리됩니다. High 품질은 quality 이미지 모델을 사용합니다.",
+    "grokCompatBody": "ima2 serve가 번들된 progrok 프록시(127.0.0.1:18645)를 관리합니다. 크기, 출력 포맷, 모더레이션, 추론, 웹 검색은 xAI 쪽에서 처리됩니다.",
     "settingsBody": "앞으로 생성 요청에 사용할 공급자를 선택합니다.",
     "availableTitle": "{name} 사용 가능",
     "availableAria": "{name}: 사용 가능",

@@ -3152,6 +3152,14 @@ body {
   background: var(--surface-3);
 }
 
+.provider-helper {
+  margin: -4px 0 0;
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .provider-compat-note {
   display: grid;
   gap: 4px;

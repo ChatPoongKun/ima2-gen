@@ -121,6 +121,9 @@ export function ProviderSelect({ allowGrok = true }: ProviderSelectProps) {
           );
         })}
       </div>
+      {provider === "grok" ? (
+        <p className="provider-helper">{t("provider.grokManagedByIma2")}</p>
+      ) : null}
       <ApiDisabledModal
         open={!!blockedInfo}
         providerLabel={blockedInfo?.label ?? ""}
