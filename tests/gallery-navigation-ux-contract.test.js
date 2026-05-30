@@ -175,7 +175,7 @@ describe("gallery navigation UX contract", () => {
     assert.match(store, /loadHistoryStripLayout/);
     assert.match(store + registry, /ima2\.historyStripLayout/);
     assert.match(store, /setHistoryStripLayout/);
-    assert.match(historyStrip, /useRef<Record<string,\s*HTMLImageElement \| null>>/);
+    assert.match(historyStrip, /useRef<Record<string,\s*HTMLElement \| null>>/);
     assert.match(historyStrip, /historyStripLayout/);
     assert.match(historyStrip, /history-strip--horizontal/);
     assert.match(historyStrip, /history-strip--sidebar/);
