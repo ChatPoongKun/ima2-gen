@@ -52,7 +52,7 @@ graph TD
 
 `/api/billing` reports `apiKeySource` as `"none"`, `"env"`, or `"config"`. API-key generation requires a configured key and returns `API_KEY_REQUIRED` before upstream when `provider: "api"` is requested without one.
 
-The live generation/edit provider can be OAuth or API-key based. Both paths use the Responses API `image_generation` tool through a shared image adapter; only the endpoint/auth boundary differs.
+The live generation/edit provider can be OAuth, API-key, or Grok based. OAuth and API-key paths use the Responses API `image_generation` tool through a shared image adapter; only the endpoint/auth boundary differs. The Grok path uses the bundled progrok xAI proxy: classic generation first runs mandatory xAI Web Search through `/v1/responses`, then calls `grok-4.3` with a forced local `generate_image` function, then the server executes xAI `/v1/images/generations`. When Grok classic references are attached, the planner also receives those images as multimodal inputs and the final step switches to xAI `/v1/images/edits` with the same reference images so i2i context survives the planner phase.
 
 Storage endpoints are local-support helpers. `/api/storage/open-generated-dir` never accepts a browser-supplied path; it opens `ctx.config.storage.generatedDir` only.
 
@@ -74,6 +74,13 @@ Runtime responses expose configured and actual ports separately. The backend can
 Image generation model selection is explicit. If omitted, the server defaults to `gpt-5.4-mini`. Supported image models are `gpt-5.4-mini`, `gpt-5.4`, and `gpt-5.5`. `gpt-5.3-codex-spark` can appear in OAuth model status, but it does not support the `image_generation` tool, so generation endpoints reject it with `IMAGE_MODEL_UNSUPPORTED` before calling OAuth.
 
 For `provider: "api"`, missing options use `config.apiProvider` defaults: `gpt-5.4-mini`, `low` reasoning effort, `1024x1024`, and web search enabled. These defaults are overridable via `apiProvider.*` config or the `IMA2_API_IMAGE_MODEL_DEFAULT`, `IMA2_API_REASONING_EFFORT`, `IMA2_API_IMAGE_SIZE`, and `IMA2_API_ALLOW_WEB_SEARCH` env vars (see `06-infra-operations`). Validated request options still pass through. The API-key path uses `lib/responsesImageAdapter.ts` to mirror the OAuth Responses payload, including reasoning-effort, web-search, and reference-image plumbing — `tests/api-provider-parity.test.ts` (#49) locks the parity contract for generate/edit/multimode/node.
+
+For `provider: "grok"`, supported image models are `grok-imagine-image` and
+`grok-imagine-image-quality`. Classic `n > 1` requests run mandatory search and
+the `grok-4.3` planner tool call once, then reuse the planned prompt for each image and report one search call in metadata. The planned image prompt is requested in English, with explicitly requested visible non-English text preserved verbatim. Grok classic requests with references send those images to the planner, use `/v1/images/edits` for the final image call, and are capped at three references (`GROK_REF_TOO_MANY`) because xAI documents up to three source images for image editing. Grok size
+requests are converted to xAI `aspect_ratio` and `resolution`; the OpenAI-style
+`size` field is not sent upstream. Grok edit calls xAI `/v1/images/edits`; Grok
+mask edit is rejected before upstream with `GROK_MASK_UNSUPPORTED`.
 
 `webSearchEnabled` is a request-level toggle. `false` disables web-search tooling for that request. `true` asks for web search, but API-provider requests still respect the global `apiProvider.allowWebSearch` gate; a deployment that sets `IMA2_API_ALLOW_WEB_SEARCH=false` will not re-enable API web search for one request.
 

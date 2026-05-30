@@ -2,7 +2,7 @@ import type { ImageModel } from "../types";
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { getImageModelOptionsForProvider, UNSUPPORTED_IMAGE_MODELS } from "../lib/imageModels";
+import { IMAGE_MODEL_OPTIONS, UNSUPPORTED_IMAGE_MODELS } from "../lib/imageModels";
 import { REASONING_EFFORT_OPTIONS, type ReasoningEffort } from "../lib/reasoning";
 import { useAppStore } from "../store/useAppStore";
 import { useI18n } from "../i18n";
@@ -29,7 +29,7 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
   const reasoningEffort = useAppStore((s) => s.reasoningEffort);
   const setReasoningEffort = useAppStore((s) => s.setReasoningEffort);
   const id = variant === "settings" ? "settings-image-model" : "sidebar-image-model";
-  const modelOptions = getImageModelOptionsForProvider(provider);
+  const modelOptions = IMAGE_MODEL_OPTIONS;
   const current = modelOptions.find((option) => option.value === imageModel)
     ?? modelOptions[0];
   const currentReasoning = REASONING_EFFORT_OPTIONS.find((option) => option.value === reasoningEffort)
@@ -255,7 +255,7 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
             {t(option.fullLabelKey)}
           </option>
         ))}
-        {provider === "grok" ? null : UNSUPPORTED_IMAGE_MODELS.map((option) => (
+        {UNSUPPORTED_IMAGE_MODELS.map((option) => (
           <option key={option.value} value={option.value} disabled>
             {t(option.fullLabelKey)}
           </option>

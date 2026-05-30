@@ -2,12 +2,12 @@ import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { randomBytes } from "crypto";
 import type { Express, Request, Response } from "express";
-import { summarizeReferencePayload, validateAndNormalizeRefs } from "../lib/refs.js";
+import { detectImageMimeFromB64, summarizeReferencePayload, validateAndNormalizeRefs } from "../lib/refs.js";
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
 import { generateViaResponses } from "../lib/responsesImageAdapter.js";
-import { generateViaGrok } from "../lib/grokImageAdapter.js";
+import { generateViaGrok, planGrokImage } from "../lib/grokImageAdapter.js";
 import { isNonRetryableGenerationError, normalizeGenerationFailure, type UpstreamErr } from "../lib/generationErrors.js";
 import { startJob, finishJob, registerJobAbortController, isJobCanceled } from "../lib/inflight.js";
 import {
@@ -30,6 +30,12 @@ function validateModeration(ctx: RuntimeContext, moderation: unknown) {
     return { error: "moderation must be one of: auto, low" };
   }
   return { moderation };
+}
+
+function imageFormatFromMime(mime: string | null | undefined): "png" | "jpeg" | "webp" {
+  if (mime === "image/jpeg") return "jpeg";
+  if (mime === "image/webp") return "webp";
+  return "png";
 }
 
 export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
@@ -120,6 +126,16 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
         return res.status(400).json({ error: refCheckResult.error, code: refCheckResult.code });
       }
       const refCheck = refCheckResult as Extract<typeof refCheckResult, { refs: string[] }>;
+      if (activeProvider === "grok" && refCheck.refs.length > 3) {
+        finishStatus = "error";
+        finishHttpStatus = 400;
+        finishErrorCode = "GROK_REF_TOO_MANY";
+        return res.status(400).json({
+          error: "Grok image editing supports up to 3 reference images",
+          code: "GROK_REF_TOO_MANY",
+          requestId,
+        });
+      }
 
       const client = req.get("x-ima2-client") || "ui";
       const referenceDiagnostics = refCheck.referenceDiagnostics || [];
@@ -151,10 +167,29 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
       const mime = mimeMap[effectiveFormat] || "image/png";
       await mkdir(ctx.config.storage.generatedDir, { recursive: true });
 
+      const sharedGrokPlan = activeProvider === "grok"
+        ? await planGrokImage(prompt, ctx, {
+          model: quality === "high" ? "grok-imagine-image-quality" : imageModel,
+          size: effectiveSize,
+          signal: cancelController.signal,
+          requestId,
+          referenceCount: refCheck.refs.length,
+          references: refCheck.refDetails,
+        })
+        : null;
+
       const generateOne = async () => {
         if (activeProvider === "grok") {
           const grokModel = quality === "high" ? "grok-imagine-image-quality" : imageModel;
-          const r = await generateViaGrok(prompt, ctx, { model: grokModel, signal: cancelController.signal, requestId });
+          const r = await generateViaGrok(prompt, ctx, {
+            model: grokModel,
+            size: effectiveSize,
+            signal: cancelController.signal,
+            requestId,
+            plannedPrompt: sharedGrokPlan?.prompt,
+            webSearchCalls: sharedGrokPlan?.webSearchCalls,
+            references: refCheck.refDetails,
+          });
           throwIfJobCanceled(requestId);
           return r;
         }
@@ -209,6 +244,11 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
       for (const r of results) {
         if (r.status === "fulfilled" && r.value.b64) {
           throwIfJobCanceled(requestId);
+          const valueWithMime = r.value as typeof r.value & { mime?: string };
+          const resultMime = activeProvider === "grok"
+            ? (valueWithMime.mime || detectImageMimeFromB64(r.value.b64) || mime)
+            : mime;
+          const resultFormat = activeProvider === "grok" ? imageFormatFromMime(resultMime) : effectiveFormat;
           const retryValue = r.value as typeof r.value & {
             retryKind?: string;
             initialEventCount?: number;
@@ -228,7 +268,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
             };
           }
           const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
-          const filename = `${Date.now()}_${rand}_${images.length}.${effectiveFormat}`;
+          const filename = `${Date.now()}_${rand}_${images.length}.${resultFormat}`;
           const meta = {
             kind: "classic",
             requestId,
@@ -242,7 +282,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
             composerInsertedPrompts,
             quality,
             size: effectiveSize,
-            format: effectiveFormat,
+            format: resultFormat,
             moderation,
             model: activeProvider === "grok" ? (quality === "high" ? "grok-imagine-image-quality" : imageModel) : imageModel,
             reasoningEffort,
@@ -254,7 +294,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
             refsCount: refCheck.refs.length,
           };
           const rawBuffer = Buffer.from(r.value.b64, "base64");
-          const embedded: any = await embedImageMetadataBestEffort(rawBuffer, effectiveFormat, meta, {
+          const embedded: any = await embedImageMetadataBestEffort(rawBuffer, resultFormat, meta, {
             version: ctx.packageVersion,
           });
           if (!embedded.embedded) {
@@ -269,7 +309,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
           await writeFile(join(ctx.config.storage.generatedDir, filename + ".json"), JSON.stringify(meta)).catch(() => {});
           invalidateHistoryIndex();
           images.push({
-            image: `data:${mime};base64,${r.value.b64}`,
+            image: `data:${resultMime};base64,${r.value.b64}`,
             filename,
             revisedPrompt: r.value.revisedPrompt || null,
           });
@@ -283,7 +323,11 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
               });
             }
           }
-          if (typeof r.value.webSearchCalls === "number") totalWebSearchCalls += r.value.webSearchCalls;
+          if (typeof r.value.webSearchCalls === "number") {
+            totalWebSearchCalls = activeProvider === "grok"
+              ? Math.max(totalWebSearchCalls, r.value.webSearchCalls)
+              : totalWebSearchCalls + r.value.webSearchCalls;
+          }
         } else if (r.status === "rejected") {
           logError("generate", "parallel_failed", r.reason, { requestId });
         }

@@ -206,7 +206,7 @@
     "reasoning": "추론",
     "webSearch": "웹 검색",
     "grokApi": "Grok API",
-    "grokApiBody": "Images API, JPEG 출력",
+    "grokApiBody": "번들된 progrok에서 필수 검색 → grok-4.3 이미지+텍스트 tool planning(영어 프롬프트) → xAI Images API 순서로 실행됩니다. 첨부 레퍼런스는 xAI 이미지 편집으로 보내 i2i 맥락을 보존합니다.",
     "openAccount": "계정 설정 열기"
   },
   "generate": {
@@ -509,7 +509,7 @@
     "grokClassicOnly": "Grok 이미지 생성은 클래식 모드에서만 사용할 수 있습니다.",
     "grokClassicOnlyHint": "Grok을 쓰려면 클래식 모드로 전환하세요.",
     "grokCompatTitle": "Grok 이미지 API",
-    "grokCompatBody": "ima2 serve가 번들된 progrok 프록시(127.0.0.1:18645)를 관리합니다. 크기, 출력 포맷, 모더레이션, 추론, 웹 검색은 xAI 쪽에서 처리됩니다.",
+    "grokCompatBody": "ima2 serve가 번들된 progrok 프록시(127.0.0.1:18645)를 관리합니다. Grok은 검색을 항상 사용한 뒤 첨부 레퍼런스를 grok-4.3 planner에 함께 보내고, xAI 이미지 편집으로 유지하며, 크기는 xAI aspect ratio/resolution으로 매핑됩니다. 출력 포맷, 모더레이션, 추론은 OpenAI 공급자에서만 설정됩니다.",
     "settingsBody": "앞으로 생성 요청에 사용할 공급자를 선택합니다.",
     "availableTitle": "{name} 사용 가능",
     "availableAria": "{name}: 사용 가능",
@@ -868,14 +868,14 @@
     },
     "imageModel": {
       "title": "이미지 모델",
-      "body": "앞으로 생성 요청에 사용할 이미지 모델을 선택합니다. 목록은 선택한 공급자에 맞춰 표시됩니다.",
+      "body": "앞으로 생성 요청에 사용할 이미지 모델을 선택합니다. Grok 모델을 선택하면 공급자도 Grok으로 전환됩니다.",
       "gpt54Mini": "GPT-5.4 Mini",
       "gpt54": "GPT-5.4",
       "gpt55": "GPT-5.5",
       "grokImagine": "Grok Imagine",
       "grokImagineQuality": "Grok Imagine Quality",
       "gpt53CodexSpark": "GPT-5.3 Codex Spark — 이미지 생성 미지원",
-      "unsupportedHelp": "목록은 선택한 공급자에 맞춰 표시됩니다. Grok은 xAI Images API를, OAuth/API 키 공급자는 OpenAI Responses 이미지 생성을 사용합니다."
+      "unsupportedHelp": "Grok 모델은 번들된 로컬 프록시를 통해 xAI Images API를 사용합니다. GPT 모델은 OpenAI Responses 이미지 생성을 사용합니다."
     },
     "reasoning": {
       "title": "추론 강도",
@@ -894,7 +894,7 @@
     },
     "grokCompatibility": {
       "title": "Grok 호환성",
-      "body": "Grok 이미지 생성은 xAI Images API를 사용합니다. 추론과 웹 검색 설정은 OAuth/API 키 공급자에서만 사용됩니다."
+      "body": "Grok 이미지 생성은 grok-4.3이 먼저 필수 웹 검색을 수행하고, 그 다음 텍스트와 첨부 이미지를 함께 보는 image-tool planner가 최종 이미지 프롬프트를 영어로 작성한 뒤 xAI Images API로 실행됩니다. 첨부 레퍼런스는 xAI 이미지 편집 경로로 유지되고, 크기는 aspect ratio/resolution으로 매핑됩니다. 출력 포맷·모더레이션·추론은 OAuth/API 키 공급자에서만 사용됩니다."
     },
     "gallery": {
       "defaultScopeTitle": "기본 갤러리 보기",

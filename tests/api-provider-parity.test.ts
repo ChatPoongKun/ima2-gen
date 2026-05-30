@@ -132,6 +132,95 @@ describe("API provider parity", () => {
     });
   });
 
+  it("generate provider=grok reports one search call for n>1 plan reuse", async () => {
+    const calls = [];
+    globalThis.fetch = async (url, init) => {
+      if (String(url).startsWith("http://127.0.0.1:") && !String(url).includes("/v1/")) {
+        return originalFetch(url, init);
+      }
+      const body = JSON.parse(String(init?.body || "{}"));
+      calls.push({ url: String(url), body });
+      if (String(url).endsWith("/v1/responses")) {
+        return Response.json({
+          output: [{
+            type: "message",
+            content: [{ type: "output_text", text: "Visual search brief." }],
+          }],
+        });
+      }
+      if (String(url).endsWith("/v1/chat/completions")) {
+        return Response.json({
+          choices: [{
+            message: {
+              tool_calls: [{
+                type: "function",
+                function: {
+                  name: "generate_image",
+                  arguments: JSON.stringify({ prompt: "planned grok prompt", model: "grok-imagine-image-quality" }),
+                },
+              }],
+            },
+          }],
+        });
+      }
+      return Response.json({
+        data: [{ b64_json: FINAL_B64, mime_type: "image/png" }],
+        usage: { cost_in_usd_ticks: 1 },
+      });
+    };
+
+    await withApp(async ({ baseUrl }) => {
+      const res = await fetch(`${baseUrl}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "grok provider n two",
+          provider: "grok",
+          model: "grok-imagine-image-quality",
+          size: "2048x1152",
+          n: 2,
+        }),
+      });
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(body.provider, "grok");
+      assert.equal(body.count, 2);
+      assert.equal(body.webSearchCalls, 1);
+      assert.equal(calls.filter((call) => call.url.endsWith("/v1/responses")).length, 1);
+      assert.equal(calls.filter((call) => call.url.endsWith("/v1/chat/completions")).length, 1);
+      assert.equal(calls.filter((call) => call.url.endsWith("/v1/images/generations")).length, 2);
+    });
+  });
+
+  it("generate provider=grok rejects more than three classic references before upstream", async () => {
+    const calls = [];
+    globalThis.fetch = async (url, init) => {
+      if (String(url).startsWith("http://127.0.0.1:") && !String(url).includes("/v1/")) {
+        return originalFetch(url, init);
+      }
+      calls.push({ url: String(url), body: init?.body });
+      return Response.json({ error: "unexpected upstream" }, { status: 500 });
+    };
+
+    const ref = await pngB64();
+    await withApp(async ({ baseUrl }) => {
+      const res = await fetch(`${baseUrl}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "grok too many refs",
+          provider: "grok",
+          model: "grok-imagine-image-quality",
+          references: [ref, ref, ref, ref],
+        }),
+      });
+      const body = await res.json();
+      assert.equal(res.status, 400);
+      assert.equal(body.code, "GROK_REF_TOO_MANY");
+      assert.equal(calls.length, 0);
+    });
+  });
+
   it("generate provider=api forces the image tool when web search is off", async () => {
     const calls = [];
     globalThis.fetch = async (url, init) => {

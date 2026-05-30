@@ -2,12 +2,12 @@ import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import { randomBytes } from "crypto";
 import type { Express, Request, Response } from "express";
-import { summarizeReferencePayload, validateAndNormalizeRefs } from "../lib/refs.js";
+import { detectImageMimeFromB64, summarizeReferencePayload, validateAndNormalizeRefs } from "../lib/refs.js";
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
 import { generateMultimodeViaResponses } from "../lib/responsesImageAdapter.js";
-import { generateMultimodeViaGrok } from "../lib/grokImageAdapter.js";
+import { generateMultimodeViaGrok } from "../lib/grokMultimodeAdapter.js";
 import { startJob, finishJob, registerJobAbortController, isJobCanceled } from "../lib/inflight.js";
 import {
   isGenerationCanceledError,
@@ -49,6 +49,13 @@ function sequenceStatus(returned: number, requested: number): "empty" | "partial
 interface MultimodeImage {
   b64: string;
   revisedPrompt?: string | null;
+  mime?: string | null;
+}
+
+function imageFormatFromMime(mime: string | null | undefined): "png" | "jpeg" | "webp" {
+  if (mime === "image/jpeg") return "jpeg";
+  if (mime === "image/webp") return "webp";
+  return "png";
 }
 
 type MultimodeRouteItem = {
@@ -222,8 +229,12 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
       ) => {
         if (persistedIndexes.has(index)) return;
         throwIfJobCanceled(requestId);
+        const resultMime = activeProvider === "grok"
+          ? (image.mime || detectImageMimeFromB64(image.b64) || mime)
+          : mime;
+        const resultFormat = activeProvider === "grok" ? imageFormatFromMime(resultMime) : mmFormat;
         const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
-        const filename = `${Date.now()}_${rand}_multimode_${index}.${mmFormat}`;
+        const filename = `${Date.now()}_${rand}_multimode_${index}.${resultFormat}`;
         const meta = {
           kind: "multimode-image",
           generationStrategy: "one-call-text-sequence",
@@ -242,7 +253,7 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
           composerInsertedPrompts,
           quality,
           size: effectiveSize,
-          format: mmFormat,
+          format: resultFormat,
           moderation,
           model: activeProvider === "grok" ? (quality === "high" ? "grok-imagine-image-quality" : imageModel) : imageModel,
           provider: activeProvider,
@@ -253,14 +264,14 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
           refsCount: refCheck.refs.length,
         };
         const rawBuffer = Buffer.from(image.b64, "base64");
-        const embedded = await embedImageMetadataBestEffort(rawBuffer, mmFormat, meta, {
+        const embedded = await embedImageMetadataBestEffort(rawBuffer, resultFormat, meta, {
           version: ctx.packageVersion,
         });
         await writeFile(join(ctx.config.storage.generatedDir, filename), embedded.buffer);
         await writeFile(join(ctx.config.storage.generatedDir, filename + ".json"), JSON.stringify(meta)).catch(() => {});
         invalidateHistoryIndex();
         const item = {
-          image: `data:${mime};base64,${image.b64}`,
+          image: `data:${resultMime};base64,${image.b64}`,
           filename,
           revisedPrompt: image.revisedPrompt || null,
           sequenceId,
@@ -283,6 +294,7 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
         generated = await generateMultimodeViaGrok(prompt, ctx, {
           model: grokModel,
           maxImages,
+          size: effectiveSize,
           signal: cancelController.signal,
           requestId,
           onFinalImage: async (image, index) => {

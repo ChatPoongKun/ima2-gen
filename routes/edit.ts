@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import { randomBytes } from "crypto";
 import type { Express, Request, Response } from "express";
+import { detectImageMimeFromB64 } from "../lib/refs.js";
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
@@ -24,6 +25,12 @@ function validateModeration(ctx: RuntimeContext, moderation: unknown) {
     return { error: "moderation must be one of: auto, low" };
   }
   return { moderation };
+}
+
+function imageFormatFromMime(mime: string | null | undefined): "png" | "jpeg" | "webp" {
+  if (mime === "image/jpeg") return "jpeg";
+  if (mime === "image/webp") return "webp";
+  return "png";
 }
 
 const MAX_EDIT_MASK_BYTES = 16 * 1024 * 1024;
@@ -192,14 +199,21 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       let usage: Record<string, number> | null;
       let revisedPrompt: string | undefined;
       let webSearchCalls = 0;
+      let resultMimeFromProvider: string | undefined;
 
       if (activeProvider === "grok") {
         const grokModel = quality === "high" ? "grok-imagine-image-quality" : imageModel;
-        const r = await editViaGrok(prompt, imageB64, ctx, { model: grokModel, signal: cancelController.signal, requestId });
+        const r = await editViaGrok(prompt, imageB64, ctx, {
+          model: grokModel,
+          size: effectiveSize,
+          signal: cancelController.signal,
+          requestId,
+        });
         resultB64 = r.b64;
         usage = r.usage;
         revisedPrompt = r.revisedPrompt;
         webSearchCalls = r.webSearchCalls;
+        resultMimeFromProvider = r.mime;
       } else {
         const r = await editViaResponses(
           activeProvider,
@@ -229,7 +243,10 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       const elapsed = +((Date.now() - startTime) / 1000).toFixed(1);
       await mkdir(ctx.config.storage.generatedDir, { recursive: true });
       throwIfJobCanceled(requestId);
-      const editExt = activeProvider === "grok" ? "jpeg" : "png";
+      const editMime = activeProvider === "grok"
+        ? (resultMimeFromProvider || detectImageMimeFromB64(resultB64) || "image/png")
+        : "image/png";
+      const editExt = activeProvider === "grok" ? imageFormatFromMime(editMime) : "png";
       const filename = `${Date.now()}_${randomBytes(ctx.config.ids.generatedHexBytes).toString("hex")}.${editExt}`;
       await writeFile(join(ctx.config.storage.generatedDir, filename), Buffer.from(resultB64, "base64"));
       const meta = {
@@ -263,7 +280,6 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         elapsedMs: Date.now() - startTime,
       });
 
-      const editMime = activeProvider === "grok" ? "image/jpeg" : "image/png";
       res.json({
         image: `data:${editMime};base64,${resultB64}`,
         elapsed,

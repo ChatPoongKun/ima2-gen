@@ -206,7 +206,7 @@
     "reasoning": "Reasoning",
     "webSearch": "Web search",
     "grokApi": "Grok API",
-    "grokApiBody": "Images API, JPEG output",
+    "grokApiBody": "Runs through bundled progrok: mandatory search, grok-4.3 image+text tool planning in English, then xAI Images API. Attached references use xAI image editing so i2i context is preserved.",
     "openAccount": "Open account settings"
   },
   "generate": {
@@ -509,7 +509,7 @@
     "grokClassicOnly": "Grok image generation is available in Classic mode only.",
     "grokClassicOnlyHint": "Switch to Classic mode before using Grok.",
     "grokCompatTitle": "Grok image API",
-    "grokCompatBody": "ima2 serve manages the bundled progrok proxy at 127.0.0.1:18645. Size, output format, moderation, reasoning, and web search are handled by xAI.",
+    "grokCompatBody": "ima2 serve manages the bundled progrok proxy at 127.0.0.1:18645. Grok always searches before image generation, sends attached references into the grok-4.3 planner, keeps them through xAI image editing, and maps size to xAI aspect ratio/resolution. Output format, moderation, and reasoning are OpenAI-provider settings only.",
     "settingsBody": "Choose which provider future generation requests use.",
     "availableTitle": "{name} available",
     "availableAria": "{name}: available",
@@ -868,14 +868,14 @@
     },
     "imageModel": {
       "title": "Image model",
-      "body": "Choose the image model used for future generations. The list follows the selected provider.",
+      "body": "Choose the image model used for future generations. Selecting a Grok model switches the provider to Grok.",
       "gpt54Mini": "GPT-5.4 Mini",
       "gpt54": "GPT-5.4",
       "gpt55": "GPT-5.5",
       "grokImagine": "Grok Imagine",
       "grokImagineQuality": "Grok Imagine Quality",
       "gpt53CodexSpark": "GPT-5.3 Codex Spark — unsupported for images",
-      "unsupportedHelp": "The list follows the selected provider. Grok uses xAI's Images API; OAuth and API key providers use OpenAI Responses image generation."
+      "unsupportedHelp": "Grok models use xAI's Images API through the bundled local proxy. GPT models use OpenAI Responses image generation."
     },
     "reasoning": {
       "title": "Reasoning effort",
@@ -894,7 +894,7 @@
     },
     "grokCompatibility": {
       "title": "Grok compatibility",
-      "body": "Grok image generation uses xAI's Images API. Reasoning and web search settings are only used by OAuth and API key providers."
+      "body": "Grok image generation first runs mandatory web search with grok-4.3, then sends text and attached images to a local image-tool planner that writes the final image prompt in English. Attached references route through xAI image editing; size is mapped to aspect ratio/resolution. Output format, moderation, and reasoning are only used by OAuth and API key providers."
     },
     "gallery": {
       "defaultScopeTitle": "Default gallery view",

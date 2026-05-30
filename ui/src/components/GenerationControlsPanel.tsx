@@ -58,9 +58,9 @@ export function GenerationControlsPanel() {
         value={quality}
         onChange={setQuality}
       />
+      <SizePicker />
       {isGrok ? null : (
         <>
-          <SizePicker />
           <OptionGroup<Format>
             title={t("format.title")}
             items={FORMAT_ITEMS}

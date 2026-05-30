@@ -58,13 +58,25 @@ Provider override semantics:
 
 - `api` forces the API-key Responses path and requires a configured API key.
 - `oauth` forces the local OAuth proxy path.
-- `grok` uses the bundled progrok xAI proxy (`127.0.0.1:18645`) and the `/v1/images/generations` endpoint directly. Models: `grok-imagine-image`, `grok-imagine-image-quality`. Size/reasoning/web-search are ignored.
+- `grok` uses the bundled progrok xAI proxy (`127.0.0.1:18645`). Classic generation first runs mandatory xAI Web Search through Responses API, then asks `grok-4.3` to call ima2's local `generate_image` tool, then ima2 executes xAI `/v1/images/generations`. If `--ref` images are attached, the final step uses xAI `/v1/images/edits` instead so image-to-image/reference context is preserved. Models: `grok-imagine-image`, `grok-imagine-image-quality`. Size is mapped to xAI `aspect_ratio` and `resolution`; the UI web-search toggle is OpenAI-provider-only because Grok search is always on in this path.
 - `auto` preserves route default behavior and currently resolves to OAuth unless server routing changes.
 
 `ima2 serve` starts the bundled Grok proxy automatically. No separate `progrok`
 install is required. Use `ima2 grok login` once to authorize xAI OAuth, or
 `ima2 grok login --device-code` on a remote shell. Set `IMA2_NO_GROK_PROXY=1`
 only if you want to manage the proxy yourself.
+
+Grok size mapping follows xAI's image API, not OpenAI's `size` field. ima2
+keeps the requested size in local metadata, but sends `aspect_ratio` such as
+`1:1`, `16:9`, `9:16`, `4:3`, `3:4`, `3:2`, or `2:3`, plus `resolution:
+"1k"` or `"2k"` where applicable. The 3840 presets map to `resolution: "2k"`
+because xAI currently exposes `1k` and `2k` resolution controls.
+
+For Grok classic generation with `--ref`, ima2 sends up to three references into
+the `grok-4.3` planner as image inputs, asks the planner for an English final
+image prompt, then sends the same references to xAI image editing. More than
+three Grok references are rejected with `GROK_REF_TOO_MANY`, matching xAI's
+documented multi-image editing limit.
 
 ```bash
 ima2 gen "a poster of a samurai cat" --model gpt-5.4 --provider api --reasoning-effort high

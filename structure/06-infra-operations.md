@@ -100,6 +100,9 @@ README may still mention a different Node baseline. The operational baseline is 
 | `IMA2_API_REASONING_EFFORT` | Default reasoning effort for `provider: "api"`, default `low` |
 | `IMA2_API_IMAGE_SIZE` | Default size for `provider: "api"`, default `1024x1024` |
 | `IMA2_API_ALLOW_WEB_SEARCH` | Toggle web search for `provider: "api"`, default `true` |
+| `IMA2_GROK_PLANNER_MODEL` | Search/planner model for `provider: "grok"` classic generation, default `grok-4.3` |
+| `IMA2_GROK_PLANNER_TIMEOUT_MS` | Timeout for each Grok search/planner call before the image API call, default `60000` |
+| `IMA2_GROK_IMAGE_MODEL_DEFAULT` | Default xAI image model for `provider: "grok"`, default `grok-imagine-image` |
 | `IMA2_OAUTH_MASKED_EDIT_ENABLED` | Feature flag (#31) gating masked-edit requests on the OAuth path; default off — when off, `lib/oauthProxy/generators.ts` rejects requests carrying a mask before calling upstream |
 | `IMA2_INFLIGHT_TTL_MS` | Active in-flight stale-job TTL, default `600000` |
 | `IMA2_INFLIGHT_TERMINAL_TTL_MS` | Recent completed/error/canceled job debug retention, default `30000` |
@@ -133,7 +136,7 @@ README may still mention a different Node baseline. The operational baseline is 
 | `IMA2_STATIC_MAX_AGE` | Static asset Cache-Control max-age |
 | `VITE_IMA2_DEV` | UI build-time dev flag; pairs with `VITE_IMA2_CARD_NEWS=1` to expose the dev-only card-news workspace in the bundle |
 
-Generation and edit endpoints support both OAuth and API-key providers. `provider: "api"` calls the OpenAI Responses API with the hosted `image_generation` tool and requires `OPENAI_API_KEY` or the configured API key path.
+Generation and edit endpoints support OAuth, API-key, and Grok providers. `provider: "api"` calls the OpenAI Responses API with the hosted `image_generation` tool and requires `OPENAI_API_KEY` or the configured API key path. `provider: "grok"` uses bundled progrok; classic generation performs mandatory xAI Web Search and then a `grok-4.3` custom-tool planner call before executing xAI Images API. If Grok classic generation includes reference images, those images are sent into the planner and the final image call uses xAI `/v1/images/edits` with the same references instead of the text-only generation endpoint.
 
 Runtime port fallback is intentional. If a preferred backend or OAuth proxy port is occupied, the server records the actual bound URL in `~/.ima2/server.json` and health/status responses. CLI clients and split Vite dev proxy resolution should consume that actual URL instead of reconstructing `localhost:${configuredPort}`.
 

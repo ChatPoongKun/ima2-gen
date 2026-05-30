@@ -1304,9 +1304,12 @@ function getCustomSizeConfirmation(
 }
 
 const storedGenerationDefaults = loadGenerationDefaults();
+const storedImageModel = loadImageModel();
+const initialProvider =
+  isGrokImageModel(storedImageModel) ? "grok" : (storedGenerationDefaults.provider ?? "oauth") === "grok" ? "oauth" : (storedGenerationDefaults.provider ?? "oauth");
 
 export const useAppStore = create<AppState>((set, get) => ({
-  provider: storedGenerationDefaults.provider ?? "oauth",
+  provider: initialProvider,
   quality: storedGenerationDefaults.quality ?? "medium",
   sizePreset: storedGenerationDefaults.sizePreset ?? "1024x1024",
   customW: storedGenerationDefaults.customW ?? 1920,
@@ -1888,7 +1891,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ galleryDefaultScope: scope, galleryScope: scope });
   },
 
-  imageModel: loadImageModel(),
+  imageModel: storedImageModel,
   reasoningEffort: loadReasoningEffort(),
   webSearchEnabled: loadWebSearchEnabled(),
 
@@ -3001,6 +3004,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setImageModel: (imageModel) => {
     saveImageModel(imageModel);
+    if (isGrokImageModel(imageModel)) {
+      saveGenerationDefaultsPatch({ provider: "grok" });
+      set({ provider: "grok", imageModel });
+      return;
+    }
+    if (get().provider === "grok") {
+      saveGenerationDefaultsPatch({ provider: "oauth" });
+      set({ provider: "oauth", imageModel });
+      return;
+    }
     set({ imageModel });
   },
   setReasoningEffort: (reasoningEffort) => {

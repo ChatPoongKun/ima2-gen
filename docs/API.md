@@ -10,12 +10,14 @@ http://localhost:3333
 
 ## Provider Policy
 
-Image generation supports both OAuth and API-key providers.
+Image generation supports OAuth, API-key, and Grok providers.
 
 - `provider: "oauth"` uses the local Codex OAuth proxy.
 - `provider: "api"` uses the OpenAI Responses API with the hosted `image_generation` tool.
+- `provider: "grok"` uses the bundled progrok xAI proxy. Classic generation runs mandatory xAI Web Search through `/v1/responses`, then runs a `grok-4.3` planner call with a forced local `generate_image` function, then ima2 executes xAI `/v1/images/generations`. If classic reference images are attached, the final step switches to xAI `/v1/images/edits` so image-to-image context is preserved.
 - API-key generation covers classic generate, edit, mask-guided edit, multimode, and node generation.
 - If `provider: "api"` is requested without an API key, routes fail before upstream with `401` and `API_KEY_REQUIRED`.
+- Grok classic generation maps `size` to xAI `aspect_ratio` and `resolution`; it does not send an OpenAI-style `size` field upstream. Grok edit uses xAI `/v1/images/edits`; Grok mask edit remains unsupported and returns `GROK_MASK_UNSUPPORTED`.
 - Mask edits are mask/selection guided edits, not pixel-perfect inpaint guarantees.
 
 ## Health And Status
@@ -104,11 +106,59 @@ Supported moderation values: `auto`, `low`.
 
 Recommended model: `gpt-5.4`. Current app default: `gpt-5.4-mini`. `gpt-5.5` is the strongest quality option when supported, but callers should expect higher quota pressure and possible Codex CLI/backend capability requirements.
 
+When `provider` is `"grok"`, supported models are `grok-imagine-image` and
+`grok-imagine-image-quality`. The server uses `grok-4.3` as the search/planner
+model by default (`IMA2_GROK_PLANNER_MODEL`) and times the mandatory search and
+planner steps separately from the image call (`IMA2_GROK_PLANNER_TIMEOUT_MS`).
+For `n > 1`, search and planning run once and the planned prompt is reused for
+the image requests. Successful Grok classic generations report one mandatory
+web-search call in metadata.
+
+If `references` are present on a Grok classic request, ima2 still performs the
+mandatory search and `grok-4.3` planning phases. The planner receives the
+reference images as multimodal `image_url` inputs, and its forced
+`generate_image.prompt` argument is instructed to be English-only except for
+exact visible text requested by the user. The final image call then uses xAI
+`/v1/images/edits` with the same reference images instead of
+`/v1/images/generations`. This keeps image-to-image/reference context alive
+through the three-phase pipeline. xAI currently documents up to three source
+images for image editing, so Grok classic requests with more than three
+references return `GROK_REF_TOO_MANY`.
+
+Grok size mapping:
+
+| Requested size | xAI `aspect_ratio` | xAI `resolution` |
+|---|---|---|
+| `1024x1024` | `1:1` | `1k` |
+| `1536x1024` | `3:2` | `1k` |
+| `1024x1536` | `2:3` | `1k` |
+| `1360x1024` | `4:3` | `1k` |
+| `1024x1360` | `3:4` | `1k` |
+| `1824x1024` | `16:9` | `1k` |
+| `1024x1824` | `9:16` | `1k` |
+| `2048x2048` | `1:1` | `2k` |
+| `2048x1152` | `16:9` | `2k` |
+| `1152x2048` | `9:16` | `2k` |
+| `3840x2160` | `16:9` | `2k` |
+| `2160x3840` | `9:16` | `2k` |
+| `auto` | `auto` | omitted |
+
+Custom sizes are reduced to the closest xAI-supported aspect ratio and use
+`2k` when the requested longest edge or pixel budget is closer to a 2K image.
+
 ### `POST /api/edit`
 
 Image edit / image-to-image generation.
 
 The request includes a prompt and image payload. `provider: "api"` sends the prompt and image through the shared Responses image adapter. Optional masks are forwarded as mask guidance, not a pixel-perfect edit guarantee.
+
+With `provider: "grok"`, edit requests are sent to xAI `/v1/images/edits`
+through the bundled progrok proxy. Masked Grok edits are rejected before
+upstream with `GROK_MASK_UNSUPPORTED`.
+
+Grok multimode currently sends each image request directly to xAI Images API
+with the mapped `aspect_ratio`/`resolution`; the mandatory search + planner
+pipeline is limited to classic `/api/generate`.
 
 ### `POST /api/node/generate`
 
@@ -156,6 +206,7 @@ Server-side validation may return these reference codes:
 | `REF_EMPTY` | A reference item was empty |
 | `REF_TOO_LARGE` | A reference exceeded the configured base64 size |
 | `REF_NOT_BASE64` | A reference was not valid base64 |
+| `GROK_REF_TOO_MANY` | Grok classic generation received more than three reference images |
 
 ## History
 

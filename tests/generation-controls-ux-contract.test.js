@@ -24,6 +24,7 @@ describe("generation controls custom plus UX contract", () => {
     assert.match(controls, /import \{ SizePicker \} from "\.\/SizePicker"/);
     assert.match(controls, /import \{ CountPicker \} from "\.\/CountPicker"/);
     assert.match(controls, /<SizePicker \/>/);
+    assert.doesNotMatch(controls, /isGrok \? null : \(\s*<>\s*<SizePicker \/>/);
     assert.match(controls, /<CountPicker \/>/);
   });
 

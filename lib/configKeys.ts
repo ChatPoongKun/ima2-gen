@@ -11,6 +11,9 @@ export const WRITABLE_CONFIG_KEYS = new Set([
   "cardNewsPlanner.model",
   "cardNewsPlanner.timeoutMs",
   "cardNewsPlanner.deterministicFallback",
+  "grokProvider.plannerModel",
+  "grokProvider.plannerTimeoutMs",
+  "grokProvider.defaultImageModel",
   "comfy.defaultUrl",
   "comfy.uploadTimeoutMs",
   "comfy.maxUploadBytes",
@@ -43,6 +46,9 @@ export const KEY_TO_ENV: Record<string, string> = {
   "cardNewsPlanner.enabled": "IMA2_CARD_NEWS_PLANNER",
   "cardNewsPlanner.model": "IMA2_CARD_NEWS_PLANNER_MODEL",
   "cardNewsPlanner.timeoutMs": "IMA2_CARD_NEWS_PLANNER_TIMEOUT_MS",
+  "grokProvider.plannerModel": "IMA2_GROK_PLANNER_MODEL",
+  "grokProvider.plannerTimeoutMs": "IMA2_GROK_PLANNER_TIMEOUT_MS",
+  "grokProvider.defaultImageModel": "IMA2_GROK_IMAGE_MODEL_DEFAULT",
   "limits.maxParallel": "IMA2_MAX_PARALLEL",
   "limits.maxRefCount": "IMA2_MAX_REF_COUNT",
   "history.defaultPageSize": "IMA2_HISTORY_PAGE_SIZE",
@@ -54,4 +60,3 @@ const ALWAYS_REDACT = new Set(["provider", "apiKey", "oauth.token", "oauth.refre
 export function isSensitiveConfigKey(key: string): boolean {
   return ALWAYS_REDACT.has(key) || REDACT_PATTERN.test(key);
 }
-

@@ -19,7 +19,7 @@ export function resolveProviderOptions(ctx: RuntimeContext | null | undefined, {
       model: grokModelCheck.model,
       reasoningEffort: "none",
       size: rawSize,
-      webSearchEnabled: false,
+      webSearchEnabled: true,
     };
   }
 
