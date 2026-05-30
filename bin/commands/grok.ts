@@ -28,6 +28,26 @@ function localBinPath() {
   return join(ROOT, "node_modules", ".bin");
 }
 
+function spawnProgrok(argv: string[], env: NodeJS.ProcessEnv): Promise<number | null> {
+  return new Promise((resolve, reject) => {
+    const child = isWin
+      ? spawn("cmd.exe", ["/d", "/s", "/c", `progrok ${argv.map((arg) => JSON.stringify(arg)).join(" ")}`], {
+          cwd: ROOT,
+          env,
+          stdio: "inherit",
+          windowsHide: true,
+        })
+      : spawn(resolveBin("progrok"), argv, {
+          cwd: ROOT,
+          env,
+          stdio: "inherit",
+          windowsHide: true,
+        });
+    child.on("error", (err) => reject(err));
+    child.on("close", resolve);
+  });
+}
+
 export default async function grokCmd(argv: string[]) {
   const sub = argv[0];
   if (!sub || sub === "--help" || sub === "-h") {
@@ -39,28 +59,25 @@ export default async function grokCmd(argv: string[]) {
     ...process.env,
     PATH: `${localBinPath()}${delimiter}${process.env.PATH || ""}`,
   };
-  const child = isWin
-    ? spawn("cmd.exe", ["/d", "/s", "/c", `progrok ${argv.map((arg) => JSON.stringify(arg)).join(" ")}`], {
-        cwd: ROOT,
-        env,
-        stdio: "inherit",
-        windowsHide: true,
-      })
-    : spawn(resolveBin("progrok"), argv, {
-        cwd: ROOT,
-        env,
-        stdio: "inherit",
-        windowsHide: true,
-      });
 
-  child.on("error", (err) => {
+  try {
+    const code = await spawnProgrok(argv, env);
+    if (code && code !== 0) {
+      // Auto-fallback: if login (without --device-code) failed, retry with device-code
+      if (sub === "login" && !argv.includes("--device-code")) {
+        out(color.yellow("⚠ ") + "Browser login failed. Retrying with device-code flow...\n");
+        const fallbackCode = await spawnProgrok(["login", "--device-code"], env);
+        if (fallbackCode && fallbackCode !== 0) {
+          die(fallbackCode, "bundled progrok device-code login also failed");
+        }
+      } else {
+        die(code, `bundled progrok exited with code ${code}`);
+      }
+    }
+  } catch (err: any) {
     die(1, `bundled progrok failed to start: ${err.message}`);
-  });
-
-  const code = await new Promise<number | null>((resolve) => child.on("close", resolve));
-  if (code && code !== 0) {
-    die(code, `bundled progrok exited with code ${code}`);
   }
+
   if (sub === "login") {
     out(color.green("✓ ") + "Grok OAuth is ready for ima2 serve");
   }
