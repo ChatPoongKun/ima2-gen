@@ -6516,10 +6516,10 @@ body {
 }
 .video-controls .option-row {
   flex-wrap: wrap;
-  justify-content: center;
 }
 .video-controls .option-btn {
-  flex: 0 1 auto;
+  flex: 1 1 calc(16.6% - 4px);
+  min-width: 40px;
   white-space: nowrap;
 }
 .video-progress {
