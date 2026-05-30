@@ -34,6 +34,13 @@ describe("node context and edit search policy", () => {
     assert.match(oauth, /webSearchEnabled/);
   });
 
+  it("forwards the selected provider from Node Mode requests", () => {
+    const store = readFileSync("ui/src/store/useAppStore.ts", "utf-8");
+    const nodePayload = /postNodeGenerateStream\(\{\s*[\s\S]*?\},\s*\{/.exec(store)?.[0] ?? "";
+    assert.match(nodePayload, /provider:\s*s\.provider/);
+    assert.match(nodePayload, /model:\s*s\.imageModel/);
+  });
+
   it("logs safe context shape instead of raw prompts or images", () => {
     assert.match(route, /inputImageCount/);
     assert.match(route, /parentImagePresent/);

@@ -2669,6 +2669,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         size,
         format: s.format,
         moderation: s.moderation,
+        provider: s.provider,
         model: s.imageModel,
         reasoningEffort: s.reasoningEffort,
         requestId: flightId,
