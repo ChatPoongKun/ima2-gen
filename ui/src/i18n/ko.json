@@ -801,6 +801,17 @@
       "error": "초안 생성 실패"
     }
   },
+  "video": {
+    "modeLabel": "비디오 모드",
+    "mode": {
+      "text-to-video": "텍스트 → 비디오 (참조 이미지 없음)",
+      "image-to-video": "이미지 → 비디오 (참조 1장)",
+      "reference-to-video": "레퍼런스 → 비디오 (참조 {n}장)"
+    },
+    "durationTitle": "길이",
+    "resolutionTitle": "해상도",
+    "aspectTitle": "비율"
+  },
   "sidebar": {
     "appName": "이미지 생성기",
     "imageModelLabel": "모델",
@@ -809,6 +820,7 @@
     "quickSettingsModelOnlyAria": "이미지 모델 선택. 현재 모델 {model}",
     "quickSettingsMenu": "모델 및 추론 빠른 설정",
     "reasoningLabel": "추론",
+    "videoModelLabel": "비디오",
     "nodeModeHint": "노드 모드에서는 노드를 눌러 프롬프트를 수정한 뒤 생성하세요. 오른쪽 패널의 설정 (품질/크기)은 새로 만드는 모든 결과에 적용됩니다."
   },
   "settings": {
@@ -883,6 +895,9 @@
       "grokImagineQuality": "Grok Imagine Quality",
       "gpt53CodexSpark": "GPT-5.3 Codex Spark — 이미지 생성 미지원",
       "unsupportedHelp": "Grok 모델은 번들된 로컬 프록시를 통해 xAI Images API를 사용합니다. GPT 모델은 OpenAI Responses 이미지 생성을 사용합니다."
+    },
+    "videoModel": {
+      "grokImagine": "Grok Imagine Video"
     },
     "reasoning": {
       "title": "추론 강도",

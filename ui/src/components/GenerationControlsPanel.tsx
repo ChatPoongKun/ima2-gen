@@ -5,6 +5,7 @@ import { SizePicker } from "./SizePicker";
 import { CountPicker } from "./CountPicker";
 import { CostEstimate } from "./CostEstimate";
 import { ProviderSelect } from "./ProviderSelect";
+import { VideoControlsPanel } from "./VideoControlsPanel";
 import type { Format, Moderation, Quality } from "../types";
 
 const FORMAT_ITEMS = [
@@ -25,6 +26,7 @@ export function GenerationControlsPanel() {
   const multimode = useAppStore((s) => s.multimode);
   const setMultimode = useAppStore((s) => s.setMultimode);
   const uiMode = useAppStore((s) => s.uiMode);
+  const videoModelSelected = useAppStore((s) => s.videoModelSelected);
   const showMultimodeControls = uiMode === "classic";
   const isGrok = provider === "grok";
   const qualityItems = [
@@ -45,6 +47,10 @@ export function GenerationControlsPanel() {
   return (
     <div className="right-panel-settings" role="tabpanel">
       <ProviderSelect allowGrok />
+      {videoModelSelected ? (
+        <VideoControlsPanel />
+      ) : (
+      <>
       {isGrok ? (
         <div className="provider-compat-note" role="note">
           <strong>{t("provider.grokCompatTitle")}</strong>
@@ -93,6 +99,8 @@ export function GenerationControlsPanel() {
       )}
       <CountPicker />
       <CostEstimate />
+      </>
+      )}
     </div>
   );
 }

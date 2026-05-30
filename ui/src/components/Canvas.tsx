@@ -67,6 +67,7 @@ export function Canvas() {
   );
   const markGeneratedResultsSeen = useAppStore((s) => s.markGeneratedResultsSeen);
   const activeGenerations = useAppStore((s) => s.activeGenerations);
+  const videoProgress = useAppStore((s) => s.videoProgress);
   const quality = useAppStore((s) => s.quality);
   const getResolvedSize = useAppStore((s) => s.getResolvedSize);
   const canvasOpen = useAppStore((s) => s.canvasOpen);
@@ -177,7 +178,10 @@ export function Canvas() {
           <span className="canvas__drop-hint">{t("canvas.drop.hint")}</span>
         </div>
       ) : null}
-      <div className={`progress-bar${activeGenerations > 0 ? " active" : ""}`} />
+      <div className={`progress-bar${activeGenerations > 0 || videoProgress != null ? " active" : ""}`} />
+      {videoProgress != null ? (
+        <div className="video-progress" role="status" aria-live="polite">{Math.round(videoProgress * 100)}%</div>
+      ) : null}
       {multimodeSequence ? (
         <MultimodeSequencePreview />
       ) : currentImage && imageSrc ? (

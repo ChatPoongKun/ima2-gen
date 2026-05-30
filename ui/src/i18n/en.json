@@ -801,6 +801,17 @@
       "error": "Draft failed"
     }
   },
+  "video": {
+    "modeLabel": "Video mode",
+    "mode": {
+      "text-to-video": "Text → video (no reference images)",
+      "image-to-video": "Image → video (1 reference)",
+      "reference-to-video": "Reference → video ({n} references)"
+    },
+    "durationTitle": "Length",
+    "resolutionTitle": "Resolution",
+    "aspectTitle": "Aspect ratio"
+  },
   "sidebar": {
     "appName": "Image Generator",
     "imageModelLabel": "Model",
@@ -809,6 +820,7 @@
     "quickSettingsModelOnlyAria": "Choose image model. Current model {model}",
     "quickSettingsMenu": "Model and reasoning quick settings",
     "reasoningLabel": "Reasoning",
+    "videoModelLabel": "Video",
     "nodeModeHint": "In node mode, click a node to edit its prompt and generate. Settings on the right panel (quality/size) apply to every new result."
   },
   "settings": {
@@ -883,6 +895,9 @@
       "grokImagineQuality": "Grok Imagine Quality",
       "gpt53CodexSpark": "GPT-5.3 Codex Spark — unsupported for images",
       "unsupportedHelp": "Grok models use xAI's Images API through the bundled local proxy. GPT models use OpenAI Responses image generation."
+    },
+    "videoModel": {
+      "grokImagine": "Grok Imagine Video"
     },
     "reasoning": {
       "title": "Reasoning effort",

@@ -2,7 +2,7 @@ import type { ImageModel } from "../types";
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IMAGE_MODEL_OPTIONS, UNSUPPORTED_IMAGE_MODELS } from "../lib/imageModels";
+import { IMAGE_MODEL_OPTIONS, UNSUPPORTED_IMAGE_MODELS, VIDEO_MODEL_OPTIONS } from "../lib/imageModels";
 import { REASONING_EFFORT_OPTIONS, type ReasoningEffort } from "../lib/reasoning";
 import { useAppStore } from "../store/useAppStore";
 import { useI18n } from "../i18n";
@@ -25,6 +25,8 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
   });
   const imageModel = useAppStore((s) => s.imageModel);
   const setImageModel = useAppStore((s) => s.setImageModel);
+  const videoModelSelected = useAppStore((s) => s.videoModelSelected);
+  const selectVideoModel = useAppStore((s) => s.selectVideoModel);
   const provider = useAppStore((s) => s.provider);
   const reasoningEffort = useAppStore((s) => s.reasoningEffort);
   const setReasoningEffort = useAppStore((s) => s.setReasoningEffort);
@@ -169,7 +171,7 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
             })}
           onClick={() => setOpen((next) => !next)}
         >
-          <span className="image-model-select__trigger-model">{current.shortLabel}</span>
+          <span className="image-model-select__trigger-model">{videoModelSelected ? VIDEO_MODEL_OPTIONS[0].shortLabel : current.shortLabel}</span>
           {isGrok ? null : (
             <>
               <span className="image-model-select__trigger-separator" aria-hidden="true">·</span>
@@ -201,12 +203,35 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
                     menuItemRefs.current[index] = node;
                   }}
                   type="button"
-                  className={`image-model-select__item${option.value === imageModel ? " is-active" : ""}`}
+                  className={`image-model-select__item${option.value === imageModel && !videoModelSelected ? " is-active" : ""}`}
                   role="menuitemradio"
-                  aria-checked={option.value === imageModel}
+                  aria-checked={option.value === imageModel && !videoModelSelected}
                   tabIndex={-1}
                   onClick={() => {
                     setImageModel(option.value);
+                    setOpen(false);
+                  }}
+                >
+                  <span>{option.shortLabel}</span>
+                  <small>{t(option.fullLabelKey)}</small>
+                </button>
+              ))}
+            </div>
+            <div className="image-model-select__section" role="group" aria-label={t("sidebar.videoModelLabel")}>
+              <div className="image-model-select__section-title">{t("sidebar.videoModelLabel")}</div>
+              {VIDEO_MODEL_OPTIONS.map((option, index) => (
+                <button
+                  key={option.value}
+                  ref={(node) => {
+                    menuItemRefs.current[modelOptions.length + index] = node;
+                  }}
+                  type="button"
+                  className={`image-model-select__item${videoModelSelected ? " is-active" : ""}`}
+                  role="menuitemradio"
+                  aria-checked={videoModelSelected}
+                  tabIndex={-1}
+                  onClick={() => {
+                    selectVideoModel();
                     setOpen(false);
                   }}
                 >
@@ -222,7 +247,7 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
                   <button
                     key={option.value}
                     ref={(node) => {
-                      menuItemRefs.current[modelOptions.length + index] = node;
+                      menuItemRefs.current[modelOptions.length + VIDEO_MODEL_OPTIONS.length + index] = node;
                     }}
                     type="button"
                     className={`image-model-select__item${option.value === reasoningEffort ? " is-active" : ""}`}

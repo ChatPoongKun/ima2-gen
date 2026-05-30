@@ -1058,9 +1058,11 @@ export type VideoGenerateRequest = {
   prompt: string;
   provider?: "grok";
   model?: string;
-  mode?: "text-to-video" | "image-to-video";
+  mode?: "text-to-video" | "image-to-video" | "reference-to-video";
   sourceImage?: string;
   sourceFilename?: string;
+  referenceImages?: string[];
+  referenceFilenames?: string[];
   duration?: number;
   resolution?: string;
   aspectRatio?: string;

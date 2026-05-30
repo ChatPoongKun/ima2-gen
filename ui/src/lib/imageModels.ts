@@ -1,4 +1,4 @@
-import type { ImageModel, OpenAIImageModel, Provider, UnsupportedImageModel } from "../types";
+import type { ImageModel, OpenAIImageModel, Provider, UnsupportedImageModel, VideoModel } from "../types";
 
 export const DEFAULT_IMAGE_MODEL: ImageModel = "gpt-5.4-mini";
 export const IMAGE_MODEL_STORAGE_KEY = "ima2.imageModel";
@@ -46,4 +46,27 @@ export function getImageModelOptionsForProvider(provider: Provider) {
 export function getImageModelShortLabel(value: string | null | undefined): string | null {
   if (!value) return null;
   return IMAGE_MODEL_OPTIONS.find((option) => option.value === value)?.shortLabel ?? value;
+}
+
+// ── Grok video model (separate kind from image models) ───────────────────
+export const VIDEO_MODEL_OPTIONS: Array<{ value: VideoModel; shortLabel: string; fullLabelKey: string }> = [
+  { value: "grok-imagine-video", shortLabel: "grok (v)", fullLabelKey: "settings.videoModel.grokImagine" },
+];
+
+export function isVideoModelValue(v: unknown): v is VideoModel {
+  return v === "grok-imagine-video";
+}
+
+// UI-side mirrors of the backend helpers (lib/imageModels.ts). The UI lib is a
+// separate module; the backend route remains the authoritative clamp.
+export const MAX_REF2V_DURATION_UI = 10;
+
+export function deriveVideoModeUI(refCount: number): "text-to-video" | "image-to-video" | "reference-to-video" {
+  if (refCount >= 2) return "reference-to-video";
+  if (refCount === 1) return "image-to-video";
+  return "text-to-video";
+}
+
+export function clampVideoDurationUI(duration: number, mode: string): number {
+  return mode === "reference-to-video" ? Math.min(duration, MAX_REF2V_DURATION_UI) : duration;
 }

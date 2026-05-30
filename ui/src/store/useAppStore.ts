@@ -24,6 +24,7 @@ import type {
   ThemeFamily,
   ThemePreference,
   UIMode,
+  VideoResolutionUI,
 } from "../types";
 import { THEME_FAMILIES } from "../types";
 import { isMultiResponse } from "../types";
@@ -34,6 +35,7 @@ import {
   getInflight,
   cancelInflight,
   postNodeGenerateStream,
+  postVideoGenerateStream,
   listSessions as apiListSessions,
   createSession as apiCreateSession,
   getSession as apiGetSession,
@@ -68,6 +70,8 @@ import {
   DEFAULT_IMAGE_MODEL,
   isGrokImageModel,
   isImageModel,
+  deriveVideoModeUI,
+  clampVideoDurationUI,
 } from "../lib/imageModels";
 import {
   DEFAULT_REASONING_EFFORT,
@@ -1058,6 +1062,18 @@ type AppState = {
   setFormat: (f: Format) => void;
   setModeration: (m: Moderation) => void;
   setImageModel: (m: ImageModel) => void;
+  // Video generation (Grok reference-to-video / I2V / T2V)
+  videoModelSelected: boolean;
+  videoDuration: number;
+  videoResolution: VideoResolutionUI;
+  videoAspectRatio: string;
+  videoProgress: number | null;
+  selectVideoModel: () => void;
+  setVideoDuration: (n: number) => void;
+  setVideoResolution: (r: VideoResolutionUI) => void;
+  setVideoAspectRatio: (a: string) => void;
+  activeVideoRefCount: () => number;
+  runVideoGenerate: (nodeId?: string) => Promise<void>;
   setReasoningEffort: (e: ReasoningEffort) => void;
   setWebSearchEnabled: (enabled: boolean) => void;
   setCount: (c: Count) => void;
@@ -2535,6 +2551,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().showToast(t("toast.promptRequired"), true);
       return;
     }
+    if (get().videoModelSelected) return get().runVideoGenerate(clientId);
     const pending = getCustomSizeConfirmation(get(), { kind: "node", clientId });
     if (pending) {
       set({ customSizeConfirm: pending });
@@ -2550,6 +2567,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().showToast(t("toast.promptRequired"), true);
       return;
     }
+    if (get().videoModelSelected) return get().runVideoGenerate(clientId);
     const pending = getCustomSizeConfirmation(get(), { kind: "node-in-place", clientId });
     if (pending) {
       set({ customSizeConfirm: pending });
@@ -3005,6 +3023,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setImageModel: (imageModel) => {
     saveImageModel(imageModel);
+    set({ videoModelSelected: false });  // selecting an image model exits video mode (covers all branches)
     if (isGrokImageModel(imageModel)) {
       saveGenerationDefaultsPatch({ provider: "grok" });
       set({ provider: "grok", imageModel });
@@ -3016,6 +3035,57 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
     set({ imageModel });
+  },
+  videoModelSelected: false,
+  videoDuration: 5,
+  videoResolution: "480p",
+  videoAspectRatio: "auto",
+  videoProgress: null,
+  selectVideoModel: () => {
+    set({ videoModelSelected: true });
+    if (get().provider !== "grok") get().setProvider("grok");
+  },
+  setVideoDuration: (videoDuration) => set({ videoDuration }),
+  setVideoResolution: (videoResolution) => set({ videoResolution }),
+  setVideoAspectRatio: (videoAspectRatio) => set({ videoAspectRatio }),
+  activeVideoRefCount: () => {
+    const s = get();
+    if (s.uiMode === "node") {
+      const id = getSelectedNodeIds(s.graphNodes)[0];
+      const node = s.graphNodes.find((n) => n.id === id);
+      return node?.data.referenceImages?.length ?? 0;
+    }
+    return s.referenceImages.length;
+  },
+  runVideoGenerate: async (nodeId) => {
+    const node = nodeId ? get().graphNodes.find((n) => n.id === nodeId) : null;
+    const refs = node ? (node.data.referenceImages ?? []) : get().referenceImages;
+    const mode = deriveVideoModeUI(refs.length);
+    const prompt = node ? node.data.prompt.trim() : composePrompt(get().prompt, get().insertedPrompts);
+    if (!prompt) return;
+    set({ videoProgress: 0 });
+    get().startInFlightPolling();
+    try {
+      await postVideoGenerateStream(
+        {
+          prompt,
+          referenceImages: refs.length >= 2 ? refs : undefined,
+          sourceImage: refs.length === 1 ? refs[0] : undefined,
+          duration: clampVideoDurationUI(get().videoDuration, mode),
+          resolution: get().videoResolution,
+          aspectRatio: get().videoAspectRatio,
+          sessionId: get().activeSessionId,
+          clientNodeId: nodeId ?? null,
+        },
+        { onProgress: ({ progress }) => set({ videoProgress: progress ?? null }) },
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Video generation failed";
+      get().showToast(message, true);
+    } finally {
+      set({ videoProgress: null });
+      get().startInFlightPolling();
+    }
   },
   setReasoningEffort: (reasoningEffort) => {
     saveReasoningEffort(reasoningEffort);
@@ -3374,6 +3444,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const s = get();
     const prompt = composePrompt(s.prompt, s.insertedPrompts);
     if (!prompt) return;
+    if (s.videoModelSelected) return get().runVideoGenerate();
     const useMultimode = s.uiMode === "classic" && s.multimode;
     const pending = getCustomSizeConfirmation(s, { kind: useMultimode ? "multimode" : "classic" });
     if (pending) {
