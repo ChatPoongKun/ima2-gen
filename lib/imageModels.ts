@@ -69,3 +69,45 @@ export function normalizeGrokImageModel(rawModel: unknown) {
   }
   return { model: rawModel };
 }
+
+// ── Grok video (T2V/I2V) ─────────────────────────────────────────────────
+// Video is a separate generation kind, not an image model. Keep it out of the
+// image model unions/helpers above so `grok-` image classification is unaffected.
+const GROK_FALLBACK_VIDEO_MODEL = "grok-imagine-video";
+export const VALID_GROK_VIDEO_MODELS = new Set(["grok-imagine-video"]);
+export const VALID_VIDEO_RESOLUTIONS = new Set(["480p", "720p"]);
+export const VALID_VIDEO_ASPECT_RATIOS = new Set([
+  "1:1",
+  "16:9",
+  "9:16",
+  "4:3",
+  "3:4",
+  "3:2",
+  "2:3",
+  "auto",
+]);
+export const MIN_VIDEO_DURATION = 1;
+export const MAX_VIDEO_DURATION = 15;
+
+export type GrokVideoModel = "grok-imagine-video";
+export type VideoResolution = "480p" | "720p";
+export type VideoAspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "3:2" | "2:3" | "auto";
+export type VideoMode = "text-to-video" | "image-to-video";
+
+export function isGrokVideoModel(value: unknown): value is GrokVideoModel {
+  return typeof value === "string" && VALID_GROK_VIDEO_MODELS.has(value);
+}
+
+export function normalizeGrokVideoModel(rawModel: unknown) {
+  if (typeof rawModel !== "string" || rawModel.length === 0) {
+    return { model: GROK_FALLBACK_VIDEO_MODEL };
+  }
+  if (!VALID_GROK_VIDEO_MODELS.has(rawModel)) {
+    return {
+      error: `Grok video model must be one of: ${[...VALID_GROK_VIDEO_MODELS].join(", ")}`,
+      code: "INVALID_GROK_VIDEO_MODEL" as const,
+      status: 400 as const,
+    };
+  }
+  return { model: rawModel };
+}
