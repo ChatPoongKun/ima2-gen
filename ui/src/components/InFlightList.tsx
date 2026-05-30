@@ -37,7 +37,7 @@ export function InFlightList() {
           >
             <span className="in-flight-prompt">{truncate(f.prompt)}</span>
             <span className="in-flight-phase">
-              {f.kind === "video" && videoProgress != null
+              {f.kind === "video" && videoProgress != null && videoProgress > 0
                 ? `${Math.round(videoProgress * 100)}%`
                 : phaseLabel}
             </span>

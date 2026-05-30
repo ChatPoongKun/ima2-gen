@@ -179,7 +179,7 @@ export function Canvas() {
         </div>
       ) : null}
       <div className={`progress-bar${activeGenerations > 0 || videoProgress != null ? " active" : ""}`} />
-      {videoProgress != null ? (
+      {videoProgress != null && videoProgress > 0 ? (
         <div className="video-progress" role="status" aria-live="polite">{Math.round(videoProgress * 100)}%</div>
       ) : null}
       {multimodeSequence ? (
