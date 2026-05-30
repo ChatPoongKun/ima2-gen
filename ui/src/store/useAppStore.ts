@@ -283,7 +283,7 @@ type PersistedInFlight = {
   sessionId?: string | null;
   parentNodeId?: string | null;
   clientNodeId?: string | null;
-  kind?: "classic" | "node" | "multimode";
+  kind?: "classic" | "node" | "multimode" | "video";
 };
 const INFLIGHT_TTL_MS = 180_000;
 
@@ -326,6 +326,7 @@ function getInflightQueryScopes(state: {
   if (state.inFlight.some((job) => job.kind === "multimode")) {
     scopes.push({ kind: "multimode" });
   }
+  scopes.push({ kind: "video" });
   return scopes;
 }
 
@@ -496,7 +497,7 @@ function loadInFlight(): PersistedInFlight[] {
         sessionId: typeof x.sessionId === "string" ? x.sessionId : null,
         parentNodeId: typeof x.parentNodeId === "string" ? x.parentNodeId : null,
         clientNodeId: typeof x.clientNodeId === "string" ? x.clientNodeId : null,
-        kind: x.kind === "classic" || x.kind === "node" || x.kind === "multimode" ? x.kind : undefined,
+        kind: x.kind === "classic" || x.kind === "node" || x.kind === "multimode" || x.kind === "video" ? x.kind : undefined,
       }));
   } catch {
     return [];
@@ -3063,7 +3064,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const mode = deriveVideoModeUI(refs.length);
     const prompt = node ? node.data.prompt.trim() : composePrompt(get().prompt, get().insertedPrompts);
     if (!prompt) return;
-    set({ videoProgress: 0 });
+
+    const startedAt = Date.now();
+    const flightId = `vid_${startedAt}_${Math.random().toString(36).slice(2, 6)}`;
+    const nextInFlight: PersistedInFlight[] = [
+      ...get().inFlight,
+      { id: flightId, prompt, startedAt, kind: "video" as const, sessionId: get().activeSessionId, clientNodeId: nodeId ?? null },
+    ];
+    saveInFlight(nextInFlight);
+    set({ inFlight: nextInFlight, activeGenerations: nextInFlight.length, videoProgress: 0 });
     get().startInFlightPolling();
     try {
       await postVideoGenerateStream(
@@ -3083,7 +3092,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       const message = error instanceof Error ? error.message : "Video generation failed";
       get().showToast(message, true);
     } finally {
-      set({ videoProgress: null });
+      const remaining = get().inFlight.filter((f) => f.id !== flightId);
+      saveInFlight(remaining);
+      set({ inFlight: remaining, activeGenerations: remaining.length, videoProgress: null });
       get().startInFlightPolling();
     }
   },

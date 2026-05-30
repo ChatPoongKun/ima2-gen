@@ -49,7 +49,7 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export function getInflight(params?: {
-  kind?: "classic" | "node" | "multimode";
+  kind?: "classic" | "node" | "multimode" | "video";
   sessionId?: string;
   includeTerminal?: boolean;
 }): Promise<{
