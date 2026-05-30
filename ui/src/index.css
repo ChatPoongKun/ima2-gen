@@ -6516,6 +6516,7 @@ body {
 }
 .video-controls .option-row {
   flex-wrap: wrap;
+  justify-content: center;
 }
 .video-controls .option-btn {
   flex: 0 1 auto;
