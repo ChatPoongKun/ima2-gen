@@ -2,6 +2,7 @@ import { logEvent } from "./logger.js";
 import type { RouteRuntimeContext } from "./runtimeContext.js";
 import { mapSizeToGrokImageParams, type GrokImageSizeParams } from "./grokSizeMapper.js";
 import { detectImageMimeFromB64 } from "./refs.js";
+import { getGrokProxyUrl } from "./grokRuntime.js";
 
 export interface GrokImageResponse {
   data: Array<{
@@ -56,11 +57,8 @@ export interface GrokReferenceImage {
 }
 
 function getGrokEndpoint(ctx: RouteRuntimeContext, path = "/v1/images/generations"): { url: string; headers: Record<string, string> } {
-  const grokCfg = (ctx.config as any).grokProvider || {};
-  const host = grokCfg.proxyHost || "127.0.0.1";
-  const port = grokCfg.proxyPort || 18645;
   return {
-    url: `http://${host}:${port}${path}`,
+    url: getGrokProxyUrl(ctx, path),
     headers: { "Content-Type": "application/json", Authorization: "Bearer dummy" },
   };
 }

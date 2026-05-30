@@ -21,6 +21,8 @@ describe("requireRuntimeContext", () => {
     assert.ok(typeof rctx.serverConfiguredPort === "number");
     assert.ok(typeof rctx.oauthPort === "number");
     assert.ok(rctx.oauthUrl.startsWith("http"));
+    assert.ok(typeof rctx.grokPort === "number");
+    assert.ok(rctx.grokUrl.startsWith("http"));
   });
 
   it("merges partial nested config keys so deep callers see oauth/storage/ids defaults", () => {
@@ -52,5 +54,14 @@ describe("requireRuntimeContext", () => {
     assert.equal(rctx.serverActualPort, undefined);
     (ctx as { serverActualPort: number }).serverActualPort = 49999;
     assert.equal(rctx.serverActualPort, 49999);
+  });
+
+  it("grok fallback port mutation is observed via the same identity", () => {
+    const ctx: RouteRuntimeContext = {};
+    const rctx = requireRuntimeContext(ctx);
+    (ctx as { grokActualPort: number; grokUrl: string }).grokActualPort = 18646;
+    (ctx as { grokActualPort: number; grokUrl: string }).grokUrl = "http://127.0.0.1:18646/v1";
+    assert.equal(rctx.grokActualPort, 18646);
+    assert.equal(rctx.grokUrl, "http://127.0.0.1:18646/v1");
   });
 });

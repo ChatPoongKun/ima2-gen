@@ -28,6 +28,7 @@ import type { RuntimeContext, RuntimeContextOverrides, ApiKeySource } from "./li
 import { errInfo } from "./lib/errInfo.js";
 
 type BootRuntimeContext = RuntimeContext & {
+  markGrokProxyPort: (info?: { url?: string; port?: number }) => void;
   markOAuthReady: (info?: { url?: string; port?: number }) => void;
   markOAuthFailed: () => void;
 };
@@ -126,6 +127,11 @@ function advertise(ctx: RuntimeContext) {
           url: ctx.oauthUrl,
           status: ctx.oauthReadyState,
         },
+        grok: {
+          configuredPort: Number(ctx.grokPort),
+          actualPort: Number(ctx.grokActualPort || ctx.grokPort),
+          url: ctx.grokUrl,
+        },
       }),
     );
   } catch (e) {
@@ -159,6 +165,7 @@ export async function createRuntimeContext(overrides: StartServerOverrides = {})
   const apiKey = loadedKey.apiKey;
   const openai = overrides.openai ?? await createOpenAI(apiKey);
   const oauthPort = config.oauth.proxyPort;
+  const grokPort = config.grokProvider.proxyPort;
   let resolveOAuthReady: (value: string | null) => void = () => {};
   const oauthReadyPromise = new Promise<string | null>((resolve) => {
     resolveOAuthReady = resolve;
@@ -169,6 +176,9 @@ export async function createRuntimeContext(overrides: StartServerOverrides = {})
     serverConfiguredPort: config.server.port,
     serverActualPort: undefined,
     serverUrl: `http://${runtimeHostUrl(config.server.host)}:${config.server.port}`,
+    grokPort,
+    grokActualPort: grokPort,
+    grokUrl: `http://${config.grokProvider.proxyHost}:${grokPort}/v1`,
     oauthPort,
     oauthActualPort: oauthPort,
     oauthUrl: `http://127.0.0.1:${oauthPort}`,
@@ -180,6 +190,11 @@ export async function createRuntimeContext(overrides: StartServerOverrides = {})
     startedAt: overrides.startedAt ?? Date.now(),
     packageVersion: overrides.packageVersion ?? readPackageVersion(),
     oauthReadyPromise: oauthReadyPromise as unknown as Promise<void>,
+    markGrokProxyPort: ({ url, port }: { url?: string; port?: number } = {}) => {
+      if (port) ctx.grokActualPort = port;
+      if (url) ctx.grokUrl = url;
+      else if (port) ctx.grokUrl = `http://${ctx.config.grokProvider.proxyHost}:${port}/v1`;
+    },
     markOAuthReady: ({ url, port }: { url?: string; port?: number } = {}) => {
       if (url) ctx.oauthUrl = url;
       if (port) ctx.oauthActualPort = port;
@@ -218,10 +233,18 @@ export async function startServer(overrides: StartServerOverrides = {}) {
     ctx.markOAuthReady({ url: ctx.oauthUrl, port: ctx.oauthPort });
   }
   const grokChild = ctx.config.grokProvider.autoStart
-    ? startGrokProxy({
+    ? await startGrokProxy({
         host: ctx.config.grokProvider.proxyHost,
         port: ctx.config.grokProvider.proxyPort,
         restartDelayMs: ctx.config.grokProvider.restartDelayMs,
+        onPortSelected: ({ url, port }: { url: string; port: number }) => {
+          ctx.markGrokProxyPort({ url, port });
+          advertise(ctx);
+        },
+        onReady: ({ url, port }: { url: string; port: number }) => {
+          ctx.markGrokProxyPort({ url, port });
+          advertise(ctx);
+        },
       })
     : null;
 
@@ -244,7 +267,7 @@ export async function startServer(overrides: StartServerOverrides = {}) {
   ctx.serverActualPort = getServerPort(server) || ctx.config.server.port;
   ctx.serverUrl = `http://${runtimeHostUrl(ctx.config.server.host)}:${ctx.serverActualPort}`;
   console.log(`Image Gen running at ${ctx.serverUrl}`);
-  console.log(`Provider policy: OAuth, API-key Responses, and Grok Images providers. OAuth proxy port ${ctx.oauthPort}; Grok proxy port ${ctx.config.grokProvider.proxyPort}.`);
+  console.log(`Provider policy: OAuth, API-key Responses, and Grok Images providers. OAuth proxy port ${ctx.oauthPort}; Grok proxy port ${ctx.grokActualPort || ctx.grokPort}.`);
   advertise(ctx);
   try {
     const s = ensureDefaultSession();

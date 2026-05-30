@@ -9,6 +9,9 @@ export interface RuntimeContext {
   apiKey: string | undefined;
   apiKeySource: ApiKeySource;
   config: AppConfig;
+  grokActualPort: number | undefined;
+  grokPort: number;
+  grokUrl: string;
   hasApiKey: boolean;
   oauthActualPort: number | undefined;
   oauthPort: number;
@@ -60,6 +63,15 @@ export function requireRuntimeContext(ctx: RouteRuntimeContext | undefined): Run
     target.apiKey = undefined;
   }
   if (target.hasApiKey === undefined) target.hasApiKey = false;
+  if (target.grokPort === undefined) {
+    target.grokPort = (target.config as AppConfig).grokProvider?.proxyPort ?? 18645;
+  }
+  if (target.grokUrl === undefined) {
+    const grokCfg = (target.config as AppConfig).grokProvider;
+    const host = grokCfg?.proxyHost ?? "127.0.0.1";
+    const port = target.grokActualPort ?? target.grokPort ?? grokCfg?.proxyPort ?? 18645;
+    target.grokUrl = `http://${host}:${port}/v1`;
+  }
   if (target.oauthPort === undefined) {
     target.oauthPort = (target.config as AppConfig).oauth?.proxyPort ?? 11782;
   }
@@ -113,6 +125,9 @@ export function createTestRuntimeContext(over: RuntimeContextOverrides = {}): Ru
     apiKey: undefined,
     apiKeySource: undefined,
     config: {} as AppConfig,
+    grokActualPort: undefined,
+    grokPort: 18645,
+    grokUrl: "http://127.0.0.1:18645/v1",
     hasApiKey: false,
     oauthActualPort: undefined,
     oauthPort: 11782,

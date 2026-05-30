@@ -17,6 +17,11 @@ export function registerHealthRoutes(app: Express, ctxRaw: RouteRuntimeContext) 
       url: ctx.oauthUrl,
       status: ctx.oauthReadyState,
     },
+    grok: {
+      configuredPort: Number(ctx.grokPort),
+      actualPort: Number(ctx.grokActualPort || ctx.grokPort),
+      url: ctx.grokUrl,
+    },
   });
 
   app.get("/api/providers", (_req: Request, res: Response) => {

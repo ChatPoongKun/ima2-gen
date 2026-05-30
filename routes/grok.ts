@@ -1,14 +1,13 @@
 import type { Express } from "express";
 import type { RouteRuntimeContext } from "../lib/runtimeContext.js";
+import { getGrokProxyUrl } from "../lib/grokRuntime.js";
 
 export function registerGrokRoutes(app: Express, ctx: RouteRuntimeContext) {
   app.get("/api/grok/status", async (_req, res) => {
     const grokCfg = (ctx.config as any).grokProvider || {};
-    const host = grokCfg.proxyHost || "127.0.0.1";
-    const port = grokCfg.proxyPort || 18645;
     const timeoutMs = grokCfg.statusTimeoutMs || 3000;
     try {
-      const r = await fetch(`http://${host}:${port}/v1/models`, {
+      const r = await fetch(getGrokProxyUrl(ctx, "/v1/models"), {
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (r.ok) {

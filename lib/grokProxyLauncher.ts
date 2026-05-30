@@ -3,6 +3,7 @@ import { dirname, join, delimiter } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnBin } from "../bin/lib/platform.js";
 import { config } from "../config.js";
+import { findAvailablePort } from "./runtimePorts.js";
 
 const rootDir = dirname(fileURLToPath(import.meta.url)).replace(/\/lib$/, "");
 
@@ -12,10 +13,18 @@ type GrokProxyReadyInfo = {
   requestedPort: number;
 };
 
+type GrokProxyPortInfo = {
+  host: string;
+  port: number;
+  requestedPort: number;
+  url: string;
+};
+
 type GrokProxyOptions = {
   host?: string;
   port?: number;
   restartDelayMs?: number;
+  onPortSelected?: (info: GrokProxyPortInfo) => void;
   onReady?: (info: GrokProxyReadyInfo) => void;
   onExit?: (info: { code: number | null }) => void;
 };
@@ -31,15 +40,37 @@ function localBinPath(): string {
   return join(rootDir, "node_modules", ".bin");
 }
 
-export function startGrokProxy(options: GrokProxyOptions = {}) {
+export async function startGrokProxy(options: GrokProxyOptions = {}) {
   const host = options.host ?? config.grokProvider.proxyHost;
-  const port = options.port ?? config.grokProvider.proxyPort;
+  const requestedPort = options.port ?? config.grokProvider.proxyPort;
   const restartDelayMs = options.restartDelayMs ?? config.grokProvider.restartDelayMs;
   let currentChild: ChildProcess | null = null;
   let stopping = false;
   let restartTimer: NodeJS.Timeout | null = null;
 
-  const spawnProxy = () => {
+  const scheduleRestart = () => {
+    restartTimer = setTimeout(() => {
+      void spawnProxy();
+    }, restartDelayMs);
+  };
+
+  const spawnProxy = async () => {
+    let port: number;
+    try {
+      port = await findAvailablePort(requestedPort, { host });
+    } catch (err) {
+      const e = err as Error & { message?: string };
+      console.error(`[grok] failed to select progrok port: ${e.message || e}`);
+      if (!stopping) {
+        console.log(`[grok] retrying port selection in ${Math.round(restartDelayMs / 1000)}s...`);
+        scheduleRestart();
+      }
+      return;
+    }
+    if (port !== requestedPort) {
+      console.log(`[grok] requested port ${requestedPort}, actual port ${port}`);
+    }
+    options.onPortSelected?.({ host, port, requestedPort, url: `http://${host}:${port}/v1` });
     console.log(`Starting bundled progrok proxy for Grok images at http://${host}:${port}/v1 (managed by ima2 serve)...`);
     const child = spawnBin("progrok", ["proxy", "--host", host, "--port", String(port)], {
       stdio: ["ignore", "pipe", "pipe"],
@@ -58,7 +89,7 @@ export function startGrokProxy(options: GrokProxyOptions = {}) {
         const ready = parseListeningUrl(line);
         if (!ready) continue;
         console.log(`[grok] ready for ima2 Grok provider at ${ready.url}`);
-        options.onReady?.({ url: ready.url, port: ready.port, requestedPort: port });
+        options.onReady?.({ url: ready.url, port: ready.port, requestedPort });
       }
     });
 
@@ -76,11 +107,11 @@ export function startGrokProxy(options: GrokProxyOptions = {}) {
       if (stopping) return;
       options.onExit?.({ code });
       console.log(`[grok] exited with code ${code}, restarting in ${Math.round(restartDelayMs / 1000)}s...`);
-      restartTimer = setTimeout(spawnProxy, restartDelayMs);
+      scheduleRestart();
     });
   };
 
-  spawnProxy();
+  await spawnProxy();
 
   return {
     get child() {

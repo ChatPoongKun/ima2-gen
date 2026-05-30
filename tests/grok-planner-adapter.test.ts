@@ -15,7 +15,7 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-function ctx() {
+function ctx(overrides: Record<string, unknown> = {}) {
   return {
     config: {
       ...config,
@@ -29,6 +29,7 @@ function ctx() {
       },
     },
     packageVersion: "test",
+    ...overrides,
   } as any;
 }
 
@@ -132,13 +133,17 @@ describe("Grok planner adapter", () => {
       });
     }) as typeof fetch;
 
-    const result = await generateViaGrok("raw prompt", ctx(), {
+    const result = await generateViaGrok("raw prompt", ctx({
+      grokActualPort: 18647,
+      grokUrl: "http://127.0.0.1:18647/v1",
+    }), {
       model: "grok-imagine-image-quality",
       size: "2048x1152",
       requestId: "req_test",
     });
 
     assert.equal(calls.length, 3);
+    assert.equal(calls.every((call) => call.url.startsWith("http://127.0.0.1:18647/")), true);
     assert.equal(calls[0].url.endsWith("/v1/responses"), true);
     assert.equal(calls[0].body.tool_choice, "required");
     assert.equal(calls[1].body.model, "grok-4.3");
