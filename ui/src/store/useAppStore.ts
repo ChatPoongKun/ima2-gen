@@ -1076,6 +1076,7 @@ type AppState = {
   setVideoAspectRatio: (a: string) => void;
   activeVideoRefCount: () => number;
   runVideoGenerate: (nodeId?: string) => Promise<void>;
+  animateImage: (filename: string, prompt?: string) => Promise<void>;
   setReasoningEffort: (e: ReasoningEffort) => void;
   setWebSearchEnabled: (enabled: boolean) => void;
   setCount: (c: Count) => void;
@@ -3106,6 +3107,32 @@ export const useAppStore = create<AppState>((set, get) => ({
           sessionId: get().activeSessionId,
           clientNodeId: nodeId ?? null,
         },
+        { onProgress: ({ progress }) => set({ videoProgress: progress ?? null }) },
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Video generation failed";
+      get().showToast(message, true);
+    } finally {
+      const remaining = get().inFlight.filter((f) => f.id !== flightId);
+      saveInFlight(remaining);
+      set({ inFlight: remaining, activeGenerations: remaining.length, videoProgress: null });
+      get().startInFlightPolling();
+    }
+  },
+  animateImage: async (filename, prompt) => {
+    const p = prompt?.trim() || "Animate this image with subtle, natural motion.";
+    const startedAt = Date.now();
+    const flightId = `vid_${startedAt}_${Math.random().toString(36).slice(2, 6)}`;
+    const nextInFlight: PersistedInFlight[] = [
+      ...get().inFlight,
+      { id: flightId, prompt: p, startedAt, kind: "video" as const, sessionId: get().activeSessionId, clientNodeId: null },
+    ];
+    saveInFlight(nextInFlight);
+    set({ inFlight: nextInFlight, activeGenerations: nextInFlight.length, videoProgress: 0 });
+    get().startInFlightPolling();
+    try {
+      await postVideoGenerateStream(
+        { prompt: p, mode: "image-to-video", sourceFilename: filename, duration: 5, resolution: "480p", aspectRatio: "auto" },
         { onProgress: ({ progress }) => set({ videoProgress: progress ?? null }) },
       );
     } catch (error) {

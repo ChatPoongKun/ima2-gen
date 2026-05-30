@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { useI18n } from "../i18n";
-import { exportImageToComfy, postVideoGenerateStream } from "../lib/api";
+import { exportImageToComfy } from "../lib/api";
 import { isVideoItem, extractLastFrame } from "../lib/videoMedia";
 import type { GenerateItem } from "../types";
 
@@ -48,22 +48,8 @@ export function ResultActions({
   const animate = async () => {
     if (!actionImage.filename || animating) return;
     setAnimating(true);
-    showToast(t("toast.animateStarted"));
     try {
-      await postVideoGenerateStream(
-        {
-          prompt: actionImage.prompt?.trim() || "Animate this image with subtle, natural motion.",
-          mode: "image-to-video",
-          sourceFilename: actionImage.filename,
-          duration: 5,
-          resolution: "480p",
-          aspectRatio: "auto",
-        },
-        {
-          onProgress: ({ progress }) =>
-            showToast(t("toast.animateProgress", { n: Math.round((progress ?? 0) * 100) })),
-        },
-      );
+      await useAppStore.getState().animateImage(actionImage.filename, actionImage.prompt ?? undefined);
       showToast(t("toast.animateDone"));
     } catch (error) {
       const message = error instanceof Error ? error.message : t("toast.animateFailed");
