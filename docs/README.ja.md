@@ -8,9 +8,9 @@
 >
 > **他の言語で読む**: [English](../README.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md)
 
-`ima2-gen` は、ChatGPT/Codex OAuth の画像生成ワークフローをローカルの小さなデスクトップアプリのように使える画像生成スタジオです。
+`ima2-gen` は、無料の ChatGPT と SuperGrok だけで画像と動画を作れるローカル AI スタジオです。
 
-`npx` で起動し、Codex OAuth でログインして、プロンプトを書きながら履歴や参照画像、ノード分岐、multimode batch、Canvas Mode cleanup を活用して試行錯誤（イテレーション）が可能です。通常の画像生成には OpenAI API key は不要です。
+`npx` で起動し、ChatGPT または Grok OAuth でログインすれば、すぐに画像・動画生成を始められます。API キー不要で、ノード分岐、multimode batch、Grok Video、Canvas Mode まで全機能が使えます。
 
 ![プロンプト入力、生成画像、モデル表示、結果メタデータが見える ima2-gen classic 画面](../assets/screenshots/classic-generate-light.png)
 
