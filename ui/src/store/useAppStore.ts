@@ -2605,6 +2605,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().showToast(t("toast.promptRequired"), true);
       return;
     }
+    if (get().videoModelSelected) {
+      const targetClientId = get().addSiblingNode(clientId);
+      return get().runVideoGenerate(targetClientId);
+    }
     if (!sizeOverride) {
       const pending = getCustomSizeConfirmation(get(), { kind: "node-variation", clientId });
       if (pending) {
@@ -2873,10 +2877,15 @@ export const useAppStore = create<AppState>((set, get) => ({
             ?? get().graphNodes.find((n) => n.id === clientId)?.data.parentServerNodeId
             ?? null
           : null;
-        const nodeId = await get().runGenerateNodeInPlace(clientId as ClientNodeId, {
-          parentServerNodeIdOverride: parentOverride,
-          suppressToast: true,
-        });
+        const nodeId = get().videoModelSelected
+          ? await get().runVideoGenerate(clientId as ClientNodeId).then(() => {
+              const n = get().graphNodes.find((nd) => nd.id === clientId);
+              return n?.data.serverNodeId ?? null;
+            })
+          : await get().runGenerateNodeInPlace(clientId as ClientNodeId, {
+              parentServerNodeIdOverride: parentOverride,
+              suppressToast: true,
+            });
         if (!nodeId) {
           get().showToast(t("nodeBatch.failed", { done: completed, total: candidates.length }), true);
           break;
