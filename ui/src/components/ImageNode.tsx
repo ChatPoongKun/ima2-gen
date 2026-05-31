@@ -168,6 +168,7 @@ function ImageNodeImpl({ id, data, selected }: NodeProps<GraphNode>) {
             : t("node.ready", { elapsed: d.elapsed ?? "?" }),
           d.video?.duration ? `${d.video.duration}s` : null,
           d.video?.resolution ?? null,
+          d.video?.aspectRatio ?? null,
           formatReasoningLabel(d.reasoningEffort),
           getImageModelShortLabel(d.model),
         ].filter(Boolean).join(" · ");

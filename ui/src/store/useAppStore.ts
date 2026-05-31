@@ -2265,6 +2265,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         pendingPhase: null,
         model: item.model ?? null,
         size: item.size ?? null,
+        elapsed: item.elapsed ?? undefined,
+        video: (item as any).video ?? null,
       },
     };
     set({
@@ -2287,7 +2289,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           clientId,
           serverNodeId: null,
           parentServerNodeId: parent.data.serverNodeId,
-          prompt: "",
+          prompt: isVideoUrl(parent.data.imageUrl) ? (parent.data.prompt || "") : "",
           imageUrl: null,
           status: "empty",
           pendingRequestId: null,
@@ -2307,9 +2309,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     get().scheduleGraphSave();
 
-    // If parent is a video node, extract last frame as child reference
+    // If parent is a video node, extract last frame as child reference + load topic
     if (parent.data.imageUrl && isVideoUrl(parent.data.imageUrl)) {
       const videoSrc = parent.data.imageUrl;
+      if (parent.data.video && (parent.data.video as any).topic) {
+        get().setVideoTopic((parent.data.video as any).topic);
+      }
       void (async () => {
         try {
           const frameDataUrl = await extractLastFrame(videoSrc);
@@ -4281,6 +4286,7 @@ async function recoverGraphNodesFromHistory(
         size: recovered.size ?? n.data.size ?? null,
         elapsed: recovered.elapsed ?? n.data.elapsed,
         reasoningEffort: (recovered.reasoningEffort as ImageNodeData["reasoningEffort"]) ?? n.data.reasoningEffort,
+        video: (recovered as any).video ?? n.data.video ?? null,
         pendingRequestId: null,
         recoveryRequestId: null,
         pendingPhase: null,
