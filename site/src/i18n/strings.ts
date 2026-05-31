@@ -32,7 +32,7 @@ const en: Dict = {
   'hero.cta.cmd': 'npx ima2-gen serve',
   'hero.cross.lang': '한국어 README →',
   'hero.shot.alt':
-    'ima2-gen Classic mode showing the prompt composer, generated image, model label, and result metadata.',
+    'ima2-gen video playback with gallery sidebar showing generated images and videos.',
 
   // Two Workflows
   'workflows.tag': '01 · Generate, branch, refine',
@@ -230,7 +230,7 @@ const ko: Dict = {
   'hero.cta.cmd': 'npx ima2-gen serve',
   'hero.cross.lang': 'English landing →',
   'hero.shot.alt':
-    'ima2-gen Classic 모드 — 프롬프트 컴포저, 생성 이미지, 모델 라벨, 결과 메타가 한 화면에.',
+    'ima2-gen 비디오 재생 화면 — 갤러리 사이드바에 생성된 이미지와 영상 목록.',
 
   // Two Workflows
   'workflows.tag': '01 · 생성, 분기, 정리',

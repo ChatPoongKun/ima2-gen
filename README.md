@@ -18,7 +18,7 @@
 
 Run it with `npx`, sign in with ChatGPT OAuth or Grok OAuth, and start generating images and videos. Iterate with history, references, node branches, multimode batches, Canvas Mode cleanup, and Grok Video generation. No API key required — free ChatGPT OAuth and SuperGrok subscription cover everything.
 
-![ima2-gen classic generation screen with prompt composer, generated image, compact model label, and result metadata.](assets/screenshots/classic-generate-light.png)
+![ima2-gen video playback with gallery sidebar showing generated images and videos.](assets/screenshots/classic-generate-light.png)
 
 ## Quick Start
 
