@@ -263,6 +263,7 @@ function showHelp() {
 
   Client commands (require a running 'ima2 serve'):
     gen <prompt>   Generate image(s) from prompt  (ima2 gen --help)
+    video <prompt> Generate video via Grok        (ima2 video --help)
     edit <file>    Edit an existing image         (ima2 edit --help)
     ls             List recent history            (ima2 ls --help)
     show <name>    Show one history item          (ima2 show --help)
@@ -308,6 +309,7 @@ function showHelp() {
     ima2 serve --dev                 Start with verbose server diagnostics
     ima2 gen "a shiba in space"      Generate from CLI
     ima2 gen "merge" --ref a.png --ref b.png -q high -o out.png
+    ima2 video "a cat playing piano" --duration 10
     ima2 ls -n 10                    Last 10 generations
     ima2 skill                       Print agent usage skill
     ima2 capabilities --json         Inspect supported models/options
@@ -323,7 +325,7 @@ if (args.includes("-v") || args.includes("--version")) {
     process.exit(0);
 }
 if ((!command || args.includes("-h") || args.includes("--help"))
-    && !["doctor", "gen", "edit", "ls", "show", "ps", "cancel", "session", "history", "prompt", "multimode", "node", "annotate", "canvas-versions", "metadata", "comfy", "cardnews", "inflight", "storage", "billing", "providers", "oauth", "grok", "config", "defaults", "capabilities", "skill", "ping"].includes(command)) {
+    && !["doctor", "gen", "video", "edit", "ls", "show", "ps", "cancel", "session", "history", "prompt", "multimode", "node", "annotate", "canvas-versions", "metadata", "comfy", "cardnews", "inflight", "storage", "billing", "providers", "oauth", "grok", "config", "defaults", "capabilities", "skill", "ping"].includes(command)) {
     showHelp();
     process.exit(command ? 0 : 1);
 }
@@ -366,6 +368,7 @@ switch (command) {
         }
         break;
     case "gen":
+    case "video":
     case "edit":
     case "ls":
     case "show":
