@@ -247,3 +247,27 @@ const VIDEO_INTENT_PATTERN = /\b(?:video|animate|animation|동영상|비디오|�
 function isVideoIntent(prompt: string): boolean {
   return VIDEO_INTENT_PATTERN.test(prompt);
 }
+
+export interface VideoParamsFromPrompt {
+  duration?: number;
+  resolution?: "480p" | "720p";
+  aspectRatio?: string;
+}
+
+const DURATION_PATTERN = /\b(\d{1,2})\s*(?:s|sec|seconds?|초)\b/i;
+const RESOLUTION_PATTERN = /\b(720p|480p)\b/i;
+const ASPECT_PATTERN = /\b(16:9|9:16|4:3|3:4|3:2|2:3|1:1)\b/;
+
+export function parseVideoParams(prompt: string): VideoParamsFromPrompt {
+  const params: VideoParamsFromPrompt = {};
+  const durMatch = DURATION_PATTERN.exec(prompt);
+  if (durMatch) {
+    const d = parseInt(durMatch[1]);
+    if (d >= 1 && d <= 15) params.duration = d;
+  }
+  const resMatch = RESOLUTION_PATTERN.exec(prompt);
+  if (resMatch) params.resolution = resMatch[1].toLowerCase() as "480p" | "720p";
+  const aspMatch = ASPECT_PATTERN.exec(prompt);
+  if (aspMatch) params.aspectRatio = aspMatch[1];
+  return params;
+}

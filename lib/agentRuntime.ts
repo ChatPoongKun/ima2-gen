@@ -10,6 +10,7 @@ import { resolveProviderOptions } from "./providerOptions.js";
 import { generateViaResponses } from "./responsesImageAdapter.js";
 import { generateViaGrok, type GrokReferenceImage } from "./grokImageAdapter.js";
 import { generateVideoViaGrok } from "./grokVideoAdapter.js";
+import { parseVideoParams } from "./agentGenerationPlanner.js";
 import {
   appendAgentTurn,
   buildImageContextManifest,
@@ -434,13 +435,15 @@ export async function runAgentVideoGeneration(
     }
   }
 
+  const videoParams = parseVideoParams(prompt);
+
   const result = await generateVideoViaGrok(prompt, ctx, {
     model: "grok-imagine-video",
     mode,
     sourceImage,
-    duration: 5,
-    resolution: "480p",
-    aspectRatio: "auto",
+    duration: videoParams.duration ?? 5,
+    resolution: videoParams.resolution ?? "480p",
+    aspectRatio: (videoParams.aspectRatio ?? "auto") as "auto" | "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "3:2" | "2:3",
     requestId,
     signal: options.signal ?? undefined,
   });

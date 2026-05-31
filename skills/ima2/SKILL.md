@@ -272,3 +272,68 @@ ima2 config keys --json
 - Use `ima2 capabilities --json` before guessing model names.
 - Use `ima2 skill path` when an agent needs the installed Markdown skill path.
 - Use `ima2 inflight ls --json` or `ima2 ps --json` to inspect active jobs.
+
+## Video Generation
+
+Generate AI videos via Grok (SuperGrok subscription required).
+
+### Quick Start
+
+```bash
+ima2 video "a cat playing piano"                    # text-to-video
+ima2 video "animate this" --ref photo.png           # image-to-video
+ima2 video "cinematic" --ref a.png --ref b.png      # reference-to-video (max 7)
+```
+
+### Modes (auto-detected from --ref count)
+
+| Refs | Mode | Max Duration |
+|------|------|-------------|
+| 0 | text-to-video | 15s |
+| 1 | image-to-video | 15s |
+| 2-7 | reference-to-video | 10s |
+
+### Parameters
+
+| Flag | Values | Default |
+|------|--------|---------|
+| `--duration` | 1–15 (seconds) | 5 |
+| `--resolution` | 480p, 720p | 480p |
+| `--aspect-ratio` | auto, 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3 | auto |
+| `--model` | grok-imagine-video, grok-imagine-video-1.5-preview | grok-imagine-video |
+| `--topic` | any string | (none) |
+| `--session` | session ID | (none) |
+| `-o, --out` | output file path | auto-named in CWD |
+| `--json` | (flag) | false |
+
+### Series Continuity (--topic)
+
+Use `--topic` to chain multiple video generations under a theme. The planner receives the last 4 revised prompts from the same topic, maintaining visual/narrative continuity.
+
+```bash
+ima2 video "episode 1: morning routine" --topic "daily-vlog"
+ima2 video "episode 2: commute" --topic "daily-vlog"
+```
+
+### Planning Layer
+
+Prompts are NOT sent directly to the video model. A Grok planner (grok-4.3) rewrites your prompt with web search context for better results. The `revisedPrompt` in the response shows what was actually sent.
+
+### Prerequisites
+
+```bash
+ima2 grok login     # authenticate (device-code flow)
+ima2 grok status    # verify connection
+ima2 serve          # server must be running
+```
+
+### Output
+
+SSE streaming events: `planning` → `submitted` → `progress` (0-100%) → `done`.
+With `--json`, prints the final result object to stdout.
+
+### Discover Valid Parameters
+
+```bash
+ima2 capabilities --json | jq '.valid.videoModels'
+```
