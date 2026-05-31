@@ -3102,12 +3102,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // For node mode: use parent node's image as sourceImage if no explicit refs
     let parentSourceFilename: string | undefined;
+    let parentVideoFrameRef: string | undefined;
     if (node && refs.length === 0 && node.data.parentServerNodeId) {
       const parentNode = get().graphNodes.find(
         (n) => n.data.serverNodeId === node.data.parentServerNodeId,
       );
-      if (parentNode?.data.imageUrl && !isVideoUrl(parentNode.data.imageUrl)) {
-        parentSourceFilename = parentNode.data.imageUrl.replace(/^\/generated\//, "");
+      if (parentNode?.data.imageUrl) {
+        if (isVideoUrl(parentNode.data.imageUrl)) {
+          // V2V: extract last frame from parent video
+          try {
+            parentVideoFrameRef = await extractLastFrame(parentNode.data.imageUrl);
+          } catch { /* fallback to T2V */ }
+        } else {
+          parentSourceFilename = parentNode.data.imageUrl.replace(/^\/generated\//, "");
+        }
       }
     }
 
@@ -3140,8 +3148,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           requestId: flightId,
           model: (typeof get().videoModelSelected === "string" && get().videoModelSelected) || undefined,
           referenceImages: refs.length >= 2 ? refs : undefined,
-          sourceImage: refs.length === 1 ? refs[0] : undefined,
-          sourceFilename: refs.length === 0 ? parentSourceFilename : undefined,
+          sourceImage: refs.length === 1 ? refs[0] : parentVideoFrameRef,
+          sourceFilename: refs.length === 0 && !parentVideoFrameRef ? parentSourceFilename : undefined,
           duration: clampVideoDurationUI(get().videoDuration, mode),
           resolution: get().videoResolution,
           aspectRatio: get().videoAspectRatio,
