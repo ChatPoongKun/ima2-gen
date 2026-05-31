@@ -124,6 +124,26 @@ function sourceImageUrl(image: string, mime?: string | null): string {
   return `data:${detected};base64,${image}`;
 }
 
+/** Map aspect ratio + resolution to pixel dimensions for white canvas injection. */
+function aspectToCanvas(aspectRatio: string, resolution: string): { width: number; height: number } {
+  const base = resolution === "720p" ? 720 : 480;
+  const ratios: Record<string, [number, number]> = {
+    "16:9": [16, 9], "9:16": [9, 16], "4:3": [4, 3], "3:4": [3, 4],
+    "3:2": [3, 2], "2:3": [2, 3], "1:1": [1, 1], "auto": [16, 9],
+  };
+  const [w, h] = ratios[aspectRatio] || [16, 9];
+  if (w >= h) return { width: Math.round(base * w / h), height: base };
+  return { width: base, height: Math.round(base * h / w) };
+}
+
+/** Generate a minimal white PNG as base64 (no external deps). */
+function generateWhiteCanvasB64(): string {
+  // Minimal valid 1x1 white PNG, scaled conceptually — xAI will accept any valid PNG
+  // For simplicity, use a tiny white PNG (the model doesn't use it as a real frame)
+  const PNG_1x1_WHITE = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/58BAwAHBQKhPX8EPAAAAABJRU5ErkJggg==";
+  return PNG_1x1_WHITE;
+}
+
 const FAILED_CODE_MAP: Record<string, { code: string; status: number }> = {
   invalid_argument: { code: "GROK_VIDEO_REQUEST_FAILED", status: 400 },
   permission_denied: { code: "GROK_VIDEO_REQUEST_FAILED", status: 403 },
@@ -449,10 +469,24 @@ export async function generateVideoViaGrok(prompt: string, ctx: RouteRuntimeCont
   const payload = buildVideoGenerationPayload(plan, { model, sourceImageUrl: srcUrl, referenceImageUrls: refUrls });
   let xaiVideoRequestId: string;
   let effectiveModel = model;
+
+  // grokv1.5 doesn't support T2V — inject a white canvas as source image to use I2V path
+  let effectivePayload = payload;
+  if (model === "grok-imagine-video-1.5-preview" && !srcUrl && refUrls.length === 0) {
+    const { width, height } = aspectToCanvas(plan.aspectRatio, plan.resolution);
+    const whiteCanvas = generateWhiteCanvasB64();
+    const canvasSrcUrl = `data:image/png;base64,${whiteCanvas}`;
+    effectivePayload = buildVideoGenerationPayload(
+      { ...plan, prompt: `${plan.prompt}. This is not a start frame — generate freely as a new video.` },
+      { model, sourceImageUrl: canvasSrcUrl, referenceImageUrls: [] },
+    );
+    logEvent("grok", "video:1.5-t2v-canvas", { requestId: options.requestId, width, height });
+  }
+
   try {
-    xaiVideoRequestId = await startVideoRequest(ctx, payload, options);
+    xaiVideoRequestId = await startVideoRequest(ctx, effectivePayload, options);
   } catch (e: any) {
-    // Fallback: if 1.5-preview fails, retry with base model
+    // Fallback: if 1.5-preview still fails, retry with base model
     if (model !== "grok-imagine-video" && e?.status === 400) {
       effectiveModel = "grok-imagine-video";
       const fallbackPayload = buildVideoGenerationPayload(plan, { model: effectiveModel, sourceImageUrl: srcUrl, referenceImageUrls: refUrls });
