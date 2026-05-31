@@ -13,6 +13,7 @@ const AGENT_COMMANDS = [
   "capabilities",
   "defaults",
   "gen",
+  "video",
   "edit",
   "multimode",
   "node generate",
@@ -69,6 +70,13 @@ export function buildIma2Capabilities({
         unsupported: toArray(appConfig.imageModels.unsupported),
         grokSupported: ["grok-imagine-image", "grok-imagine-image-quality"],
       },
+      videoModels: {
+        supported: ["grok-imagine-video", "grok-imagine-video-1.5-preview"],
+        resolutions: ["480p", "720p"],
+        aspectRatios: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "auto"],
+        durationRange: [1, 15],
+        maxReferences: 7,
+      },
       reasoningEfforts: toArray(appConfig.imageModels.validReasoningEfforts),
       quality: toArray(VALID_IMAGE_QUALITIES),
       moderation: toArray(appConfig.oauth.validModeration),
@@ -112,6 +120,7 @@ export function buildIma2Capabilities({
       i2i: "Use --ref for reference generation, or ima2 edit <file> --prompt \"<text>\" for image edits.",
       defaults: "Use ima2 defaults set model/reasoning for persistent defaults; request flags remain per-call overrides.",
       promptBuilder: "Use ima2 prompt build --message \"...\" to refine prompt intent. Use ima2 gen / ima2 multimode to generate images. Workspace profile settings are UI-only.",
+      video: "Use ima2 video \"<prompt>\" to generate video. Supports --ref for image-to-video and reference-to-video modes.",
     },
   };
 }

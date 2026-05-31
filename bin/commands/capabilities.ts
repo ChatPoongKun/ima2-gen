@@ -74,6 +74,12 @@ function printText(capabilities: any): void {
   if (capabilities.valid?.imageModels?.grokSupported?.length) {
     out(`  grok models: ${capabilities.valid.imageModels.grokSupported.join(", ")}`);
   }
+  if (capabilities.valid?.videoModels?.supported?.length) {
+    out(`  video models: ${capabilities.valid.videoModels.supported.join(", ")}`);
+    out(`  video resolutions: ${capabilities.valid.videoModels.resolutions?.join(", ")}`);
+    out(`  video aspect ratios: ${capabilities.valid.videoModels.aspectRatios?.join(", ")}`);
+    out(`  video duration: ${capabilities.valid.videoModels.durationRange?.[0]}-${capabilities.valid.videoModels.durationRange?.[1]}s`);
+  }
   out(`  reasoning: ${capabilities.valid?.reasoningEfforts?.join(", ")}`);
   out(`  quality: ${capabilities.valid?.quality?.join(", ")}`);
   out(`  modes: ${capabilities.valid?.modes?.join(", ")}`);
