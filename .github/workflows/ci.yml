@@ -47,8 +47,11 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
         run: npm run lint:pkg
       - name: Package install smoke
-        if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
         run: npm run test:package-install
+      - name: CLI smoke (grok --help)
+        run: node bin/ima2.js grok --help
+      - name: CLI smoke (--version)
+        run: node bin/ima2.js --version
       - name: Publish dry-run
         if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
         run: npm run publish:dry-run
