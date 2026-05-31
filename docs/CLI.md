@@ -49,6 +49,7 @@ Agents should start from the packaged skill and capability commands instead of g
 | `ima2 gen <prompt>` | Generate from the CLI |
 | `ima2 edit <file> --prompt <text>` | Edit an existing image |
 | `ima2 multimode <prompt>` | Multi-image SSE generation (streams `phase` / `partial` / `image` events) |
+| `ima2 video <prompt>` | Video generation via Grok (SSE streaming with progress) |
 | `ima2 node generate` | Node-mode generate (SSE; supports `--no-stream`) |
 | `ima2 node show <nodeId>` | Read node metadata |
 
@@ -104,6 +105,43 @@ For dense or critical text, keep the text large and explicit. Exact placement,
 small text, and pixel-perfect typography can still need iteration or post-editing.
 
 Multimode-specific flags include `--max-images <1..8>`, `--ref <file>` (repeatable, max 5), `--mode <auto|direct>`, `--provider <auto|oauth|api|grok>`, and `--show-partial`. `ima2 edit --mask` remains intentionally deferred to #31 because current mask plumbing is guided edit rather than guaranteed true masked/inpaint semantics.
+
+## Video
+
+| Command | Description |
+|---|---|
+| `ima2 video <prompt>` | Generate a video via Grok (SSE streaming with progress) |
+
+Video flags:
+
+| Flag | Meaning |
+|---|---|
+| `--duration <1..15>` | Duration in seconds (default: 5) |
+| `--resolution <480p\|720p>` | Video resolution (default: 480p) |
+| `--aspect-ratio <ratio\|auto>` | 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, auto (default: auto) |
+| `--model <name>` | `grok-imagine-video` or `grok-imagine-video-1.5-preview` |
+| `--ref <file>` | Attach source/reference image (repeatable, max 7) |
+| `-o, --out <file>` | Output file path |
+| `-d, --out-dir <dir>` | Output directory |
+| `--timeout <sec>` | Timeout in seconds (default: 600) |
+| `--session <id>` | Session ID |
+
+Video mode is auto-detected from `--ref` count:
+
+| Refs | Mode |
+|---|---|
+| 0 | text-to-video |
+| 1 | image-to-video |
+| 2–7 | reference-to-video (max 10s duration) |
+
+SSE events: `planning` → `submitted` → `progress` (0–100%) → `done` or `error`.
+
+```bash
+ima2 video "a cat playing piano"
+ima2 video "animate this" --ref photo.png --duration 10
+ima2 video "cinematic" --resolution 720p --aspect-ratio 16:9 -o out.mp4
+ima2 video "style transfer" --ref a.png --ref b.png --ref c.png --model grok-imagine-video-1.5-preview
+```
 
 ## Diagnostics
 

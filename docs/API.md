@@ -20,10 +20,8 @@ Image generation supports OAuth, API-key, and Grok providers.
 - Grok generation maps `size` to xAI `aspect_ratio` and `resolution`; it does not send an OpenAI-style `size` field upstream. Grok edit uses xAI `/v1/images/edits`; Grok mask edit remains unsupported and returns `GROK_MASK_UNSUPPORTED`.
 - Mask edits are mask/selection guided edits, not pixel-perfect inpaint guarantees.
 
-Grok video generation (T2V/I2V) is not part of the `1.1.15` runtime API. The
-`docs/grok-video-i2v-plan.md` and `docs/grok-video-i2v-research.md` files are
-planning and research notes only; no `/api/video` route or Grok video endpoint
-wrapper is shipped in this release.
+Grok video generation uses `POST /api/video/generate` (SSE). See the Video
+Generation section below for the full endpoint specification.
 
 ## Health And Status
 
@@ -219,6 +217,76 @@ Server-side validation may return these reference codes:
 | `GROK_REF_TOO_MANY` | Grok classic generation received more than three reference images |
 | `GROK_MASK_UNSUPPORTED` | Grok edit was requested with a mask; xAI mask edit is not wired in this release |
 
+## Video Generation
+
+### `POST /api/video/generate` (SSE)
+
+Generate a video via the Grok video provider. Returns Server-Sent Events.
+
+```json
+{
+  "prompt": "a cat playing piano",
+  "provider": "grok",
+  "model": "grok-imagine-video",
+  "duration": 5,
+  "resolution": "480p",
+  "aspectRatio": "auto",
+  "sourceImage": "<base64>",
+  "referenceImages": ["<base64>", "<base64>"],
+  "referenceFilenames": ["existing-file.png"],
+  "sessionId": "optional",
+  "requestId": "optional-client-id"
+}
+```
+
+**Models**: `grok-imagine-video` (default), `grok-imagine-video-1.5-preview`.
+
+**Mode** is auto-detected from reference inputs:
+
+| Inputs | Mode | Duration cap |
+|---|---|---|
+| No images | text-to-video | 1–15s |
+| 1 image (`sourceImage` or `sourceFilename`) | image-to-video | 1–15s |
+| 2–7 images (`referenceImages` / `referenceFilenames`) | reference-to-video | 1–10s |
+
+**Parameters**:
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `prompt` | string | — | Required |
+| `provider` | string | `"grok"` | Must be `"grok"` |
+| `model` | string | `grok-imagine-video` | Video model |
+| `duration` | integer | `5` | 1–15 seconds (clamped to 10 for reference-to-video) |
+| `resolution` | string | `"480p"` | `480p` or `720p` |
+| `aspectRatio` | string | `"auto"` | 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, auto |
+| `sourceImage` | string | — | Base64 image for image-to-video |
+| `sourceFilename` | string | — | Existing generated file for image-to-video |
+| `referenceImages` | string[] | — | Base64 images for reference-to-video |
+| `referenceFilenames` | string[] | — | Existing generated files for reference-to-video |
+
+**SSE events**:
+
+| Event | Data | Description |
+|---|---|---|
+| `planning` | `{ requestId }` | Preparing video generation |
+| `submitted` | `{ requestId, xaiVideoRequestId }` | Submitted to xAI |
+| `progress` | `{ requestId, progress, stalled }` | Progress 0.0–1.0 |
+| `done` | `{ requestId, filename, url, mediaType, revisedPrompt, elapsed, usage, video }` | Video ready |
+| `error` | `{ error, code, status, requestId }` | Generation failed |
+
+**Video error codes**:
+
+| Code | Meaning |
+|---|---|
+| `VIDEO_PROVIDER_UNSUPPORTED` | Provider is not `"grok"` |
+| `PROMPT_REQUIRED` | Empty or missing prompt |
+| `INVALID_GROK_VIDEO_MODEL` | Model not in valid set |
+| `INVALID_VIDEO_RESOLUTION` | Resolution not 480p or 720p |
+| `INVALID_VIDEO_ASPECT_RATIO` | Aspect ratio not in valid set |
+| `INVALID_VIDEO_DURATION` | Duration not 1–15 integer |
+| `GROK_VIDEO_REF_TOO_MANY` | More than 7 reference images |
+| `GROK_VIDEO_FAILED` | Upstream xAI video generation failed |
+
 ## History
 
 | Method | Path | Notes |
@@ -299,6 +367,7 @@ Most server routes under `/api/*` have a CLI wrapper. The exception is **Agent M
 | `POST /api/generate` | `ima2 gen` |
 | `POST /api/edit` | `ima2 edit` |
 | `POST /api/generate/multimode` (SSE) | `ima2 multimode` |
+| `POST /api/video/generate` (SSE) | `ima2 video` |
 | `POST /api/node/generate` (SSE) / `GET /api/node/:id` | `ima2 node generate` / `ima2 node show` |
 | `GET /api/history` | `ima2 ls` |
 | `DELETE /api/history/:name` / `…/permanent` | `ima2 history rm [--permanent]` |

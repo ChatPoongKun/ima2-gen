@@ -35,6 +35,13 @@ npx @openai/codex login
 npx ima2-gen serve
 ```
 
+To generate a video from the CLI:
+
+```bash
+ima2 video "a cat playing piano" --duration 5 --resolution 720p
+ima2 video "animate this scene" --ref photo.png --duration 10
+```
+
 If `3333` is already occupied, `ima2-gen` binds the next available port and writes the actual URL to `~/.ima2/server.json`. Use `ima2 open` or the URL printed in the terminal instead of assuming the port.
 
 You can also install it globally:
@@ -43,6 +50,17 @@ You can also install it globally:
 npm install -g ima2-gen
 ima2 serve
 ```
+
+### Setup
+
+`ima2 setup` offers four authentication choices:
+
+1. **GPT OAuth** — login with ChatGPT account (free, images only)
+2. **Grok OAuth** — login with xAI/Grok account (images + video)
+3. **Both** — GPT OAuth + Grok OAuth (full feature access)
+4. **API Key** — paste your OpenAI API key (paid)
+
+Video generation requires Grok OAuth (option 2 or 3). Run `ima2 grok login` separately if you already have GPT OAuth configured and want to add video support.
 
 Before updating a global install on Windows, stop any running `ima2 serve`
 process. If npm reports `EBUSY` or `resource busy or locked`, close ima2
@@ -54,9 +72,10 @@ persists, reboot and run the update before starting ima2 again.
 - **Classic mode**: generate, edit, reuse the current image, paste references, and continue from history.
 - **Node mode**: branch a good image into multiple directions without losing the original.
 - **Multimode batches**: launch several Classic outputs from one prompt, watch slot-by-slot progress, and continue from the best result.
+- **Video generation**: create short videos from text, a single image, or multiple reference images via Grok video models. SSE streaming shows planning → submitted → progress % → done.
 - **Canvas Mode**: zoom, pan, annotate, erase, clean backgrounds, keep transparent previews, and export either alpha or matte-backed versions.
 - **Local gallery**: keep generated assets on your machine with session-aware history. By default the gallery shows the current session and an All Images toggle reveals the full history; the default scope is sticky across sessions. Each image records its generation time and reasoning effort in the result metadata, so they persist across reloads.
-- **Reference images**: drag, drop, paste, and attach up to 5 references; large images are compressed before upload.
+- **Reference images**: drag, drop, paste, and attach up to 5 references (images) or up to 7 references (video); large images are compressed before upload.
 - **Prompt library imports**: import local prompt packs, GitHub folders, and curated GPT-image prompt hints into the built-in prompt library.
 - **Mobile shell**: use the app bar, compose sheet, and compact settings toggle on smaller screens.
 - **Observable jobs**: active and recent jobs are tracked with safe logs and request IDs.
@@ -73,7 +92,7 @@ Image generation can run through the local Codex/ChatGPT OAuth path, a configure
 
 If no provider is specified, the app keeps the current OAuth/default behavior. API-key generation defaults to `gpt-5.4-mini`, `low` reasoning, and `1024x1024` unless the request passes validated model, reasoning, size, or web-search options. Grok defaults to `grok-imagine-image`; `quality: "high"` promotes the final image call to `grok-imagine-image-quality`.
 
-Grok video generation (T2V/I2V) is not shipped in `1.1.15`. The video files in `docs/grok-video-i2v-plan.md` and `docs/grok-video-i2v-research.md` are implementation planning and research notes only; the published runtime remains image-only.
+Grok video generation uses `grok-imagine-video` (default) or `grok-imagine-video-1.5-preview`. Three modes are auto-detected from reference count: text-to-video (0 refs), image-to-video (1 ref), and reference-to-video (2–7 refs, max 10s duration). Video controls include duration (1–15s), resolution (480p, 720p), and aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, auto).
 
 ![Settings workspace showing OAuth active and API key provider available.](assets/screenshots/settings-oauth-generation.png)
 
@@ -166,6 +185,7 @@ These require a running `ima2 serve`. The CLI covers every server route. The mos
 | `ima2 gen <prompt>` | Generate from the CLI |
 | `ima2 edit <file> --prompt <text>` | Edit an existing image |
 | `ima2 multimode <prompt>` | Multi-image SSE generation |
+| `ima2 video <prompt>` | Video generation via Grok (SSE streaming with progress) |
 | `ima2 ls [--session <id>] [--favorites]` | List recent history |
 | `ima2 show <name> [--metadata]` | Reveal a generated asset |
 | `ima2 prompt ls -q <search>` | Search the prompt library |
@@ -179,6 +199,8 @@ The server advertises its actual port at `~/.ima2/server.json`. If `3333` is bus
 ima2 gen "poster" --model gpt-5.4 --reasoning-effort high
 ima2 edit input.png --prompt "make it rainy" --web-search
 ima2 multimode "two cats playing" -n 2
+ima2 video "a cat playing piano" --duration 5 --resolution 720p
+ima2 video "animate this" --ref photo.png --aspect-ratio 16:9
 ima2 inflight ls --terminal
 ima2 config set imageModels.reasoningEffort high
 ```
