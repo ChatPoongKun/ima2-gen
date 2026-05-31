@@ -51,6 +51,8 @@ const d = (slug: string) => docsPath(import.meta.env.BASE_URL, 'en', slug);
       <tr><td><code>gpt-5.5</code></td><td>Strongest quality when your Codex CLI/OAuth backend supports it. May use more quota or need an updated Codex CLI.</td></tr>
       <tr><td><code>grok-imagine-image</code></td><td>Default Grok image model.</td></tr>
       <tr><td><code>grok-imagine-image-quality</code></td><td>Higher quality Grok image model; also selected by high-quality Grok Node requests.</td></tr>
+      <tr><td><code>grok-imagine-video</code></td><td>Default Grok video model (T2V/I2V).</td></tr>
+      <tr><td><code>grok-imagine-video-1.5-preview</code></td><td>Preview Grok video model with improved quality.</td></tr>
     </tbody>
   </table>
   <p>
@@ -77,10 +79,15 @@ const d = (slug: string) => docsPath(import.meta.env.BASE_URL, 'en', slug);
     controls. Grok mask edit is not wired in this release and returns
     <code>GROK_MASK_UNSUPPORTED</code>.
   </p>
-  <div class="docs-callout docs-callout-warn">
-    <strong>Image-only in 1.1.15.</strong> Grok video T2V/I2V is research and planning only in this
-    branch. The runtime ships no <code>/api/video</code> route and no Grok video CLI.
-  </div>
+  <h2>Grok video</h2>
+  <p>
+    Grok video generation uses <code>grok-imagine-video</code> (default) or
+    <code>grok-imagine-video-1.5-preview</code>. Three modes are auto-detected from reference count:
+    text-to-video (0 refs), image-to-video (1 ref), and reference-to-video (2–7 refs, max 10s).
+    Controls include duration (1–15s), resolution (480p, 720p), and aspect ratio. The endpoint
+    <code>POST /api/video/generate</code> streams SSE events: planning → submitted → progress → done.
+    From the CLI: <code>ima2 video "prompt" --duration 5 --resolution 720p</code>.
+  </p>
 
   <h2>API-provider defaults</h2>
   <p>When the API path is used without explicit options, these defaults apply:</p>

@@ -44,6 +44,7 @@ const cliMd = 'https://github.com/lidge-jun/ima2-gen/blob/main/docs/CLI.md';
       <tr><td><code>ima2 gen &lt;prompt&gt;</code></td><td>Generate from the CLI.</td></tr>
       <tr><td><code>ima2 edit &lt;file&gt; --prompt &lt;text&gt;</code></td><td>Edit an existing image.</td></tr>
       <tr><td><code>ima2 multimode &lt;prompt&gt;</code></td><td>Multi-image SSE generation (streams <code>phase</code> / <code>partial</code> / <code>image</code>).</td></tr>
+      <tr><td><code>ima2 video &lt;prompt&gt;</code></td><td>Video generation via Grok (SSE streaming with progress).</td></tr>
       <tr><td><code>ima2 node generate</code></td><td>Node-mode generate (SSE; supports <code>--no-stream</code>).</td></tr>
       <tr><td><code>ima2 node show &lt;nodeId&gt;</code></td><td>Read node metadata.</td></tr>
     </tbody>
@@ -58,6 +59,7 @@ const cliMd = 'https://github.com/lidge-jun/ima2-gen/blob/main/docs/CLI.md';
   <pre><code>ima2 gen "a poster of a samurai cat" --model gpt-5.4 --provider api --reasoning-effort high
 ima2 grok login
 ima2 gen "a cinematic neon city" --provider grok --model grok-imagine-image-quality
+ima2 video "a cat playing piano" --duration 5 --resolution 720p
 ima2 edit input.png --prompt "make it rainy" --provider oauth --web-search
 ima2 multimode "two cats playing" --max-images 2 --ref cat.png --mode direct</code></pre>
 
