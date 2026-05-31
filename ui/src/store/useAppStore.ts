@@ -160,7 +160,7 @@ function loadUIMode(): UIMode {
     if (raw === "node") return ENABLE_NODE_MODE ? raw : "classic";
     if (raw === "classic") return raw;
   } catch {}
-  return ENABLE_AGENT_MODE ? "agent" : "classic";
+  return "classic";
 }
 
 function loadThemePreference(): ThemePreference {
