@@ -31,7 +31,7 @@ describe("node UI compact metadata contract", () => {
     const css = readSource("ui/src/index.css");
     const nodeRule = /\.image-node\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
     const previewRule = /\.image-node__preview\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
-    const imageRule = /\.image-node__preview img\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
+    const imageRule = /\.image-node__preview img[\s,][\s\S]*?\{[^}]*\}/s.exec(css)?.[0] ?? "";
 
     assert.match(component, /function getPreviewWidth\(size\?: string \| null\): number/);
     assert.match(component, /NODE_PREVIEW_HEIGHT \* \(width \/ height\)/);

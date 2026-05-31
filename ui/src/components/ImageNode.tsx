@@ -4,6 +4,7 @@ import { useAppStore, type ImageNodeData, type GraphNode } from "../store/useApp
 import { useI18n } from "../i18n";
 import { getImageModelShortLabel } from "../lib/imageModels";
 import { formatReasoningLabel } from "../lib/reasoning";
+import { isVideoUrl } from "../lib/videoMedia";
 import { SavePromptPopover } from "./SavePromptPopover";
 
 const MAX_NODE_REFS = 5;
@@ -193,7 +194,11 @@ function ImageNodeImpl({ id, data, selected }: NodeProps<GraphNode>) {
       ))}
       <div className="image-node__preview">
         {d.imageUrl && d.status !== "asset-missing" ? (
-          <img src={d.imageUrl} alt={t("node.nodeImageAlt")} />
+          isVideoUrl(d.imageUrl) ? (
+            <video src={d.imageUrl} controls loop playsInline muted className="image-node__video" />
+          ) : (
+            <img src={d.imageUrl} alt={t("node.nodeImageAlt")} />
+          )
         ) : isBusy && d.partialImageUrl ? (
           <img
             className="image-node__partial"

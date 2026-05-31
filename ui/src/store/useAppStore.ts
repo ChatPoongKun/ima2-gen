@@ -3099,28 +3099,52 @@ export const useAppStore = create<AppState>((set, get) => ({
     const prompt = node ? node.data.prompt.trim() : composePrompt(get().prompt, get().insertedPrompts);
     if (!prompt) return;
 
+    // For node mode: use parent node's image as sourceImage if no explicit refs
+    let parentSourceImage: string | undefined;
+    if (node && refs.length === 0 && node.data.parentServerNodeId) {
+      const parentNode = get().graphNodes.find(
+        (n) => n.data.serverNodeId === node.data.parentServerNodeId,
+      );
+      if (parentNode?.data.imageUrl && !isVideoUrl(parentNode.data.imageUrl)) {
+        parentSourceImage = parentNode.data.imageUrl;
+      }
+    }
+
     const startedAt = Date.now();
     const flightId = `vid_${startedAt}_${Math.random().toString(36).slice(2, 6)}`;
+    const requestSessionId = get().activeSessionId;
     const nextInFlight: PersistedInFlight[] = [
       ...get().inFlight,
-      { id: flightId, prompt, startedAt, kind: "video" as const, sessionId: get().activeSessionId, clientNodeId: nodeId ?? null },
+      { id: flightId, prompt, startedAt, kind: "video" as const, sessionId: requestSessionId, clientNodeId: nodeId ?? null },
     ];
     saveInFlight(nextInFlight);
+
+    // Mark node as pending if in node mode
+    if (node) {
+      set({
+        graphNodes: get().graphNodes.map((n) =>
+          n.id === nodeId
+            ? { ...n, data: { ...n.data, status: "pending" as const, pendingRequestId: flightId, pendingPhase: "queued", pendingStartedAt: startedAt, partialImageUrl: null, error: undefined } }
+            : n,
+        ),
+      });
+    }
+
     set({ inFlight: nextInFlight, activeGenerations: nextInFlight.length, videoProgress: 0 });
     get().startInFlightPolling();
     try {
-      await postVideoGenerateStream(
+      const result = await postVideoGenerateStream(
         {
           prompt,
           requestId: flightId,
           model: (typeof get().videoModelSelected === "string" && get().videoModelSelected) || undefined,
           referenceImages: refs.length >= 2 ? refs : undefined,
-          sourceImage: refs.length === 1 ? refs[0] : undefined,
+          sourceImage: refs.length === 1 ? refs[0] : parentSourceImage,
           duration: clampVideoDurationUI(get().videoDuration, mode),
           resolution: get().videoResolution,
           aspectRatio: get().videoAspectRatio,
           topic: get().videoTopic || undefined,
-          sessionId: get().activeSessionId,
+          sessionId: requestSessionId,
           clientNodeId: nodeId ?? null,
         },
         {
@@ -3129,8 +3153,43 @@ export const useAppStore = create<AppState>((set, get) => ({
           onProgress: ({ progress }) => set({ videoProgress: progress ?? null }),
         },
       );
+
+      // Update node with video result
+      if (node && result && get().activeSessionId === requestSessionId) {
+        set({
+          graphNodes: get().graphNodes.map((n) =>
+            n.id === nodeId
+              ? {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    serverNodeId: result.filename.replace(/\.[^.]+$/, ""),
+                    imageUrl: result.url,
+                    status: "ready" as const,
+                    pendingRequestId: null,
+                    pendingPhase: null,
+                    pendingStartedAt: null,
+                    elapsed: result.elapsed ?? null,
+                    model: null,
+                  },
+                }
+              : n,
+          ),
+        });
+        get().scheduleGraphSave();
+        void get().flushGraphSave("video-node-complete");
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Video generation failed";
+      if (node && get().activeSessionId === requestSessionId) {
+        set({
+          graphNodes: get().graphNodes.map((n) =>
+            n.id === nodeId
+              ? { ...n, data: { ...n.data, status: "error" as const, pendingRequestId: null, pendingPhase: null, pendingStartedAt: null, error: message } }
+              : n,
+          ),
+        });
+      }
       get().showToast(message, true);
     } finally {
       const remaining = get().inFlight.filter((f) => f.id !== flightId);
