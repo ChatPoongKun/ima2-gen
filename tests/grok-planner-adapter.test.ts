@@ -62,7 +62,7 @@ describe("Grok planner adapter", () => {
     assert.equal(payload.parallel_tool_calls, false);
     assert.deepEqual(payload.tool_choice, { type: "function", function: { name: "generate_image" } });
     assert.equal(payload.tools[0].function.name, "generate_image");
-    assert.match(String(payload.messages[0].content), /MUST be written in English/);
+    assert.match(String(payload.messages[0].content), /MUST be in English/);
     assert.match(userText, /2048x1152/);
     assert.match(userText, /"aspect_ratio":"16:9"/);
     assert.match(userText, /Search found current/);

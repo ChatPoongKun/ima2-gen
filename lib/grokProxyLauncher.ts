@@ -5,7 +5,7 @@ import { spawnBin } from "../bin/lib/platform.js";
 import { config } from "../config.js";
 import { findAvailablePort } from "./runtimePorts.js";
 
-const rootDir = dirname(fileURLToPath(import.meta.url)).replace(/\/lib$/, "");
+const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 type GrokProxyReadyInfo = {
   url: string;
