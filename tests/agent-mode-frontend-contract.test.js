@@ -22,7 +22,7 @@ describe("Agent Mode frontend shell contract", () => {
     assert.match(types, /"classic" \| "node" \| "card-news" \| "agent"/);
     assert.match(store, /raw === "agent"/);
     assert.match(store, /m === "agent" && !ENABLE_AGENT_MODE/);
-    assert.match(store, /return ENABLE_AGENT_MODE \? "agent" : "classic";/);
+    assert.match(store, /return "classic";/);  // default mode for new users
     assert.match(main, /canonicalizeLocalhostOrigin/);
     assert.match(main, /window\.location\.hostname !== "localhost"/);
     assert.match(main, /next\.hostname = "127\.0\.0\.1"/);
