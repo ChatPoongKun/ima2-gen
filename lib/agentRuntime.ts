@@ -112,6 +112,13 @@ export async function runAgentGenerationPlan(
     });
     return { assistantTurn, imageIds: [], webFindingIds: [] };
   }
+  if (plan.mode === "video") {
+    return runAgentVideoGeneration(ctx, sessionId, prompt, {
+      ...options,
+      requestId: options.requestId ?? `agent_video_${ulid()}`,
+      skipUserTurn: true,
+    });
+  }
   const manifest = buildImageContextManifest(sessionId);
   const contextStartedAt = Date.now();
   appendAgentTurn({
@@ -402,11 +409,13 @@ export async function runAgentVideoGeneration(
   ctx: RuntimeContext,
   sessionId: string,
   prompt: string,
-  options: AgentRunOptions = {},
+  options: AgentRunOptions & { skipUserTurn?: boolean } = {},
 ) {
   const session = getAgentSession(sessionId);
   if (!session) throw notFound(sessionId);
-  appendAgentTurn({ sessionId, role: "user", text: prompt, status: "complete" });
+  if (!options.skipUserTurn) {
+    appendAgentTurn({ sessionId, role: "user", text: prompt, status: "complete" });
+  }
   const requestId = options.requestId ?? `agent_video_${ulid()}`;
   const startedAt = Date.now();
   const result = await generateVideoViaGrok(prompt, ctx, {

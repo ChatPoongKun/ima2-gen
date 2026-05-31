@@ -56,6 +56,20 @@ export function deriveAgentGenerationPlan({ prompt, settings, command = null }: 
     };
   }
 
+  if (isVideoIntent(prompt)) {
+    return {
+      mode: "video",
+      prompts: [prompt],
+      requestedVariants: 1,
+      plannedVariants: 1,
+      plannedParallelism: 1,
+      source: "auto-request",
+      reason: "Video generation detected from prompt keywords.",
+      command: command?.name ?? null,
+      assistantText: null,
+    };
+  }
+
   const variantDecision = decideVariantCount(prompt, settings, command);
   const plannedParallelism = resolvePlannedParallelism(settings, variantDecision.count, command);
   const prompts = buildGenerationPrompts(prompt, variantDecision.count);
@@ -85,7 +99,7 @@ export function normalizeAgentGenerationPlan(
   const requestedParallelism = cleanCount(input.plannedParallelism, settings.parallelism, 1, HARD_MAX_VARIANTS);
   const plannedParallelism = resolvePlannedParallelism({ ...settings, parallelism: requestedParallelism }, plannedVariants, null);
   return {
-    mode: input.mode === "question" ? "question" : prompts.length > 1 ? "fanout" : "single",
+    mode: input.mode === "question" ? "question" : input.mode === "video" ? "video" : prompts.length > 1 ? "fanout" : "single",
     prompts,
     requestedVariants: cleanCount(input.requestedVariants, plannedVariants, 0, HARD_MAX_VARIANTS),
     plannedVariants,
@@ -226,4 +240,10 @@ function cleanCount(value: unknown, fallback: number, min: number, max: number):
 
 function clampCount(value: number, max: number): number {
   return Math.max(1, Math.min(max, Math.round(value)));
+}
+
+const VIDEO_INTENT_PATTERN = /\b(?:video|animate|animation|동영상|비디오|영상|애니메이트|움직이|클립)\b/iu;
+
+function isVideoIntent(prompt: string): boolean {
+  return VIDEO_INTENT_PATTERN.test(prompt);
 }

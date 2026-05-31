@@ -12,7 +12,7 @@ export type AgentToolCallStatus = "queued" | "running" | "complete" | "error";
 export type AgentQueueStatus = "queued" | "running" | "succeeded" | "failed" | "canceled";
 export type AgentSessionRunStatus = "idle" | "queued" | "running" | "error";
 export type AgentGenerationStrategy = "auto" | "manual";
-export type AgentGenerationPlanMode = "single" | "fanout" | "question";
+export type AgentGenerationPlanMode = "single" | "fanout" | "question" | "video";
 export type AgentGenerationPlanSource = "auto-default" | "auto-request" | "manual-settings" | "slash-command" | "question-command";
 export type AgentSlashCommandName = "question" | "help" | "variants" | "generate" | "parallelism";
 
