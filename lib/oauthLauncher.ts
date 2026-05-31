@@ -9,9 +9,11 @@ export function startOAuthProxy(options: any = {}) {
   let currentChild: ChildProcess | null = null;
   let stopping = false;
   let restartTimer: NodeJS.Timeout | null = null;
+  let hasBeenReady = false;
 
   const spawnProxy = () => {
     console.log(`Starting openai-oauth on port ${oauthPort}...`);
+    const spawnedAt = Date.now();
     const child = spawnBin("npx", ["openai-oauth", "--port", String(oauthPort)], {
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env },
@@ -30,6 +32,7 @@ export function startOAuthProxy(options: any = {}) {
           console.log(`[oauth] requested port ${oauthPort}, actual port ${port}`);
         }
         options.onReady?.({ url, port: port || oauthPort, requestedPort: oauthPort });
+        hasBeenReady = true;
       }
     });
 
@@ -41,6 +44,14 @@ export function startOAuthProxy(options: any = {}) {
     child.on("exit", (code) => {
       if (currentChild === child) currentChild = null;
       if (stopping) return;
+      const uptime = Date.now() - spawnedAt;
+      if (uptime < 5000 && !hasBeenReady) {
+        // Crashed immediately without ever becoming ready — likely missing openai-oauth or no token.
+        // Don't restart; just mark as failed silently.
+        console.log(`[oauth] proxy exited immediately (code ${code}). Skipping — Grok-only mode is fine.`);
+        options.onExit?.({ code });
+        return;
+      }
       options.onExit?.({ code });
       console.log(`[oauth] exited with code ${code}, restarting in ${Math.round(restartDelayMs / 1000)}s...`);
       restartTimer = setTimeout(spawnProxy, restartDelayMs);
