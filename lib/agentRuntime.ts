@@ -418,9 +418,26 @@ export async function runAgentVideoGeneration(
   }
   const requestId = options.requestId ?? `agent_video_${ulid()}`;
   const startedAt = Date.now();
+
+  // Auto I2V: if session has a last image, use it as source
+  let sourceImage: string | undefined;
+  let mode: "text-to-video" | "image-to-video" = "text-to-video";
+  if (session.lastImageId) {
+    const images = getAgentImages(sessionId);
+    const lastImage = images.find((img) => img.id === session.lastImageId);
+    if (lastImage?.filename && !lastImage.filename.endsWith(".mp4")) {
+      try {
+        const { loadAssetB64 } = await import("./nodeStore.js");
+        sourceImage = await loadAssetB64(ctx.rootDir, lastImage.filename, ctx.config.storage.generatedDir);
+        mode = "image-to-video";
+      } catch { /* fallback to T2V */ }
+    }
+  }
+
   const result = await generateVideoViaGrok(prompt, ctx, {
     model: "grok-imagine-video",
-    mode: "text-to-video",
+    mode,
+    sourceImage,
     duration: 5,
     resolution: "480p",
     aspectRatio: "auto",
