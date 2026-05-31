@@ -1,13 +1,15 @@
 import type { Express, Request, Response } from "express";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { join } from "node:path";
-import { access, unlink } from "node:fs/promises";
+import { join, resolve, sep } from "node:path";
+import { access, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import type { RouteRuntimeContext, RuntimeContext } from "../lib/runtimeContext.js";
 import { requireRuntimeContext } from "../lib/runtimeContext.js";
 import { getGrokProxyUrl } from "../lib/grokRuntime.js";
 import { logEvent, logError } from "../lib/logger.js";
+import { downloadVideo, pollVideoUntilDone } from "../lib/grokVideoAdapter.js";
+import { invalidateHistoryIndex } from "../lib/historyIndex.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -15,20 +17,89 @@ function videoProxyUrl(ctx: RuntimeContext, path: string) {
   return { url: getGrokProxyUrl(ctx, path), headers: { "Content-Type": "application/json", Authorization: "Bearer dummy" } };
 }
 
-async function pollVideo(ctx: RuntimeContext, requestId: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
-  const deadline = Date.now() + 600_000;
-  while (Date.now() < deadline) {
-    if (signal?.aborted) throw new Error("canceled");
-    await new Promise((r) => setTimeout(r, 5000));
-    const { url, headers } = videoProxyUrl(ctx, `/v1/videos/${requestId}`);
-    const res = await fetch(url, { headers: { Authorization: headers.Authorization } });
-    if (!res.ok) throw new Error(`Poll failed: HTTP ${res.status}`);
-    const data = (await res.json()) as Record<string, unknown>;
-    if (data.status === "done") return data;
-    if (data.status === "failed") throw new Error(`Video failed: ${JSON.stringify((data as any).error)}`);
-    if (data.status === "expired") throw new Error("Video expired");
+function routeError(message: string, status = 400): Error & { status: number } {
+  return Object.assign(new Error(message), { status });
+}
+
+function sendError(res: Response, err: any): void {
+  res.status(typeof err?.status === "number" ? err.status : 500).json({ error: err?.message || String(err) });
+}
+
+function safeGeneratedFile(ctx: RuntimeContext, file: string): string {
+  const base = resolve(ctx.config.storage.generatedDir);
+  const target = file.startsWith("/") ? resolve(file) : resolve(base, file);
+  if (target !== base && !target.startsWith(`${base}${sep}`)) {
+    throw routeError("invalid file path", 400);
   }
-  throw new Error("Video poll timeout");
+  return target;
+}
+
+async function resolveVideoInput(ctx: RuntimeContext, input: string): Promise<Record<string, string>> {
+  if (/^https?:\/\//i.test(input) || input.startsWith("data:video/")) return { url: input };
+  if (/^file[-_][\w.-]+/.test(input)) return { file_id: input };
+  const inputPath = safeGeneratedFile(ctx, input);
+  try { await access(inputPath); } catch { throw routeError("video file not found", 404); }
+  const buf = await readFile(inputPath);
+  return { url: `data:video/mp4;base64,${buf.toString("base64")}` };
+}
+
+function validateEditModel(model: unknown): string {
+  if (typeof model !== "string") throw routeError("model must be a string", 400);
+  if (model !== "grok-imagine-video") throw routeError("Video edit/extension only supports grok-imagine-video", 400);
+  return model;
+}
+
+async function saveVideoResult(
+  ctx: RuntimeContext,
+  options: { requestId: string; prompt: string; model: string; operation: "edit" | "extend"; source: string; duration: number | null; videoUrl: string; usage?: Record<string, number> | null },
+): Promise<{ filename: string; url: string; sourceUrl: string }> {
+  const { buffer, contentType } = await downloadVideo(ctx, options.videoUrl);
+  await mkdir(ctx.config.storage.generatedDir, { recursive: true });
+  const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
+  const filename = `${Date.now()}_${rand}.mp4`;
+  const filePath = join(ctx.config.storage.generatedDir, filename);
+  await writeFile(filePath, buffer);
+  await writeFile(
+    `${filePath}.json`,
+    JSON.stringify({
+      kind: "video",
+      mediaType: "video",
+      requestId: options.requestId,
+      prompt: options.prompt,
+      userPrompt: options.prompt,
+      provider: "grok",
+      model: options.model,
+      createdAt: Date.now(),
+      usage: options.usage ?? null,
+      video: { operation: options.operation, duration: options.duration, source: options.source, sourceUrl: options.videoUrl, contentType },
+    }),
+  ).catch(() => {});
+  invalidateHistoryIndex();
+  return { filename, url: `/generated/${encodeURIComponent(filename)}`, sourceUrl: options.videoUrl };
+}
+
+async function extractFrame(input: string, output: string, position: string): Promise<void> {
+  if (position === "last") {
+    await execFileAsync("ffmpeg", ["-y", "-sseof", "-3", "-i", input, "-update", "1", "-q:v", "1", output]);
+    return;
+  }
+  const sec = Number(position);
+  if (!Number.isFinite(sec) || sec < 0) throw new Error("position must be a non-negative number or 'last'");
+  await execFileAsync("ffmpeg", ["-y", "-ss", String(sec), "-i", input, "-vframes", "1", output]);
+}
+
+function extractOutputText(data: Record<string, unknown>): string {
+  const output = Array.isArray(data.output) ? data.output : [];
+  const texts: string[] = [];
+  for (const item of output) {
+    const content = (item as any)?.content;
+    if (!Array.isArray(content)) continue;
+    for (const part of content) {
+      if (part?.type === "output_text" && typeof part.text === "string") texts.push(part.text);
+      if (part?.type === "text" && typeof part.text === "string") texts.push(part.text);
+    }
+  }
+  return texts.join("\n").trim();
 }
 
 export function registerVideoExtendedRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
@@ -40,23 +111,26 @@ export function registerVideoExtendedRoutes(app: Express, ctxRaw: RouteRuntimeCo
       const { prompt, videoUrl, model = "grok-imagine-video" } = req.body ?? {};
       if (!prompt || typeof prompt !== "string") return res.status(400).json({ error: "prompt required" });
       if (!videoUrl || typeof videoUrl !== "string") return res.status(400).json({ error: "videoUrl required" });
-      if (model.includes("1.5")) return res.status(400).json({ error: "Video editing only supports grok-imagine-video (not 1.5-preview)" });
+      const validModel = validateEditModel(model);
 
       const { url, headers } = videoProxyUrl(ctx, "/v1/videos/edits");
-      const apiRes = await fetch(url, { method: "POST", headers, body: JSON.stringify({ model, prompt, video: { url: videoUrl } }) });
+      const video = await resolveVideoInput(ctx, videoUrl);
+      const apiRes = await fetch(url, { method: "POST", headers, body: JSON.stringify({ model: validModel, prompt, video }) });
       if (!apiRes.ok) { const t = await apiRes.text(); return res.status(apiRes.status).json({ error: t }); }
       const { request_id } = (await apiRes.json()) as { request_id: string };
-      logEvent("video", "edit:start", { requestId: request_id, model });
+      if (!request_id) return res.status(502).json({ error: "No request_id in response" });
+      logEvent("video", "edit:start", { requestId: request_id, model: validModel });
 
-      const result = await pollVideo(ctx, request_id);
-      const video = (result as any).video as { url: string; duration: number } | undefined;
-      if (!video) return res.status(502).json({ error: "No video in response" });
+      const result = await pollVideoUntilDone(ctx, request_id, {});
+      if (!result.videoUrl) return res.status(502).json({ error: "No video URL in response" });
+      if (result.respectModeration === false) return res.status(502).json({ error: "Grok video blocked by moderation" });
+      const saved = await saveVideoResult(ctx, { requestId: request_id, prompt, model: validModel, operation: "edit", source: videoUrl, duration: result.duration ?? null, videoUrl: result.videoUrl, usage: result.usage });
 
       logEvent("video", "edit:done", { requestId: request_id });
-      res.json({ requestId: request_id, url: video.url, duration: video.duration, model });
+      res.json({ requestId: request_id, url: saved.url, filename: saved.filename, sourceUrl: saved.sourceUrl, duration: result.duration, model: validModel });
     } catch (err: any) {
       logError("video", "edit:error", err);
-      res.status(500).json({ error: err.message });
+      sendError(res, err);
     }
   });
 
@@ -66,25 +140,28 @@ export function registerVideoExtendedRoutes(app: Express, ctxRaw: RouteRuntimeCo
       const { prompt, videoUrl, duration = 6, model = "grok-imagine-video" } = req.body ?? {};
       if (!prompt || typeof prompt !== "string") return res.status(400).json({ error: "prompt required" });
       if (!videoUrl || typeof videoUrl !== "string") return res.status(400).json({ error: "videoUrl required" });
-      if (model.includes("1.5")) return res.status(400).json({ error: "Video extension only supports grok-imagine-video (not 1.5-preview)" });
+      const validModel = validateEditModel(model);
       const dur = Number(duration);
-      if (dur < 2 || dur > 10) return res.status(400).json({ error: "duration must be 2-10" });
+      if (!Number.isInteger(dur) || dur < 2 || dur > 10) return res.status(400).json({ error: "duration must be an integer between 2 and 10" });
 
       const { url, headers } = videoProxyUrl(ctx, "/v1/videos/extensions");
-      const apiRes = await fetch(url, { method: "POST", headers, body: JSON.stringify({ model, prompt, duration: dur, video: { url: videoUrl } }) });
+      const video = await resolveVideoInput(ctx, videoUrl);
+      const apiRes = await fetch(url, { method: "POST", headers, body: JSON.stringify({ model: validModel, prompt, duration: dur, video }) });
       if (!apiRes.ok) { const t = await apiRes.text(); return res.status(apiRes.status).json({ error: t }); }
       const { request_id } = (await apiRes.json()) as { request_id: string };
-      logEvent("video", "extend:start", { requestId: request_id, model, duration: dur });
+      if (!request_id) return res.status(502).json({ error: "No request_id in response" });
+      logEvent("video", "extend:start", { requestId: request_id, model: validModel, duration: dur });
 
-      const result = await pollVideo(ctx, request_id);
-      const video = (result as any).video as { url: string; duration: number } | undefined;
-      if (!video) return res.status(502).json({ error: "No video in response" });
+      const result = await pollVideoUntilDone(ctx, request_id, {});
+      if (!result.videoUrl) return res.status(502).json({ error: "No video URL in response" });
+      if (result.respectModeration === false) return res.status(502).json({ error: "Grok video blocked by moderation" });
+      const saved = await saveVideoResult(ctx, { requestId: request_id, prompt, model: validModel, operation: "extend", source: videoUrl, duration: result.duration ?? null, videoUrl: result.videoUrl, usage: result.usage });
 
-      logEvent("video", "extend:done", { requestId: request_id, totalDuration: video.duration });
-      res.json({ requestId: request_id, url: video.url, duration: video.duration, model });
+      logEvent("video", "extend:done", { requestId: request_id, totalDuration: result.duration });
+      res.json({ requestId: request_id, url: saved.url, filename: saved.filename, sourceUrl: saved.sourceUrl, duration: result.duration, model: validModel });
     } catch (err: any) {
       logError("video", "extend:error", err);
-      res.status(500).json({ error: err.message });
+      sendError(res, err);
     }
   });
 
@@ -94,26 +171,23 @@ export function registerVideoExtendedRoutes(app: Express, ctxRaw: RouteRuntimeCo
       const file = req.query.file as string | undefined;
       const position = (req.query.position as string) || "last";
       if (!file) return res.status(400).json({ error: "file query param required" });
-      const safe = file.replace(/^\/+/, "").replace(/\.\./g, "");
-      const inputPath = join(ctx.config.storage.generatedDir, safe);
+      const inputPath = safeGeneratedFile(ctx, file);
       try { await access(inputPath); } catch { return res.status(404).json({ error: "file not found" }); }
 
-      const tmpOut = join(ctx.config.storage.generatedDir, `.frame_${randomBytes(4).toString("hex")}.png`);
+      const tmpOut = join(ctx.config.storage.generatedDir, `frame_tmp_${randomBytes(4).toString("hex")}.png`);
       try {
-        if (position === "last") {
-          await execFileAsync("ffmpeg", ["-sseof", "-3", "-i", inputPath, "-update", "1", "-q:v", "1", tmpOut]);
-        } else {
-          const sec = parseFloat(position) || 0;
-          await execFileAsync("ffmpeg", ["-ss", String(sec), "-i", inputPath, "-vframes", "1", tmpOut]);
-        }
-        res.sendFile(tmpOut, () => { unlink(tmpOut).catch(() => {}); });
+        await extractFrame(inputPath, tmpOut, position);
+        res.sendFile(tmpOut, (err) => {
+          unlink(tmpOut).catch(() => {});
+          if (err && !res.headersSent) res.status(500).json({ error: `sendFile failed: ${err.message}` });
+        });
       } catch (err: any) {
         await unlink(tmpOut).catch(() => {});
         return res.status(500).json({ error: `ffmpeg failed: ${err.message}` });
       }
     } catch (err: any) {
       logError("video", "frame:error", err);
-      res.status(500).json({ error: err.message });
+      sendError(res, err);
     }
   });
 
@@ -122,31 +196,44 @@ export function registerVideoExtendedRoutes(app: Express, ctxRaw: RouteRuntimeCo
     try {
       const { videoUrl } = req.body ?? {};
       if (!videoUrl || typeof videoUrl !== "string") return res.status(400).json({ error: "videoUrl required" });
+      const input = /^https?:\/\//i.test(videoUrl) ? videoUrl : safeGeneratedFile(ctx, videoUrl);
+      const firstFrame = join(ctx.config.storage.generatedDir, `analyze_first_${randomBytes(4).toString("hex")}.png`);
+      const lastFrame = join(ctx.config.storage.generatedDir, `analyze_last_${randomBytes(4).toString("hex")}.png`);
 
-      const { url, headers } = videoProxyUrl(ctx, "/v1/responses");
-      const apiRes = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: "grok-4.3",
-          input: [{
-            role: "user",
-            content: [
-              { type: "input_file", file_url: videoUrl },
-              { type: "input_text", text: "Describe this video for recreation as a structured prompt. Include: shot type, camera movement, lighting, color palette, subjects, motion direction/speed, mood, and audio/sound description. Be specific and cinematic." },
-            ],
-          }],
-        }),
-      });
-      if (!apiRes.ok) { const t = await apiRes.text(); return res.status(apiRes.status).json({ error: t }); }
-      const data = (await apiRes.json()) as Record<string, unknown>;
-      const output = (data.output as any[])?.find((o: any) => o.type === "message");
-      const text = output?.content?.find((c: any) => c.type === "output_text")?.text ?? "";
-      logEvent("video", "analyze:done", { videoUrl, chars: text.length });
-      res.json({ analysis: text, model: "grok-4.3" });
+      try {
+        await extractFrame(input, firstFrame, "0");
+        await extractFrame(input, lastFrame, "last");
+        const first = (await readFile(firstFrame)).toString("base64");
+        const last = (await readFile(lastFrame)).toString("base64");
+        const { url, headers } = videoProxyUrl(ctx, "/v1/responses");
+        const apiRes = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model: "grok-4.3",
+            input: [{
+              role: "user",
+              content: [
+                { type: "input_image", image_url: `data:image/png;base64,${first}`, detail: "high" },
+                { type: "input_image", image_url: `data:image/png;base64,${last}`, detail: "high" },
+                { type: "input_text", text: "Analyze these first and last frames from a video for recreation. Infer likely motion between them. Include shot type, camera movement, lighting, color palette, subjects, motion direction/speed, mood, and audio/sound prompt suggestions. Be specific and cinematic." },
+              ],
+            }],
+          }),
+        });
+        if (!apiRes.ok) { const t = await apiRes.text(); return res.status(apiRes.status).json({ error: t }); }
+        const data = (await apiRes.json()) as Record<string, unknown>;
+        const text = extractOutputText(data);
+        if (!text) return res.status(502).json({ error: "No analysis text in response" });
+        logEvent("video", "analyze:done", { videoUrl, chars: text.length });
+        res.json({ analysis: text, model: "grok-4.3", method: "first-last-frame" });
+      } finally {
+        await unlink(firstFrame).catch(() => {});
+        await unlink(lastFrame).catch(() => {});
+      }
     } catch (err: any) {
       logError("video", "analyze:error", err);
-      res.status(500).json({ error: err.message });
+      sendError(res, err);
     }
   });
 }

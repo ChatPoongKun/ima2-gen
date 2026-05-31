@@ -303,7 +303,7 @@ ima2 video "cinematic" --ref a.png --ref b.png      # reference-to-video (max 7)
 | `--model` | grok-imagine-video, grok-imagine-video-1.5-preview | grok-imagine-video |
 | `--topic` | any string | (none) |
 | `--session` | session ID | (none) |
-| `-o, --out` | output file path | auto-named in CWD |
+| `-o, --out` | output file path | saved under configured generated dir |
 | `--json` | (flag) | false |
 
 ### Series Continuity (--topic)
@@ -370,7 +370,7 @@ ima2 video "close-up of rain drops on a neon sign reflection" \
   --topic "tokyo-night" --duration 5
 ```
 
-The planner automatically maintains visual consistency (color palette, mood, style) across scenes in the same topic.
+The planner receives previous prompts from the same topic as continuity context. This is best-effort prompt guidance, not a guarantee that subjects, palette, or style will remain identical.
 
 #### Video Continuation (extend/sequel)
 
@@ -378,13 +378,13 @@ To continue from an existing video's last frame:
 
 ```bash
 # Get the last generated video filename
-LAST=$(ima2 history --json --limit 1 | jq -r '.[0].filename')
+LAST=$(ima2 ls -n 1 --json | jq -r '.items[0].filename')
 
 # Use it as source for the next clip
 ima2 video "the camera slowly pulls back revealing the full scene" --ref "/path/to/generated/$LAST"
 ```
 
-Or in the UI: click "자식" on a video node → the last frame is automatically extracted as the child's reference image.
+Or in the UI: click "자식" on a video node. The current UI uses a derived last-frame image-to-video flow, not the `/api/video/extend` endpoint.
 
 #### Marketing/Product Video
 
@@ -439,7 +439,7 @@ done
 
 ### Video Editing (V2V)
 
-Edit an existing video with a text prompt. Keeps motion intact, changes style/objects.
+Edit an existing video with a text prompt. This uses xAI's real video edit endpoint and saves the result as a generated video artifact.
 
 ```bash
 # Get the video URL from a previous generation
@@ -455,11 +455,11 @@ ima2 video edit "Add a sailboat in the distance" --video "$VIDEO_URL"
 ima2 video edit "Make it stormy with dark clouds" --video "$VIDEO_URL"
 ```
 
-Constraints: grok-imagine-video only, input mp4 ≤8.7s, output matches input duration/aspect/resolution.
+Constraints: grok-imagine-video only, input mp4 <=8.7s. Use `-o/--out` if you also need a local copy outside the generated directory.
 
 ### Video Extension (Continue from Last Frame)
 
-Extend a video seamlessly from its last frame. No frame extraction needed — the API handles continuity.
+Extend a video from its last frame using xAI's video extension endpoint. The output combines the source video and extension, but continuity quality is provider-dependent.
 
 ```bash
 # Generate initial clip
@@ -490,13 +490,13 @@ ima2 video "continue this scene" --ref lastframe.png
 
 ### Video Analysis (Recreation Prompt)
 
-Analyze a video with Grok 4.3 vision to get a structured recreation prompt.
+Analyze first and last video frames with Grok 4.3 image understanding to get a structured recreation prompt. This infers motion from frames; it is not full temporal video understanding.
 
 ```bash
-# Analyze a video
+# Analyze a video URL or generated filename
 ima2 video analyze https://vidgen.x.ai/.../clip.mp4
 
-# Output: structured prompt with shot type, camera, lighting, color, motion, mood
+# Output: structured prompt with shot type, inferred camera movement, lighting, color, motion, mood
 
 # Use the analysis to recreate with variations
 ANALYSIS=$(ima2 video analyze "$VIDEO_URL" --json | jq -r '.analysis')
@@ -521,9 +521,9 @@ ima2 video "person speaking to camera: Hello world, welcome to my channel"
 ima2 video "quiet forest scene, only subtle wind and leaves rustling"
 ```
 
-### End Frame Targeting (via Ref2V)
+### End Frame Guidance (via Ref2V)
 
-Guide the video to end at a specific scene using reference images:
+Guide the video toward a desired final scene using reference images:
 
 ```bash
 # Start frame + end frame concept
@@ -531,11 +531,11 @@ ima2 video "smooth transition from day to night" \
   --ref sunrise.png --ref nightsky.png
 ```
 
-The planner uses reference images to guide the final frames toward the reference composition.
+The planner treats reference images as subject/style/composition guidance. This is best-effort guidance, not a guaranteed final-frame constraint.
 
 ### Soul Character / Face Consistency (via Ref2V)
 
-Maintain character identity across multiple videos using reference photos:
+Guide character identity across multiple videos using reference photos:
 
 ```bash
 # Provide face references for consistency
