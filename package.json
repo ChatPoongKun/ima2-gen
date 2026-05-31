@@ -71,7 +71,7 @@
     "express": "^5.1.0",
     "openai": "^5.8.2",
     "openai-oauth": "^1.0.2",
-    "progrok": "file:vendor/progrok-0.1.1.tgz",
+    "progrok": "file:vendor/progrok-0.2.0.tgz",
     "sharp": "^0.34.5",
     "trash": "^10.1.1",
     "ulid": "^3.0.2"
