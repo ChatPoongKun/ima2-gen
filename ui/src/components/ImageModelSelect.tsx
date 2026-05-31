@@ -171,7 +171,7 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
             })}
           onClick={() => setOpen((next) => !next)}
         >
-          <span className="image-model-select__trigger-model">{videoModelSelected ? VIDEO_MODEL_OPTIONS[0].shortLabel : current.shortLabel}</span>
+          <span className="image-model-select__trigger-model">{videoModelSelected ? (VIDEO_MODEL_OPTIONS.find((o) => o.value === videoModelSelected)?.shortLabel ?? VIDEO_MODEL_OPTIONS[0].shortLabel) : current.shortLabel}</span>
           {isGrok ? null : (
             <>
               <span className="image-model-select__trigger-separator" aria-hidden="true">·</span>
@@ -226,12 +226,12 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
                     menuItemRefs.current[modelOptions.length + index] = node;
                   }}
                   type="button"
-                  className={`image-model-select__item${videoModelSelected ? " is-active" : ""}`}
+                  className={`image-model-select__item${videoModelSelected === option.value ? " is-active" : ""}`}
                   role="menuitemradio"
-                  aria-checked={videoModelSelected}
+                  aria-checked={videoModelSelected === option.value}
                   tabIndex={-1}
                   onClick={() => {
-                    selectVideoModel();
+                    selectVideoModel(option.value);
                     setOpen(false);
                   }}
                 >
