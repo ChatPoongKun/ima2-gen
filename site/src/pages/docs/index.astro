@@ -29,7 +29,7 @@ const d = (slug: string) => docsPath(import.meta.env.BASE_URL, 'en', slug);
   <div class="docs-cards">
     <a class="docs-card" href={d('quickstart')}>
       <div class="card-h">Quickstart →</div>
-      <div class="card-b">Install, sign in with Codex, and run your first generation.</div>
+      <div class="card-b">Install, choose auth, and run your first generation.</div>
     </a>
     <a class="docs-card" href={d('concepts/architecture')}>
       <div class="card-h">Architecture →</div>
@@ -47,15 +47,16 @@ const d = (slug: string) => docsPath(import.meta.env.BASE_URL, 'en', slug);
     <li><strong>Node mode</strong> — lock a parent image and fan out children (palette, framing, copy) in a graph.</li>
     <li><strong>Multimode</strong> — launch several Classic candidates from one prompt with slot-by-slot progress.</li>
     <li><strong>Canvas Mode</strong> — zoom, annotate, clean backgrounds, and export alpha or matte-backed versions.</li>
+    <li><strong>Video</strong> — generate short videos from text, images, or up to 7 references via Grok Video models.</li>
     <li><strong>Prompt library</strong> — import prompt packs from files, GitHub folders, and curated sources, indexed locally.</li>
   </ul>
   <p>See <a href={d('concepts/modes')}>Generation Modes</a> for when to reach for each.</p>
 
   <h2>Local &amp; open by design</h2>
   <p>
-    Image generation runs through your local Codex/ChatGPT OAuth login, a configured OpenAI API
-    key, or bundled Grok/progrok for xAI image generation. Generated frames and session logs live in
-    your user-data folder (<code>~/.ima2</code>) — not on a remote store. ima2-gen is MIT licensed.
+    Generation runs through your free ChatGPT OAuth login, Grok OAuth (SuperGrok), a configured
+    OpenAI API key, or any combination. Generated images, videos, and session logs live in your
+    user-data folder (<code>~/.ima2</code>) — not on a remote store. ima2-gen is MIT licensed.
   </p>
   <p>
     Read more in <a href={d('concepts/providers')}>Providers &amp; Models</a> and
