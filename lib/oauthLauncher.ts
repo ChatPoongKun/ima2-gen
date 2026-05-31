@@ -1,7 +1,7 @@
-import { spawnBin } from "../bin/lib/platform.js";
+import { isWin } from "../bin/lib/platform.js";
 import { config } from "../config.js";
 import { parseLocalhostPortFromUrl, parseOAuthReadyUrl } from "./runtimePorts.js";
-import type { ChildProcess } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 
 export function startOAuthProxy(options: any = {}) {
   const oauthPort = options.oauthPort ?? config.oauth.proxyPort;
@@ -14,8 +14,10 @@ export function startOAuthProxy(options: any = {}) {
   const spawnProxy = () => {
     console.log(`Starting openai-oauth on port ${oauthPort}...`);
     const spawnedAt = Date.now();
-    const child = spawnBin("npx", ["openai-oauth", "--port", String(oauthPort)], {
+    const child = spawn("npx", ["openai-oauth", "--port", String(oauthPort)], {
       stdio: ["ignore", "pipe", "pipe"],
+      shell: isWin,
+      windowsHide: true,
       env: { ...process.env },
     });
     currentChild = child;
