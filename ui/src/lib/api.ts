@@ -1066,6 +1066,7 @@ export type VideoGenerateRequest = {
   duration?: number;
   resolution?: string;
   aspectRatio?: string;
+  topic?: string;
   sessionId?: string | null;
   clientNodeId?: string | null;
   clientRequestId?: string;

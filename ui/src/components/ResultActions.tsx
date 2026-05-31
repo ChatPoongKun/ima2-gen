@@ -106,6 +106,11 @@ export function ResultActions({
       if (isVideoItem(actionImage)) {
         const frameDataUrl = await extractLastFrame(actionImage.image);
         useAppStore.getState().addReferenceDataUrl(frameDataUrl);
+        // Load video series topic if present
+        const meta = (actionImage as any).videoSeries;
+        if (meta?.topic) {
+          useAppStore.getState().setVideoTopic(meta.topic);
+        }
       } else {
         await useImageAsReference(actionImage);
       }

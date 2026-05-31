@@ -7,6 +7,7 @@ import { isGenerationCanceledError, makeGenerationCanceledError } from "../lib/g
 import { logEvent, logError } from "../lib/logger.js";
 import { invalidateHistoryIndex } from "../lib/historyIndex.js";
 import { generateVideoViaGrok, type GrokVideoEvent } from "../lib/grokVideoAdapter.js";
+import { getVideoSeriesChain } from "../lib/videoSeriesChain.js";
 import {
   normalizeGrokVideoModel,
   normalizeVideoResolution,
@@ -85,6 +86,7 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       const { prompt, provider = "grok", model: rawModel } = req.body || {};
       const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId : null;
       const clientNodeId = typeof req.body?.clientNodeId === "string" ? req.body.clientNodeId : null;
+      const topic = typeof req.body?.topic === "string" ? req.body.topic.trim() : "";
 
       if (provider !== "grok") return fail(400, "VIDEO_PROVIDER_UNSUPPORTED", "video generation requires provider 'grok'");
       if (typeof prompt !== "string" || !prompt.trim()) return fail(400, "PROMPT_REQUIRED", "Prompt is required");
@@ -144,7 +146,13 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         }
       };
 
-      const result = await generateVideoViaGrok(prompt, ctx, {
+      // Build prompt with series chain context
+      const chain = topic ? await getVideoSeriesChain(ctx.config.storage.generatedDir, topic) : [];
+      const effectivePrompt = chain.length > 0
+        ? `[Series topic: ${topic}]\n[Previous prompts in series:\n${chain.map((p, i) => `${i + 1}. ${p}`).join("\n")}\n]\n\n${prompt}`
+        : prompt;
+
+      const result = await generateVideoViaGrok(effectivePrompt, ctx, {
         model: modelCheck.model,
         mode,
         duration,
@@ -182,6 +190,7 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
           sourceImageFilename: sourceFilename,
           xaiVideoRequestId: result.xaiVideoRequestId,
         },
+        ...(topic ? { videoSeries: { topic, chainIndex: chain.length } } : {}),
       };
       await writeFile(join(ctx.config.storage.generatedDir, filename), result.videoBuffer);
       await writeFile(join(ctx.config.storage.generatedDir, filename + ".json"), JSON.stringify(meta)).catch(() => {});
@@ -198,6 +207,7 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         elapsed,
         usage: result.usage,
         video: meta.video,
+        ...(meta.videoSeries ? { videoSeries: meta.videoSeries } : {}),
       });
     } catch (e) {
       const err = errInfo(e);

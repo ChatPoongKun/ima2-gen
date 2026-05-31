@@ -20,6 +20,8 @@ export function VideoControlsPanel() {
   const setResolution = useAppStore((s) => s.setVideoResolution);
   const aspect = useAppStore((s) => s.videoAspectRatio);
   const setAspect = useAppStore((s) => s.setVideoAspectRatio);
+  const videoTopic = useAppStore((s) => s.videoTopic);
+  const setVideoTopic = useAppStore((s) => s.setVideoTopic);
   const maxDuration = refCount >= 2 ? MAX_REF2V_DURATION_UI : 15;
   const mode = deriveVideoModeUI(refCount);
 
@@ -28,6 +30,16 @@ export function VideoControlsPanel() {
       <div className="provider-compat-note" role="note">
         <strong>{t("video.modeLabel")}</strong>
         <span>{t(`video.mode.${mode}`, { n: refCount })}</span>
+      </div>
+      <div className="option-group">
+        <div className="section-title">{t("video.seriesTopicTitle") ?? "시리즈 주제"}</div>
+        <input
+          type="text"
+          className="video-topic-input"
+          placeholder={t("video.seriesTopicPlaceholder") ?? "예: 한국 여행 브이로그"}
+          value={videoTopic}
+          onChange={(e) => setVideoTopic(e.target.value)}
+        />
       </div>
       <div className="option-group">
         <div className="section-title">{t("video.durationTitle")}</div>

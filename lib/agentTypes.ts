@@ -2,6 +2,7 @@ export const AGENT_ALLOWED_TOOLS = [
   "ima2.get_image_context",
   "ima2.web_search",
   "ima2.generate_image",
+  "ima2.generate_video",
 ] as const;
 
 export type AgentToolName = typeof AGENT_ALLOWED_TOOLS[number];

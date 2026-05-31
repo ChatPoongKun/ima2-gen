@@ -94,7 +94,7 @@ describe("Agent Mode runtime contract", () => {
     await withApp(async (baseUrl) => {
       const res = await fetch(`${baseUrl}/api/agent/tools`);
       assert.deepEqual(await res.json(), {
-        tools: ["ima2.get_image_context", "ima2.web_search", "ima2.generate_image"],
+        tools: ["ima2.get_image_context", "ima2.web_search", "ima2.generate_image", "ima2.generate_video"],
       });
     });
   });

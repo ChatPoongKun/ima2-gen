@@ -1069,11 +1069,13 @@ type AppState = {
   videoDuration: number;
   videoResolution: VideoResolutionUI;
   videoAspectRatio: string;
+  videoTopic: string;
   videoProgress: number | null;
   selectVideoModel: (model?: string) => void;
   setVideoDuration: (n: number) => void;
   setVideoResolution: (r: VideoResolutionUI) => void;
   setVideoAspectRatio: (a: string) => void;
+  setVideoTopic: (topic: string) => void;
   activeVideoRefCount: () => number;
   runVideoGenerate: (nodeId?: string) => Promise<void>;
   animateImage: (filename: string, prompt?: string) => Promise<void>;
@@ -3071,6 +3073,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   videoDuration: 5,
   videoResolution: "480p",
   videoAspectRatio: "auto",
+  videoTopic: "",
   videoProgress: null,
   selectVideoModel: (model) => {
     set({ videoModelSelected: model || "grok-imagine-video" });
@@ -3079,6 +3082,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setVideoDuration: (videoDuration) => set({ videoDuration }),
   setVideoResolution: (videoResolution) => set({ videoResolution }),
   setVideoAspectRatio: (videoAspectRatio) => set({ videoAspectRatio }),
+  setVideoTopic: (videoTopic) => set({ videoTopic }),
   activeVideoRefCount: () => {
     const s = get();
     if (s.uiMode === "node") {
@@ -3115,6 +3119,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           duration: clampVideoDurationUI(get().videoDuration, mode),
           resolution: get().videoResolution,
           aspectRatio: get().videoAspectRatio,
+          topic: get().videoTopic || undefined,
           sessionId: get().activeSessionId,
           clientNodeId: nodeId ?? null,
         },

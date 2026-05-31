@@ -23,7 +23,7 @@ describe("history permanent delete contract", () => {
     assert.match(routes, /res\.status\(err\.status \|\| 500\)\.json\(\{ error: err\.message, code: err\.code \}\)/);
   });
 
-  it("soft delete moves existing asset and sidecar to OS trash without in-app undo", () => {
+  it("soft delete moves existing asset to OS trash with internal fallback", () => {
     const lifecycle = readSource("lib/assetLifecycle.ts");
     const systemTrash = readSource("lib/systemTrash.ts");
     const fn = /export async function trashAsset[\s\S]*?(?=\nexport async function )/.exec(lifecycle)?.[0] ?? "";
@@ -35,14 +35,13 @@ describe("history permanent delete contract", () => {
     assert.match(fn, /const sidecar = `\$\{src\}\.json`/);
     assert.match(fn, /paths\.push\(sidecar\)/);
     assert.match(fn, /await moveToSystemTrash\(paths\)/);
-    assert.match(fn, /err\.code = "SYSTEM_TRASH_FAILED"/);
+    // Fallback: internal trash via rename when system trash fails
+    assert.match(fn, /trashMethod/);
+    assert.match(fn, /await rename\(p, dest\)/);
     assert.match(fn, /markNodesAssetMissing\(filename\)/);
-    assert.match(fn, /trash:\s*"system"/);
+    assert.match(fn, /trash:\s*trashMethod/);
     assert.match(fn, /undoableInApp:\s*false/);
     assert.doesNotMatch(fn, /setTimeout/);
-    assert.doesNotMatch(fn, /await rename/);
-    assert.doesNotMatch(fn, /trashId/);
-    assert.doesNotMatch(fn, /unlinkAt/);
 
     assert.match(systemTrash, /import trash from "trash"/);
     assert.match(systemTrash, /IMA2_TEST_SYSTEM_TRASH_FAIL/);

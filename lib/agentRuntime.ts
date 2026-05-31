@@ -9,6 +9,7 @@ import { detectImageMimeFromB64 } from "./refs.js";
 import { resolveProviderOptions } from "./providerOptions.js";
 import { generateViaResponses } from "./responsesImageAdapter.js";
 import { generateViaGrok, type GrokReferenceImage } from "./grokImageAdapter.js";
+import { generateVideoViaGrok } from "./grokVideoAdapter.js";
 import {
   appendAgentTurn,
   buildImageContextManifest,
@@ -95,7 +96,7 @@ export async function runAgentGenerationPlan(
   const webSearchEnabled = options.provider === "grok" ? true : options.webSearchEnabled ?? session.webSearchEnabled;
   const enabledTools: AgentToolName[] = webSearchEnabled
     ? [...AGENT_ALLOWED_TOOLS]
-    : ["ima2.get_image_context", "ima2.generate_image"];
+    : ["ima2.get_image_context", "ima2.generate_image", "ima2.generate_video"];
   assertAgentAllowedTools(enabledTools);
   if (behavior.appendUserTurn !== false) {
     appendAgentTurn({ sessionId, role: "user", text: prompt, status: "complete" });
@@ -393,6 +394,96 @@ async function persistAgentImage(
     url: `/generated/${filename}`,
     prompt,
     revisedPrompt: response.revisedPrompt ?? null,
+    createdAt: Date.now(),
+  });
+}
+
+export async function runAgentVideoGeneration(
+  ctx: RuntimeContext,
+  sessionId: string,
+  prompt: string,
+  options: AgentRunOptions = {},
+) {
+  const session = getAgentSession(sessionId);
+  if (!session) throw notFound(sessionId);
+  appendAgentTurn({ sessionId, role: "user", text: prompt, status: "complete" });
+  const requestId = options.requestId ?? `agent_video_${ulid()}`;
+  const startedAt = Date.now();
+  const result = await generateVideoViaGrok(prompt, ctx, {
+    model: "grok-imagine-video",
+    mode: "text-to-video",
+    duration: 5,
+    resolution: "480p",
+    aspectRatio: "auto",
+    requestId,
+    signal: options.signal ?? undefined,
+  });
+  const video = await persistAgentVideo(ctx, sessionId, prompt, requestId, result);
+  const finishedAt = Date.now();
+  const toolCall: AgentToolCallSummary = {
+    id: `tc_video_${ulid()}`,
+    name: "ima2.generate_video",
+    status: "complete",
+    startedAt,
+    finishedAt,
+    durationMs: finishedAt - startedAt,
+    requestId,
+    inputSummary: prompt,
+    outputSummary: `Generated video ${video.filename}.`,
+    imageIds: [video.id],
+  };
+  appendAgentTurn({
+    sessionId,
+    role: "tool",
+    text: "ima2.generate_video",
+    imageIds: [video.id],
+    status: "complete",
+    raw: { toolCalls: [toolCall] },
+  });
+  const assistantTurn = appendAgentTurn({
+    sessionId,
+    role: "assistant",
+    text: `Generated 1 video artifact. ${result.revisedPrompt}`,
+    imageIds: [video.id],
+    status: "complete",
+  });
+  return { assistantTurn, imageIds: [video.id], webFindingIds: [] };
+}
+
+async function persistAgentVideo(
+  ctx: RuntimeContext,
+  sessionId: string,
+  prompt: string,
+  requestId: string,
+  result: { videoBuffer: Buffer; revisedPrompt: string; usage: Record<string, number> | null; webSearchCalls: number },
+) {
+  await mkdir(ctx.config.storage.generatedDir, { recursive: true });
+  const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
+  const filename = `${Date.now()}_${rand}_agent.mp4`;
+  const meta = {
+    kind: "agent",
+    mediaType: "video",
+    requestId,
+    sessionId,
+    prompt,
+    userPrompt: prompt,
+    revisedPrompt: result.revisedPrompt,
+    provider: "grok",
+    model: "grok-imagine-video",
+    createdAt: Date.now(),
+    usage: result.usage,
+    webSearchCalls: result.webSearchCalls,
+  };
+  await writeFile(join(ctx.config.storage.generatedDir, filename), result.videoBuffer);
+  await writeFile(join(ctx.config.storage.generatedDir, `${filename}.json`), JSON.stringify(meta)).catch(() => {});
+  invalidateHistoryIndex();
+  logEvent("agent", "video_saved", { requestId, sessionId, filename });
+  return importAgentImage(sessionId, {
+    id: `ai_${ulid()}`,
+    filename,
+    url: `/generated/${filename}`,
+    prompt,
+    revisedPrompt: result.revisedPrompt,
     createdAt: Date.now(),
   });
 }

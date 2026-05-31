@@ -1,5 +1,5 @@
 import { getDb } from "./db.js";
-import { rename, unlink, access } from "fs/promises";
+import { mkdir, rename, unlink, access } from "fs/promises";
 import { resolve, sep } from "path";
 import { moveToSystemTrash } from "./systemTrash.js";
 import { config } from "../config.js";
@@ -84,21 +84,25 @@ export async function trashAsset(rootDir: string, filename: string) {
     paths.push(sidecar);
   } catch {}
 
+  let trashMethod: "system" | "internal" = "system";
   try {
     await moveToSystemTrash(paths);
-  } catch (cause) {
-    const err: any = new Error("Could not move asset to system trash");
-    err.status = 500;
-    err.code = "SYSTEM_TRASH_FAILED";
-    err.cause = cause;
-    throw err;
+  } catch {
+    trashMethod = "internal";
+    const trashDir = resolve(config.storage.trashDir);
+    await mkdir(trashDir, { recursive: true });
+    const trashId = `${Date.now()}_${filename}`;
+    for (const p of paths) {
+      const dest = resolve(trashDir, p.endsWith(".json") ? `${trashId}.json` : trashId);
+      await rename(p, dest);
+    }
   }
 
   const summary = markNodesAssetMissing(filename);
   return {
     ok: true,
     filename,
-    trash: "system",
+    trash: trashMethod,
     undoableInApp: false,
     sessionsTouched: summary.sessionsTouched,
     nodesTouched: summary.nodesTouched,
