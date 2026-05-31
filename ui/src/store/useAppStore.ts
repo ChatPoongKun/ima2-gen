@@ -3101,13 +3101,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!prompt) return;
 
     // For node mode: use parent node's image as sourceImage if no explicit refs
-    let parentSourceImage: string | undefined;
+    let parentSourceFilename: string | undefined;
     if (node && refs.length === 0 && node.data.parentServerNodeId) {
       const parentNode = get().graphNodes.find(
         (n) => n.data.serverNodeId === node.data.parentServerNodeId,
       );
       if (parentNode?.data.imageUrl && !isVideoUrl(parentNode.data.imageUrl)) {
-        parentSourceImage = parentNode.data.imageUrl;
+        parentSourceFilename = parentNode.data.imageUrl.replace(/^\/generated\//, "");
       }
     }
 
@@ -3140,7 +3140,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           requestId: flightId,
           model: (typeof get().videoModelSelected === "string" && get().videoModelSelected) || undefined,
           referenceImages: refs.length >= 2 ? refs : undefined,
-          sourceImage: refs.length === 1 ? refs[0] : parentSourceImage,
+          sourceImage: refs.length === 1 ? refs[0] : undefined,
+          sourceFilename: refs.length === 0 ? parentSourceFilename : undefined,
           duration: clampVideoDurationUI(get().videoDuration, mode),
           resolution: get().videoResolution,
           aspectRatio: get().videoAspectRatio,
