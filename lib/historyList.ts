@@ -89,7 +89,9 @@ export async function listHistoryRows(baseDir = config.storage.generatedDir) {
 
 async function readImageSidecar(full: string, rel: string) {
   const sibling = full.replace(/\.(png|jpe?g|webp)$/i, ".json");
-  for (const candidate of [`${full}.json`, sibling]) {
+  const candidates = new Set([`${full}.json`]);
+  if (sibling !== full) candidates.add(sibling);
+  for (const candidate of candidates) {
     try {
       return JSON.parse(await readFile(candidate, "utf-8"));
     } catch (e) {
@@ -103,6 +105,7 @@ async function readImageSidecar(full: string, rel: string) {
 async function readImageMetadata(full: string, rel: string) {
   const sidecar = await readImageSidecar(full, rel);
   if (sidecar) return sidecar;
+  if (/\.mp4$/i.test(full)) return null;
   try {
     const embedded = await readEmbeddedImageMetadataFromFile(full);
     return embedded.metadata;

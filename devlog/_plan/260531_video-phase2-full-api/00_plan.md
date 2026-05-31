@@ -38,6 +38,16 @@ The follow-up audit also covered the original `/v1/videos/generations` adapter s
 - Video download validation moved to `lib/grokVideoDownload.ts`, keeping `lib/grokVideoAdapter.ts` under the 500-line file budget while preserving the existing `downloadVideo` export.
 - `tests/grokVideoAdapter.test.ts` now covers Ref2V payload construction and invalid combinations, mapped failed status codes, start-request HTTP errors, caller cancellation, unsafe download responses, 100MB download caps, download timeout, and the 1.5-preview injected-canvas T2V path including PNG dimensions.
 
+### 2026-06-01 History/Runtime Smoke Edge Update
+
+The latest isolated API/CDP/Computer Use smoke covered the hardened local HEAD against a generated-video directory containing a sidecarless `.mp4`. That exposed a non-fatal runtime warning path in history listing:
+
+- `listHistoryRows()` previously derived the sibling sidecar path by replacing image extensions only. For `.mp4`, that produced the original media path as a JSON candidate, so raw video bytes could be parsed as JSON and logged as a sidecar parse failure.
+- The same sidecarless `.mp4` could then fall through to embedded image metadata extraction, producing another warning from the image parser.
+- `lib/historyList.ts` now checks only `<video>.mp4.json` for video sidecars and skips embedded image metadata reads for `.mp4` files.
+- `tests/history-video-row.test.ts` now verifies sidecarless MP4 history rows still appear as video rows without sidecar or embedded-metadata warning noise.
+- CLI/help documentation now separates generation duration (`1..15`) from extension duration (`2..10`) so agents do not infer that `ima2 video extend --duration 1` or `--duration 15` is valid.
+
 Sections below are the original implementation plan. Treat planned file names such as `routes/videoEdit.ts` as superseded by the consolidated `routes/videoExtended.ts` implementation.
 
 ### Feature 1: Video Edit (V2V)

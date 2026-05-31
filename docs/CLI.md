@@ -116,7 +116,7 @@ Multimode-specific flags include `--max-images <1..8>`, `--ref <file>` (repeatab
 | `ima2 video frame <generated-file> [--last] [-o frame.png]` | Extract a PNG frame from a generated `.mp4` |
 | `ima2 video analyze <generated-file>` | Analyze first/last frames from a generated `.mp4` with Grok 4.3 vision |
 
-Video flags:
+Video generate flags:
 
 | Flag | Meaning |
 |---|---|
@@ -129,6 +129,16 @@ Video flags:
 | `-d, --out-dir <dir>` | Output directory |
 | `--timeout <sec>` | Timeout in seconds (default: 600) |
 | `--session <id>` | Session ID |
+
+Video edit/extend flags:
+
+| Flag | Meaning |
+|---|---|
+| `--video <value>` | Source video HTTPS URL, xAI `file_id`, data URL, or generated filename |
+| `--duration <2..10>` | Extension duration only (default: 6) |
+| `-o, --out <file>` | Download the edited or extended video to a file |
+| `--json` | Print JSON result |
+| `--timeout <sec>` | Timeout in seconds (default: 600) |
 
 Video mode is auto-detected from `--ref` count:
 

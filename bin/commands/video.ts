@@ -69,8 +69,8 @@ const SPEC = {
 
 const HELP = `
   ima2 video <prompt...> [options]
-  ima2 video edit <prompt> --video <url>
-  ima2 video extend <prompt> --video <url> [--duration 6]
+  ima2 video edit <prompt> --video <url|file_id|generated-file>
+  ima2 video extend <prompt> --video <url|file_id|generated-file> [--duration 6]
   ima2 video frame <file> [--last] [-o output.png]
   ima2 video analyze <generated-file>
 
@@ -96,6 +96,10 @@ const HELP = `
         --timeout <sec>                 Default: 600
         --server <url>                  Override server URL
         --session <id>                  Session ID
+
+  Edit/extend subcommands:
+        --video <value>                 HTTPS URL, xAI file_id, data URL, or generated filename
+        --duration <2..10>              Extension duration only. Default: 6
 
   Modes (auto-detected from --ref count):
     0 refs  → text-to-video

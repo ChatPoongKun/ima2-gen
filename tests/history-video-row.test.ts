@@ -47,3 +47,22 @@ test("history rows default mediaType image for png", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("history rows tolerate sidecarless mp4 artifacts without parsing video bytes as metadata", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ima2-history-video-"));
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+  try {
+    await writeFile(join(dir, "raw.mp4"), Buffer.from("\0\0\0 ftypisomFAKE-MP4"));
+    const rows = await listHistoryRows(dir);
+    const row = rows.find((r) => r.filename === "raw.mp4");
+    assert.ok(row);
+    assert.equal(row.mediaType, "video");
+    assert.equal(row.video, null);
+    assert.equal(warnings.some((line) => line.includes("sidecar parse fail") || line.includes("embedded metadata read fail")), false);
+  } finally {
+    console.warn = originalWarn;
+    await rm(dir, { recursive: true, force: true });
+  }
+});

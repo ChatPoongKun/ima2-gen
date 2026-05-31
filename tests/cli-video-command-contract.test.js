@@ -61,9 +61,12 @@ describe("ima2 video CLI contracts", () => {
     assert.equal(code, 0);
     assert.match(stdout, /ima2 video <prompt/);
     assert.match(stdout, /ima2 video edit/);
-    assert.match(stdout, /ima2 video extend <prompt> --video <url> \[--duration 6\]/);
+    assert.match(stdout, /ima2 video edit <prompt> --video <url\|file_id\|generated-file>/);
+    assert.match(stdout, /ima2 video extend <prompt> --video <url\|file_id\|generated-file> \[--duration 6\]/);
     assert.match(stdout, /ima2 video frame/);
     assert.match(stdout, /ima2 video analyze <generated-file>/);
+    assert.match(stdout, /--duration <1\.\.15>[\s\S]*Duration in seconds\. Default: 5/);
+    assert.match(stdout, /--duration <2\.\.10>[\s\S]*Extension duration only\. Default: 6/);
     assert.match(stdout, /--topic <text>/);
     assert.match(stdout, /grok-imagine-video-1\.5-preview/);
   });
