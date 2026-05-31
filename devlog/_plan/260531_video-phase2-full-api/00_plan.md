@@ -29,6 +29,14 @@ The remaining edge-case audit found and fixed additional route/CLI/documentation
 - `ima2 video` CLI now rejects unknown options, validates `--timeout`, validates extend duration before server resolution, uses `--duration 6` consistently for extension default, validates frame position locally, and documents analyze as generated-file-only.
 - Public docs (`docs/API.md`, `docs/CLI.md`, site EN/KO reference pages) now list the extended video endpoints and subcommands.
 
+### 2026-06-01 Generation Adapter Edge Update
+
+The follow-up audit also covered the original `/v1/videos/generations` adapter surface:
+
+- `grok-imagine-video-1.5-preview` text-to-video fallback now actually sends an injected white-canvas image-to-video payload instead of building a text-only payload with no `image` field.
+- Video download validation moved to `lib/grokVideoDownload.ts`, keeping `lib/grokVideoAdapter.ts` under the 500-line file budget while preserving the existing `downloadVideo` export.
+- `tests/grokVideoAdapter.test.ts` now covers Ref2V payload construction and invalid combinations, mapped failed status codes, start-request HTTP errors, caller cancellation, unsafe download responses, and the 1.5-preview injected-canvas T2V path.
+
 Sections below are the original implementation plan. Treat planned file names such as `routes/videoEdit.ts` as superseded by the consolidated `routes/videoExtended.ts` implementation.
 
 ### Feature 1: Video Edit (V2V)

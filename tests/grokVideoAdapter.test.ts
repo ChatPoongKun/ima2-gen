@@ -2,9 +2,11 @@ import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildVideoGenerationPayload,
+  downloadVideo,
   parseGrokVideoPlanPrompt,
   normalizeVideoPoll,
   generateVideoViaGrok,
+  startVideoRequest,
   type GrokVideoEvent,
   type GrokVideoPlan,
 } from "../lib/grokVideoAdapter.js";
@@ -38,13 +40,13 @@ function ctx(overrides: Record<string, unknown> = {}) {
   } as any;
 }
 
-function jsonRes(body: unknown, status = 200) {
+function jsonRes(body: unknown, status = 200, contentType = "application/json") {
   return {
     ok: status >= 200 && status < 300,
     status,
     json: async () => body,
     text: async () => JSON.stringify(body),
-    headers: { get: () => "application/json" },
+    headers: { get: (k: string) => (k.toLowerCase() === "content-type" ? contentType : null) },
   } as any;
 }
 
@@ -120,9 +122,27 @@ describe("Grok video adapter", () => {
     assert.deepEqual(payload.image, { url: "data:image/png;base64,AAAA" });
   });
 
+  it("builds a Ref2V payload with reference_images and no source image", () => {
+    const plan: GrokVideoPlan = { prompt: "p", mode: "reference-to-video", duration: 5, resolution: "480p", aspectRatio: "1:1", webSearchCalls: 1 };
+    const payload = buildVideoGenerationPayload(plan, { model: "grok-imagine-video", referenceImageUrls: ["data:image/png;base64,A", "data:image/png;base64,B"] });
+    assert.equal(payload.aspect_ratio, "1:1");
+    assert.deepEqual(payload.reference_images, [{ url: "data:image/png;base64,A" }, { url: "data:image/png;base64,B" }]);
+    assert.equal("image" in payload, false);
+  });
+
   it("rejects I2V without a source image", () => {
     const plan: GrokVideoPlan = { prompt: "p", mode: "image-to-video", duration: 5, resolution: "480p", aspectRatio: "auto", webSearchCalls: 1 };
     assert.throws(() => buildVideoGenerationPayload(plan, { model: "grok-imagine-video" }), (e: any) => e.code === "GROK_VIDEO_INVALID_MODE");
+  });
+
+  it("rejects invalid Ref2V payload combinations", () => {
+    const plan: GrokVideoPlan = { prompt: "p", mode: "reference-to-video", duration: 5, resolution: "480p", aspectRatio: "auto", webSearchCalls: 1 };
+    assert.throws(() => buildVideoGenerationPayload(plan, { model: "grok-imagine-video", referenceImageUrls: ["data:image/png;base64,A"] }), (e: any) => e.code === "GROK_VIDEO_INVALID_MODE");
+    assert.throws(
+      () => buildVideoGenerationPayload(plan, { model: "grok-imagine-video", referenceImageUrls: ["A", "B"], sourceImageUrl: "data:image/png;base64,S" }),
+      (e: any) => e.code === "GROK_VIDEO_INVALID_MODE",
+    );
+    assert.throws(() => buildVideoGenerationPayload(plan, { model: "grok-imagine-video", referenceImageUrls: ["A", "B", "C", "D", "E", "F", "G", "H"] }), (e: any) => e.code === "GROK_VIDEO_REF_TOO_MANY");
   });
 
   it("parses the generate_video planner prompt", () => {
@@ -199,6 +219,50 @@ describe("Grok video adapter", () => {
     await assert.rejects(generateVideoViaGrok("clip", ctx(), { duration: 1 }), (e: any) => e.code === "GROK_VIDEO_EXPIRED");
   });
 
+  it("maps failed status codes to stable error taxonomy", async () => {
+    for (const [failedCode, expected] of [
+      ["invalid_argument", "GROK_VIDEO_REQUEST_FAILED"],
+      ["permission_denied", "GROK_VIDEO_REQUEST_FAILED"],
+      ["failed_precondition", "GROK_VIDEO_REQUEST_FAILED"],
+      ["service_unavailable", "GROK_VIDEO_POLL_FAILED"],
+    ] as const) {
+      installFetch({ pollSequence: [{ status: "failed", error: { code: failedCode } }] });
+      await assert.rejects(generateVideoViaGrok("clip", ctx(), { duration: 1 }), (e: any) => e.code === expected);
+    }
+  });
+
+  it("maps start HTTP errors and caller cancellation", async () => {
+    globalThis.fetch = (async (input: any, init?: any) => {
+      if (init?.signal?.aborted) {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        throw err;
+      }
+      if (String(input).includes("/v1/videos/generations")) return jsonRes({ error: "bad request" }, 400);
+      throw new Error(`unexpected fetch: ${input}`);
+    }) as any;
+    await assert.rejects(startVideoRequest(ctx(), { prompt: "x" }, {}), (e: any) => e.code === "GROK_VIDEO_REQUEST_FAILED" && e.status === 400);
+
+    const controller = new AbortController();
+    controller.abort();
+    await assert.rejects(startVideoRequest(ctx(), { prompt: "x" }, { signal: controller.signal }), (e: any) => e.code === "GENERATION_CANCELED" && e.status === 499);
+  });
+
+  it("rejects unsafe video download responses", async () => {
+    await assert.rejects(downloadVideo(ctx(), "http://example.com/v.mp4"), (e: any) => e.code === "GROK_VIDEO_DOWNLOAD_FAILED");
+
+    globalThis.fetch = (async () => jsonRes("not video", 200, "text/html")) as any;
+    await assert.rejects(downloadVideo(ctx(), "https://vidgen.example/not-video"), (e: any) => e.code === "GROK_VIDEO_DOWNLOAD_FAILED");
+
+    globalThis.fetch = (async () => ({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => new ArrayBuffer(0),
+      headers: { get: (k: string) => (k.toLowerCase() === "content-type" ? "video/mp4" : null) },
+    })) as any;
+    await assert.rejects(downloadVideo(ctx(), "https://vidgen.example/empty.mp4"), (e: any) => e.code === "GROK_VIDEO_DOWNLOAD_FAILED");
+  });
+
   it("accepts grok-imagine-video-1.5-preview as valid model", () => {
     assert.ok(VALID_GROK_VIDEO_MODELS.has("grok-imagine-video-1.5-preview"));
     const result = normalizeGrokVideoModel("grok-imagine-video-1.5-preview");
@@ -210,5 +274,15 @@ describe("Grok video adapter", () => {
     const payload = buildVideoGenerationPayload(plan, { model: "grok-imagine-video-1.5-preview", sourceImageUrl: "data:image/png;base64,AAAA" });
     assert.equal(payload.model, "grok-imagine-video-1.5-preview");
     assert.deepEqual(payload.image, { url: "data:image/png;base64,AAAA" });
+  });
+
+  it("sends 1.5-preview T2V through an injected canvas I2V payload", async () => {
+    let startBody: any = null;
+    installFetch({ pollSequence: [DONE_POLL], captureStart: (b) => (startBody = b) });
+    const result = await generateVideoViaGrok("make a freeform clip", ctx(), { model: "grok-imagine-video-1.5-preview", plannedPrompt: "A freeform cinematic clip.", duration: 5 });
+    assert.equal(result.mode, "text-to-video");
+    assert.equal(startBody.model, "grok-imagine-video-1.5-preview");
+    assert.ok(startBody.image?.url?.startsWith("data:image/png;base64,"));
+    assert.match(startBody.prompt, /not a start frame/);
   });
 });

@@ -3,8 +3,11 @@ import type { RouteRuntimeContext } from "./runtimeContext.js";
 import { getGrokProxyUrl } from "./grokRuntime.js";
 import { grokError, searchGrokVisualContext } from "./grokImageAdapter.js";
 import { detectImageMimeFromB64 } from "./refs.js";
+import { downloadVideo } from "./grokVideoDownload.js";
 import type { VideoAspectRatio, VideoMode, VideoResolution } from "./imageModels.js";
 import { MAX_REF2V_REFERENCES } from "./imageModels.js";
+
+export { downloadVideo } from "./grokVideoDownload.js";
 
 export interface GrokVideoPlan {
   prompt: string;
@@ -69,13 +72,11 @@ interface VideoConfig {
   startTimeoutMs: number;
   pollIntervalMs: number;
   totalTimeoutMs: number;
-  downloadTimeoutMs: number;
   plannerModel: string;
   plannerTimeoutMs: number;
 }
 
 const STALE_PROGRESS_MS = 180_000;
-const MAX_VIDEO_DOWNLOAD_BYTES = 100 * 1024 * 1024;
 
 function videoConfig(ctx: RouteRuntimeContext): VideoConfig {
   const g = (ctx.config as any).grokProvider || {};
@@ -84,7 +85,6 @@ function videoConfig(ctx: RouteRuntimeContext): VideoConfig {
     startTimeoutMs: g.videoStartTimeoutMs || 60_000,
     pollIntervalMs: g.videoPollIntervalMs || 5_000,
     totalTimeoutMs: g.videoTimeoutMs || 900_000,
-    downloadTimeoutMs: g.videoDownloadTimeoutMs || 120_000,
     plannerModel: g.plannerModel || "grok-4.3",
     plannerTimeoutMs: g.plannerTimeoutMs || 60_000,
   };
@@ -430,43 +430,6 @@ export async function pollVideoUntilDone(ctx: RouteRuntimeContext, requestId: st
   }
 }
 
-export async function downloadVideo(ctx: RouteRuntimeContext, url: string, signal?: AbortSignal): Promise<{ buffer: Buffer; contentType: string }> {
-  const cfg = videoConfig(ctx);
-  const { combinedSignal, timer } = withTimeoutSignal(signal, cfg.downloadTimeoutMs);
-  try {
-    const parsed = new URL(url);
-    const isLoopback = ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
-    if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && isLoopback)) {
-      throw grokError("Grok video download URL must be HTTPS", 502, "GROK_VIDEO_DOWNLOAD_FAILED");
-    }
-    const res = await fetch(url, { signal: combinedSignal });
-    if (!res.ok) throw grokError(`Grok video download failed: HTTP ${res.status}`, 502, "GROK_VIDEO_DOWNLOAD_FAILED");
-    const contentLength = Number(res.headers.get("content-length") || "0");
-    if (contentLength > MAX_VIDEO_DOWNLOAD_BYTES) {
-      throw grokError("Grok video download exceeds the 100MB limit", 502, "GROK_VIDEO_DOWNLOAD_FAILED");
-    }
-    const contentType = res.headers.get("content-type") || "video/mp4";
-    if (!/^video\/mp4\b/i.test(contentType) && !/^application\/octet-stream\b/i.test(contentType)) {
-      throw grokError("Grok video download returned a non-video response", 502, "GROK_VIDEO_DOWNLOAD_FAILED");
-    }
-    const buffer = Buffer.from(await res.arrayBuffer());
-    clearTimeout(timer);
-    if (buffer.length === 0) throw grokError("Grok video download was empty", 502, "GROK_VIDEO_DOWNLOAD_FAILED");
-    if (buffer.length > MAX_VIDEO_DOWNLOAD_BYTES) {
-      throw grokError("Grok video download exceeds the 100MB limit", 502, "GROK_VIDEO_DOWNLOAD_FAILED");
-    }
-    return { buffer, contentType };
-  } catch (e: any) {
-    clearTimeout(timer);
-    if (e.name === "AbortError") {
-      if (signal?.aborted) throw grokError("Generation canceled", 499, "GENERATION_CANCELED");
-      throw grokError("Grok video download timed out", 504, "GROK_VIDEO_TIMEOUT");
-    }
-    if (e.code && e.status) throw e;
-    throw grokError(`Grok video download request failed: ${e.message}`, 502, "GROK_VIDEO_DOWNLOAD_FAILED");
-  }
-}
-
 export async function generateVideoViaGrok(prompt: string, ctx: RouteRuntimeContext, options: GrokVideoOptions = {}): Promise<GrokVideoGenerateResult> {
   const cfg = videoConfig(ctx);
   const model = options.model || cfg.model;
@@ -494,7 +457,7 @@ export async function generateVideoViaGrok(prompt: string, ctx: RouteRuntimeCont
     const whiteCanvas = generateWhiteCanvasB64();
     const canvasSrcUrl = `data:image/png;base64,${whiteCanvas}`;
     effectivePayload = buildVideoGenerationPayload(
-      { ...plan, prompt: `${plan.prompt}. This is not a start frame — generate freely as a new video.` },
+      { ...plan, mode: "image-to-video", prompt: `${plan.prompt}. This is not a start frame — generate freely as a new video.` },
       { model, sourceImageUrl: canvasSrcUrl, referenceImageUrls: [] },
     );
     logEvent("grok", "video:1.5-t2v-canvas", { requestId: options.requestId, width, height });
