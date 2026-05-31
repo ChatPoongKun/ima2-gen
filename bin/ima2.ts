@@ -64,13 +64,15 @@ async function setup() {
 
   console.log("\n  ima2-gen — GPT Image 2 Generator\n");
   console.log("  Choose authentication method:\n");
-  console.log("    1) API Key  — paste your OpenAI API key (paid)");
-  console.log("    2) OAuth    — login with ChatGPT account (free)\n");
+  console.log("    1) GPT OAuth   — login with ChatGPT account (free, images only)");
+  console.log("    2) Grok OAuth  — login with xAI/Grok account (images + video)");
+  console.log("    3) Both        — GPT OAuth + Grok OAuth");
+  console.log("    4) API Key     — paste your OpenAI API key (paid)\n");
 
-  const choice = await rl.question("  Enter 1 or 2: ");
+  const choice = await rl.question("  Enter 1-4: ");
   const config = loadConfig();
 
-  if (choice.trim() === "1") {
+  if (choice.trim() === "4") {
     const key = await rl.question("  OpenAI API Key: ");
     if (!key.startsWith("sk-")) {
       console.log("  Invalid API key format. Expected sk-...");
@@ -81,13 +83,56 @@ async function setup() {
     config.apiKey = key.trim();
     saveConfig(config);
     console.log("\n  API key saved. Starting server...\n");
-  } else {
+  } else if (choice.trim() === "2") {
+    config.provider = "grok";
+    config.oauth = config.oauth || {};
+    config.oauth.disableAutoStart = true;
+    delete config.apiKey;
+    saveConfig(config);
+    console.log("\n  Starting Grok OAuth login...\n");
+    try {
+      execSync(`node ${JSON.stringify(join(ROOT, "bin", "ima2.js"))} grok login`, { stdio: "inherit" });
+    } catch {
+      console.log("\n  Grok login failed or cancelled. You can retry with 'ima2 grok login'.\n");
+      rl.close();
+      process.exit(1);
+    }
+    console.log("  Grok configured. Run 'ima2 serve' to start.\n");
+  } else if (choice.trim() === "3") {
     config.provider = "oauth";
+    delete config.apiKey;
+    if (config.oauth) delete config.oauth.disableAutoStart;
+    saveConfig(config);
+    console.log("\n  Setting up both GPT OAuth + Grok OAuth...\n");
+    // GPT OAuth
+    const auth = detectCodexAuth();
+    if (!auth.authed) {
+      console.log("  Running GPT OAuth login...\n");
+      try {
+        execSync(`${resolveBin("npx")} @openai/codex login`, { stdio: "inherit" });
+      } catch {
+        console.log("\n  GPT login failed. Continuing with Grok...\n");
+      }
+    } else {
+      console.log(`  GPT OAuth session found.\n`);
+    }
+    // Grok OAuth
+    console.log("  Running Grok OAuth login...\n");
+    try {
+      execSync(`node ${JSON.stringify(join(ROOT, "bin", "ima2.js"))} grok login`, { stdio: "inherit" });
+    } catch {
+      console.log("\n  Grok login failed. You can retry with 'ima2 grok login'.\n");
+    }
+    console.log("  Both providers configured.\n");
+  } else {
+    // Default: GPT OAuth (choice 1 or anything else)
+    config.provider = "oauth";
+    config.oauth = config.oauth || {};
+    config.oauth.disableAutoStart = false;
     delete config.apiKey;
     saveConfig(config);
     console.log("\n  Starting OAuth login...\n");
 
-    // Check if codex auth exists (file OR keyring via `codex login status`)
     const auth = detectCodexAuth();
     const hasAuth = auth.authed;
 

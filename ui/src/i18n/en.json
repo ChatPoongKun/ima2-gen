@@ -898,7 +898,8 @@
       "unsupportedHelp": "Grok models use xAI's Images API through the bundled local proxy. GPT models use OpenAI Responses image generation."
     },
     "videoModel": {
-      "grokImagine": "Grok Imagine Video"
+      "grokImagine": "Grok Imagine Video",
+      "grokImagine15": "Grok Imagine Video 1.5"
     },
     "reasoning": {
       "title": "Reasoning effort",
