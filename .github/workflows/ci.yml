@@ -51,6 +51,10 @@ jobs:
         run: npm run test:package-install
       - name: CLI smoke (grok --help)
         run: node bin/ima2.js grok --help
+      - name: CLI smoke (video --help)
+        run: node bin/ima2.js video --help
+      - name: CLI smoke (capabilities)
+        run: node bin/ima2.js capabilities --json
       - name: CLI smoke (--version)
         run: node bin/ima2.js --version
       - name: Publish dry-run
