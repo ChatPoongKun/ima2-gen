@@ -50,12 +50,11 @@ export function getImageModelShortLabel(value: string | null | undefined): strin
 
 // ── Grok video model (separate kind from image models) ───────────────────
 export const VIDEO_MODEL_OPTIONS: Array<{ value: VideoModel; shortLabel: string; fullLabelKey: string }> = [
-  { value: "grok-imagine-video", shortLabel: "grokv1.0", fullLabelKey: "settings.videoModel.grokImagine" },
-  { value: "grok-imagine-video-1.5-preview", shortLabel: "grokv1.5", fullLabelKey: "settings.videoModel.grokImagine15" },
+  { value: "grok-imagine-video", shortLabel: "grokv", fullLabelKey: "settings.videoModel.grokImagine" },
 ];
 
 export function isVideoModelValue(v: unknown): v is VideoModel {
-  return v === "grok-imagine-video" || v === "grok-imagine-video-1.5-preview";
+  return v === "grok-imagine-video";
 }
 
 // UI-side mirrors of the backend helpers (lib/imageModels.ts). The UI lib is a
