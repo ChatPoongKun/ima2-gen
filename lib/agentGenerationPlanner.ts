@@ -242,7 +242,7 @@ function clampCount(value: number, max: number): number {
   return Math.max(1, Math.min(max, Math.round(value)));
 }
 
-const VIDEO_INTENT_PATTERN = /\b(?:video|animate|animation|동영상|비디오|영상|애니메이트|움직이|클립)\b/iu;
+const VIDEO_INTENT_PATTERN = /(?:^|\s|[^\p{L}])(?:video|animate|animation)(?:\s|[^\p{L}]|$)|(?:동영상|비디오|영상|애니메이트|움직이|클립)/iu;
 
 function isVideoIntent(prompt: string): boolean {
   return VIDEO_INTENT_PATTERN.test(prompt);
@@ -254,9 +254,9 @@ export interface VideoParamsFromPrompt {
   aspectRatio?: string;
 }
 
-const DURATION_PATTERN = /\b(\d{1,2})\s*(?:s|sec|seconds?|초)\b/i;
-const RESOLUTION_PATTERN = /\b(720p|480p)\b/i;
-const ASPECT_PATTERN = /\b(16:9|9:16|4:3|3:4|3:2|2:3|1:1)\b/;
+const DURATION_PATTERN = /(\d{1,2})\s*(?:s|sec|seconds?|초)/i;
+const RESOLUTION_PATTERN = /(720p|480p)/i;
+const ASPECT_PATTERN = /(16:9|9:16|4:3|3:4|3:2|2:3|1:1)/;
 
 export function parseVideoParams(prompt: string): VideoParamsFromPrompt {
   const params: VideoParamsFromPrompt = {};
