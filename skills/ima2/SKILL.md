@@ -337,3 +337,102 @@ With `--json`, prints the final result object to stdout.
 ```bash
 ima2 capabilities --json | jq '.valid.videoModels'
 ```
+
+### Advanced Workflows
+
+#### Image-First Video (best quality)
+
+Generate a high-quality still image first, then animate it. This produces better results than text-to-video alone because the video model has a concrete visual anchor.
+
+```bash
+# Step 1: Generate the key frame
+ima2 gen "cinematic wide shot of a mountain lake at sunset, 16:9" --size 1792x1024 -o keyframe.png
+
+# Step 2: Animate from that frame
+ima2 video "gentle water ripples, clouds drifting slowly, birds flying in distance" --ref keyframe.png --duration 10 --aspect-ratio 16:9
+```
+
+#### Multi-Shot Video (connected scenes)
+
+Create a sequence of connected clips using `--topic` for narrative continuity. Each generation receives context from previous clips in the same topic.
+
+```bash
+# Scene 1: Establishing shot
+ima2 video "wide establishing shot of a busy Tokyo street at night, neon signs" \
+  --topic "tokyo-night" --duration 5
+
+# Scene 2: Medium shot (planner sees Scene 1's revised prompt)
+ima2 video "medium shot following a person walking through the crowd" \
+  --topic "tokyo-night" --duration 5
+
+# Scene 3: Close-up (planner sees Scenes 1+2)
+ima2 video "close-up of rain drops on a neon sign reflection" \
+  --topic "tokyo-night" --duration 5
+```
+
+The planner automatically maintains visual consistency (color palette, mood, style) across scenes in the same topic.
+
+#### Video Continuation (extend/sequel)
+
+To continue from an existing video's last frame:
+
+```bash
+# Get the last generated video filename
+LAST=$(ima2 history --json --limit 1 | jq -r '.[0].filename')
+
+# Use it as source for the next clip
+ima2 video "the camera slowly pulls back revealing the full scene" --ref "/path/to/generated/$LAST"
+```
+
+Or in the UI: click "자식" on a video node → the last frame is automatically extracted as the child's reference image.
+
+#### Marketing/Product Video
+
+Generate a product showcase video from a product image:
+
+```bash
+# Step 1: Generate or provide product image
+ima2 gen "clean product photo of wireless earbuds on white background" -o product.png
+
+# Step 2: Create dynamic product video
+ima2 video "sleek product reveal with rotating camera, premium feel, studio lighting" \
+  --ref product.png --duration 10 --resolution 720p --aspect-ratio 16:9
+```
+
+#### Style-Consistent Series
+
+For maintaining visual style across multiple videos (e.g., social media series):
+
+```bash
+# First video establishes the style
+ima2 video "minimalist animation of a coffee cup, flat design, pastel colors" \
+  --topic "coffee-series" --duration 5
+
+# Subsequent videos inherit style via planner context
+ima2 video "same style, now showing latte art being poured" \
+  --topic "coffee-series" --duration 5
+
+ima2 video "same style, steam rising from the cup" \
+  --topic "coffee-series" --duration 5
+```
+
+#### Batch Generation (scripting)
+
+```bash
+#!/bin/bash
+PROMPTS=("sunrise over ocean" "waves crashing" "seagulls flying" "sunset colors")
+TOPIC="ocean-day"
+
+for prompt in "${PROMPTS[@]}"; do
+  ima2 video "$prompt" --topic "$TOPIC" --duration 5 --json >> results.jsonl
+  sleep 2  # rate limiting
+done
+```
+
+### Limitations
+
+- Motion continuity between clips is approximate (planner-guided, not frame-exact)
+- No audio generation (video only)
+- Max 15 seconds per clip
+- Max 720p resolution
+- V2V (video input) not supported — use last-frame extraction instead

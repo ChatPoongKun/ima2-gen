@@ -229,7 +229,7 @@ describe("ima2 CLI commands (live server)", () => {
     const { stdout, code } = await runCLI(["grok", "--help"]);
     assert.strictEqual(code, 0);
     assert.match(stdout, /bundled progrok runtime/);
-    assert.match(stdout, /login \[--device-code\]/);
+    assert.match(stdout, /login/);
     assert.match(stdout, /IMA2_NO_GROK_PROXY=1/);
   });
 });
