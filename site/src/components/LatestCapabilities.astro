@@ -9,6 +9,14 @@ interface Props {
 const { lang } = Astro.props;
 const cards = [
   {
+    label: 'latest.video.label',
+    title: 'latest.video.h',
+    body: 'latest.video.body',
+    src: 'screenshots/video-generation-progress.png',
+    alt: 'latest.video.alt',
+    aspect: '16/9',
+  },
+  {
     label: 'latest.multimode.label',
     title: 'latest.multimode.h',
     body: 'latest.multimode.body',
@@ -62,7 +70,7 @@ const cards = [
 <style>
   .latest-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 22px;
     align-items: stretch;
   }

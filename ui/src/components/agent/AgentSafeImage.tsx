@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ImageIcon } from "./AgentIcons";
+import { isVideoUrl } from "../../lib/videoMedia";
 
 type Props = {
   src?: string | null;
@@ -18,6 +19,10 @@ export function AgentSafeImage({ src, alt, className, fallbackClassName, iconSiz
         <ImageIcon size={iconSize} />
       </span>
     );
+  }
+
+  if (isVideoUrl(src)) {
+    return <video className={className} src={src} controls loop playsInline muted />;
   }
 
   return <img className={className} src={src} alt={alt} onError={() => setFailed(true)} />;

@@ -16,7 +16,7 @@
 
 `ima2-gen` is a local image generation studio for people who want the ChatGPT/Codex image workflow in a small desktop-like web app.
 
-Run it with `npx`, sign in with Codex OAuth, type a prompt, and keep iterating with history, references, node branches, multimode batches, and Canvas Mode cleanup. No OpenAI API key is required for the default path, but API-key generation and bundled Grok generation are also supported when configured.
+Run it with `npx`, sign in with ChatGPT OAuth or Grok OAuth, and start generating images and videos. Iterate with history, references, node branches, multimode batches, Canvas Mode cleanup, and Grok Video generation. No API key required — free ChatGPT OAuth and SuperGrok subscription cover everything.
 
 ![ima2-gen classic generation screen with prompt composer, generated image, compact model label, and result metadata.](assets/screenshots/classic-generate-light.png)
 

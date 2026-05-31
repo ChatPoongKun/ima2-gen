@@ -4,12 +4,12 @@ type Dict = Record<string, string>;
 
 const en: Dict = {
   // Base / meta
-  'meta.title': 'ima2-gen — Local Image Studio with Classic + Node + Canvas',
+  'meta.title': 'ima2-gen — Local AI Studio for Image + Video Generation',
   'meta.desc':
-    'Generate images locally with Classic, Node, Canvas, OAuth/API providers, and bundled Grok image generation.',
-  'meta.og.title': 'ima2-gen — Generate, branch, clean up',
+    'Generate images and videos locally with Classic, Node, Canvas, Grok Video, and OAuth/API providers. No API key required.',
+  'meta.og.title': 'ima2-gen — Generate, branch, animate',
   'meta.og.desc':
-    'A local image studio with Classic, Node-graph branching, multimode batches, and Canvas Mode cleanup. Run it with npx.',
+    'A local AI studio with image generation, Grok Video, Node-graph branching, and Canvas Mode. Two lines to install.',
 
   // Header
   'header.brand.aria': 'ima2-gen home',
@@ -23,12 +23,12 @@ const en: Dict = {
   'header.gh': 'GitHub ↗',
 
   // Hero
-  'hero.eyebrow': 'Local image studio · Classic + Node + Canvas',
+  'hero.eyebrow': 'Local AI studio · Image + Video',
   'hero.h1.line1': 'Branch the',
   'hero.h1.line2': 'images you',
   'hero.h1.em': 'love.',
   'hero.sub':
-    "An image studio for the way you actually iterate. Generate in Classic, fan out variations in a Node graph, run multimode batches, then clean up the winning frame in Canvas Mode.",
+    "An AI studio for the way you actually iterate. Generate images in Classic, fan out in Node, create videos with Grok, and clean up in Canvas. Free ChatGPT + SuperGrok is all you need.",
   'hero.cta.cmd': 'npx ima2-gen serve',
   'hero.cross.lang': '한국어 README →',
   'hero.shot.alt':
@@ -55,10 +55,10 @@ const en: Dict = {
 
   // Latest Capabilities
   'latest.tag': '02 · New in the studio',
-  'latest.h.before': 'Batch, polish, ',
+  'latest.h.before': 'Video, batch, ',
   'latest.h.em': 'import.',
   'latest.lede':
-    'Recent releases added multimode candidate slots, Canvas Mode cleanup tools, and prompt-library imports from files, GitHub folders, and curated sources.',
+    'Grok Video generation, multimode candidate slots, Canvas Mode cleanup tools, and prompt-library imports from files, GitHub folders, and curated sources.',
   'latest.multimode.label': 'Multimode',
   'latest.multimode.h': 'Four candidates from one prompt.',
   'latest.multimode.body':
@@ -77,6 +77,12 @@ const en: Dict = {
     'Use the import dialog to drop files, preview GitHub folders, refresh curated sources, and review searched candidates before adding selected prompts to the library.',
   'latest.import.alt':
     'ima2-gen prompt import dialog for reviewing GitHub folders, curated sources, and searched prompt candidates before import.',
+  'latest.video.label': 'Video',
+  'latest.video.h': 'Text, image, or references to video.',
+  'latest.video.body':
+    'Generate short videos from a text prompt, a single image, or up to 7 reference images. Real-time progress streaming shows each phase from planning to completion.',
+  'latest.video.alt':
+    'ima2-gen video generation with progress percentage and in-flight queue.',
 
   // Why Branch
   'branch.tag': '03 · Branching as a workflow',
@@ -99,7 +105,7 @@ const en: Dict = {
   'local.h.before': 'Sign in. ',
   'local.h.em': 'Stay local.',
   'local.lede':
-    "ima2-gen starts with your existing Codex/ChatGPT login, can use OpenAI API keys, and bundles Grok via progrok. Generated frames and sessions live on your disk — not on someone else's.",
+    "Start with your free ChatGPT login or a SuperGrok subscription. No API key needed. Generated images, videos, and sessions stay on your disk — not on someone else's.",
   'local.quote.before': 'If the settings page says ',
   'local.quote.strong': 'Configured but disabled',
   'local.quote.after': ', that means an API key exists in env/config but the current workspace is using OAuth. Switch provider to API or Grok when you want those paths.',
@@ -112,7 +118,7 @@ const en: Dict = {
   'install.h.before': 'One command. ',
   'install.h.em': 'Then iterate.',
   'install.lede': 'Run it with npx. Sign in once with Codex. Start branching.',
-  'install.badge.npm': 'npm v1.1.15',
+  'install.badge.npm': 'npm v1.1.18',
   'install.badge.node': 'Node ≥20',
   'install.badge.mit': 'MIT',
   'install.links.aria': 'Project links',
@@ -196,12 +202,12 @@ const en: Dict = {
 
 const ko: Dict = {
   // Base / meta
-  'meta.title': 'ima2-gen — 로컬 이미지 스튜디오, Classic + Node + Canvas',
+  'meta.title': 'ima2-gen — 로컬 AI 스튜디오, 이미지 + 영상 생성',
   'meta.desc':
-    'Classic, Node, Canvas, OAuth/API 프로바이더, 번들 Grok 이미지 생성을 갖춘 로컬 이미지 스튜디오.',
-  'meta.og.title': 'ima2-gen — 만들고, 분기하고, 정리하기',
+    '무료 ChatGPT + SuperGrok으로 이미지와 영상을 만드는 로컬 AI 스튜디오. API 키 없이 시작.',
+  'meta.og.title': 'ima2-gen — 만들고, 분기하고, 움직이게',
   'meta.og.desc':
-    'Classic, Node 분기, multimode batch, Canvas Mode cleanup을 갖춘 로컬 이미지 스튜디오. npx 한 줄로 시작합니다.',
+    '이미지 생성, Grok Video, Node 분기, Canvas 정리를 갖춘 로컬 AI 스튜디오. 두 줄이면 설치 끝.',
 
   // Header
   'header.brand.aria': 'ima2-gen 홈',
@@ -215,12 +221,12 @@ const ko: Dict = {
   'header.gh': 'GitHub ↗',
 
   // Hero
-  'hero.eyebrow': '로컬 이미지 스튜디오 · Classic + Node + Canvas',
+  'hero.eyebrow': '로컬 AI 스튜디오 · 이미지 + 영상',
   'hero.h1.line1': '마음에 든 한 장,',
-  'hero.h1.line2': '다음 컷은',
-  'hero.h1.em': '바로 펼치기.',
+  'hero.h1.line2': '거기서 바로',
+  'hero.h1.em': '펼치기.',
   'hero.sub':
-    '한 장으로 끝나지 않는 작업을 위한 이미지 스튜디오. Classic에서 만들고, Node에서 방향을 펼치고, multimode로 후보를 빠르게 보고, Canvas Mode에서 결과를 정리하세요.',
+    '이미지 한 장으로 끝나지 않잖아요. Classic으로 만들고, Node로 방향을 나누고, Video로 움직이게 하고, Canvas로 마무리하세요. 무료 ChatGPT + SuperGrok이면 충분합니다.',
   'hero.cta.cmd': 'npx ima2-gen serve',
   'hero.cross.lang': 'English landing →',
   'hero.shot.alt':
@@ -247,10 +253,10 @@ const ko: Dict = {
 
   // Latest Capabilities
   'latest.tag': '02 · 새로 들어온 작업 도구',
-  'latest.h.before': '배치 생성, 다듬기, ',
+  'latest.h.before': '영상, 배치, ',
   'latest.h.em': '가져오기.',
   'latest.lede':
-    '최근 릴리스에는 여러 후보를 한 번에 뽑는 multimode 슬롯, Canvas Mode의 정리 도구, 그리고 파일/GitHub/추천 소스를 통해 프롬프트를 가져오는 라이브러리 기능이 추가되었습니다.',
+    'Grok Video 생성, 여러 후보를 한 번에 뽑는 multimode, Canvas 정리 도구, 파일/GitHub/추천 소스에서 프롬프트를 가져오는 라이브러리.',
   'latest.multimode.label': 'Multimode',
   'latest.multimode.h': '하나의 프롬프트에서 네 후보.',
   'latest.multimode.body':
@@ -269,6 +275,12 @@ const ko: Dict = {
     '불러오기 다이얼로그에서 로컬 파일, GitHub 폴더, 추천 소스, 검색된 후보를 검토한 뒤 선택한 프롬프트만 라이브러리에 저장합니다.',
   'latest.import.alt':
     'ima2-gen 프롬프트 불러오기 다이얼로그 — GitHub 폴더, 추천 소스, 검색된 프롬프트 후보를 저장 전 검토하는 화면.',
+  'latest.video.label': 'Video',
+  'latest.video.h': '텍스트, 이미지, 레퍼런스에서 영상으로.',
+  'latest.video.body':
+    '텍스트 프롬프트, 단일 이미지, 또는 최대 7장의 레퍼런스에서 짧은 영상을 만듭니다. 기획부터 완성까지 실시간 진행률을 스트리밍으로 보여줍니다.',
+  'latest.video.alt':
+    'ima2-gen 비디오 생성 — 진행률 표시와 대기열.',
 
   // Why Branch
   'branch.tag': '03 · 분기, 그게 워크플로',
@@ -290,9 +302,9 @@ const ko: Dict = {
   // Local & OAuth
   'local.tag': '04 · 로컬 & 오픈',
   'local.h.before': '로그인 한 번, ',
-  'local.h.em': '저장은 내 컴퓨터.',
+  'local.h.em': '내 컴퓨터에 저장.',
   'local.lede':
-    '이미 쓰는 Codex/ChatGPT 로그인으로 시작하고, 필요하면 OpenAI API key나 번들 Grok/progrok도 선택하세요. 만든 이미지와 작업 기록은 외부 서버가 아니라 내 컴퓨터에 남습니다.',
+    'ChatGPT 무료 계정이나 SuperGrok으로 시작하세요. API 키 없이도 됩니다. 만든 이미지와 영상은 내 컴퓨터에만 남습니다.',
   'local.quote.before': '설정에 ',
   'local.quote.strong': 'Configured but disabled',
   'local.quote.after':
@@ -303,11 +315,10 @@ const ko: Dict = {
 
   // Install
   'install.tag': '06 · 시작하기',
-  'install.h.before': '한 줄로 실행하고, ',
-  'install.h.em': '바로 반복하세요.',
-  'install.lede':
-    'npx로 열고, Codex로 로그인하세요. 마음에 드는 결과가 나오면 바로 다음 방향을 펼칠 수 있습니다.',
-  'install.badge.npm': 'npm v1.1.15',
+  'install.h.before': '두 줄이면 끝. ',
+  'install.h.em': '바로 만들기.',
+  'install.lede': 'npm install -g ima2-gen → ima2 serve. 끝입니다.',
+  'install.badge.npm': 'npm v1.1.18',
   'install.badge.node': 'Node ≥20',
   'install.badge.mit': 'MIT',
   'install.links.aria': '프로젝트 링크',
@@ -381,8 +392,8 @@ const ko: Dict = {
 
   // Footer
   'footer.line1': 'ima2-gen · MIT 라이선스',
-  'footer.line2': '마음에 든 한 장, 다음 컷은 바로.',
-  'footer.line3': '로컬에서 만들고, 코드는 공개로.',
+  'footer.line2': '마음에 든 한 장, 거기서 바로 펼치기.',
+  'footer.line3': '로컬에서 만들고, 코드는 GitHub에.',
   'footer.lang.aria': '언어별 README',
 
   // LangToggle

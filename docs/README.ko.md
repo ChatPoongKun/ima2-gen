@@ -10,9 +10,9 @@
 >
 > **다른 언어로 읽기**: [English](../README.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
 
-`ima2-gen`은 ChatGPT/Codex OAuth 이미지 생성 흐름을 로컬 웹앱처럼 쓸 수 있게 만든 이미지 생성 스튜디오입니다.
+`ima2-gen`은 무료 ChatGPT와 SuperGrok만으로 이미지와 영상을 만드는 로컬 AI 스튜디오입니다.
 
-`npx`로 실행하고, Codex OAuth로 로그인한 뒤, 프롬프트를 입력하면서 히스토리, 레퍼런스, 노드 브랜치, 멀티모드 배치, Canvas Mode 정리 작업으로 계속 이어갈 수 있습니다. 기본 이미지 생성 경로에서는 OpenAI API 키가 필요하지 않으며, 설정된 경우 OpenAI API-key 경로와 번들 Grok 경로도 사용할 수 있습니다.
+`npx` 한 줄로 실행하고, ChatGPT 또는 Grok OAuth로 로그인하면 바로 시작됩니다. API 키 없이 이미지 생성, 비디오 생성, 노드 분기, 멀티모드 배치, Canvas 정리까지 전부 가능합니다.
 
 ![프롬프트 작성창, 생성 이미지, 모델 표시, 결과 메타데이터가 보이는 ima2-gen 클래식 생성 화면](../assets/screenshots/classic-generate-light.png)
 
@@ -40,12 +40,24 @@ npm install -g ima2-gen
 ima2 serve
 ```
 
+### 설정
+
+`ima2 setup`으로 인증 방식을 선택합니다:
+
+1. **GPT OAuth** — ChatGPT 계정으로 로그인 (무료, 이미지만)
+2. **Grok OAuth** — xAI/Grok 계정으로 로그인 (이미지 + 영상)
+3. **Both** — GPT + Grok 둘 다 (전체 기능)
+4. **API Key** — OpenAI API 키 입력 (유료)
+
+영상 생성은 Grok OAuth(2번 또는 3번)가 필요합니다.
+
 ## 무엇을 할 수 있나요?
 
 - **Classic mode**: 빠르게 이미지를 만들고, 수정하고, 현재 결과를 다시 레퍼런스로 사용합니다.
 - **Node mode**: 마음에 드는 이미지를 여러 방향으로 분기해 실험합니다.
 - **Multimode batches**: 하나의 프롬프트에서 여러 후보 슬롯을 동시에 만들고, 가장 좋은 결과에서 이어갑니다.
 - **Canvas Mode**: 확대/이동, 주석, 지우개, 배경 정리, 투명 체크보드 미리보기, alpha/matte export를 지원합니다.
+- **Video 생성**: 텍스트, 이미지, 또는 여러 레퍼런스에서 짧은 영상을 만듭니다. 기획→제출→진행률→완료까지 실시간으로 보여줍니다.
 - **Local gallery**: 생성물을 내 컴퓨터에 저장하고 세션별 히스토리로 봅니다.
 - **Reference images**: 레퍼런스를 드래그, 붙여넣기, 파일 선택으로 추가합니다. 큰 이미지는 업로드 전에 자동 압축됩니다.
 - **Prompt library imports**: 로컬 prompt pack, GitHub folder, curated GPT-image hint를 내장 prompt library로 가져옵니다.
@@ -62,7 +74,7 @@ ima2 serve
 
 Grok은 Classic, Node, Agent 흐름을 지원합니다. Classic 레퍼런스, Node 부모 이미지, Agent 현재 이미지가 있으면 최종 Grok 호출은 xAI image edit 경로로 전환되어 image-to-image 맥락을 유지합니다. 기본 모델은 `grok-imagine-image`이고, `quality: "high"`에서는 `grok-imagine-image-quality`를 사용합니다.
 
-Grok video 생성(T2V/I2V)은 `1.1.15`에 포함되지 않았습니다. `docs/grok-video-i2v-plan.md`와 `docs/grok-video-i2v-research.md`는 구현 계획과 조사 문서이며, 공개 런타임은 아직 이미지 생성만 지원합니다.
+Grok video 생성(T2V/I2V/ref2v)은 v1.1.16부터 사용 가능합니다. 텍스트 프롬프트, 단일 이미지, 또는 최대 7장의 레퍼런스에서 짧은 영상을 만들 수 있으며, 실시간 진행률 스트리밍을 지원합니다.
 
 설정 화면에 **API key provider available**이나 **Grok provider available**이 보이면 해당 공급자가 감지됐고 생성 요청에 사용할 수 있다는 뜻입니다.
 
