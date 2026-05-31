@@ -205,7 +205,7 @@ function ImageNodeImpl({ id, data, selected }: NodeProps<GraphNode>) {
       <div className="image-node__preview">
         {d.imageUrl && d.status !== "asset-missing" ? (
           isVideoUrl(d.imageUrl) ? (
-            <video src={d.imageUrl} controls loop playsInline muted className="image-node__video" />
+            <video src={d.imageUrl} controls loop playsInline muted className="image-node__video nodrag" />
           ) : (
             <img src={d.imageUrl} alt={t("node.nodeImageAlt")} />
           )
