@@ -447,7 +447,21 @@ export async function generateVideoViaGrok(prompt: string, ctx: RouteRuntimeCont
       }
     : await planGrokVideo(prompt, ctx, options);
   const payload = buildVideoGenerationPayload(plan, { model, sourceImageUrl: srcUrl, referenceImageUrls: refUrls });
-  const xaiVideoRequestId = await startVideoRequest(ctx, payload, options);
+  let xaiVideoRequestId: string;
+  let effectiveModel = model;
+  try {
+    xaiVideoRequestId = await startVideoRequest(ctx, payload, options);
+  } catch (e: any) {
+    // Fallback: if 1.5-preview fails, retry with base model
+    if (model !== "grok-imagine-video" && e?.status === 400) {
+      effectiveModel = "grok-imagine-video";
+      const fallbackPayload = buildVideoGenerationPayload(plan, { model: effectiveModel, sourceImageUrl: srcUrl, referenceImageUrls: refUrls });
+      xaiVideoRequestId = await startVideoRequest(ctx, fallbackPayload, options);
+      logEvent("grok", "video:fallback", { requestId: options.requestId, from: model, to: effectiveModel });
+    } else {
+      throw e;
+    }
+  }
   options.onEvent?.({ phase: "submitted", xaiVideoRequestId });
   logEvent("grok", "video:submitted", { requestId: options.requestId, xaiVideoRequestId, mode: plan.mode });
   const poll = await pollVideoUntilDone(ctx, xaiVideoRequestId, options);

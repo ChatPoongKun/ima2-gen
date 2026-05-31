@@ -74,7 +74,7 @@ export function normalizeGrokImageModel(rawModel: unknown) {
 // Video is a separate generation kind, not an image model. Keep it out of the
 // image model unions/helpers above so `grok-` image classification is unaffected.
 const GROK_FALLBACK_VIDEO_MODEL = "grok-imagine-video";
-export const VALID_GROK_VIDEO_MODELS = new Set(["grok-imagine-video"]);
+export const VALID_GROK_VIDEO_MODELS = new Set(["grok-imagine-video", "grok-imagine-video-1.5-preview"]);
 export const VALID_VIDEO_RESOLUTIONS = new Set(["480p", "720p"]);
 export const VALID_VIDEO_ASPECT_RATIOS = new Set([
   "1:1",
@@ -92,7 +92,7 @@ export const MAX_VIDEO_DURATION = 15;
 export const MAX_REF2V_REFERENCES = 7;
 export const MAX_REF2V_DURATION = 10;
 
-export type GrokVideoModel = "grok-imagine-video";
+export type GrokVideoModel = "grok-imagine-video" | "grok-imagine-video-1.5-preview";
 export type VideoResolution = "480p" | "720p";
 export type VideoAspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "3:2" | "2:3" | "auto";
 export type VideoMode = "text-to-video" | "image-to-video" | "reference-to-video";
