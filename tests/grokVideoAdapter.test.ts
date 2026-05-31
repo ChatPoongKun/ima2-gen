@@ -8,6 +8,7 @@ import {
   type GrokVideoEvent,
   type GrokVideoPlan,
 } from "../lib/grokVideoAdapter.js";
+import { normalizeGrokVideoModel, VALID_GROK_VIDEO_MODELS } from "../lib/imageModels.js";
 import { config } from "../config.js";
 
 const originalFetch = globalThis.fetch;
@@ -196,5 +197,18 @@ describe("Grok video adapter", () => {
   it("maps expired status to GROK_VIDEO_EXPIRED", async () => {
     installFetch({ pollSequence: [{ status: "expired" }] });
     await assert.rejects(generateVideoViaGrok("clip", ctx(), { duration: 1 }), (e: any) => e.code === "GROK_VIDEO_EXPIRED");
+  });
+
+  it("accepts grok-imagine-video-1.5-preview as valid model", () => {
+    assert.ok(VALID_GROK_VIDEO_MODELS.has("grok-imagine-video-1.5-preview"));
+    const result = normalizeGrokVideoModel("grok-imagine-video-1.5-preview");
+    assert.equal((result as any).model, "grok-imagine-video-1.5-preview");
+  });
+
+  it("builds 1.5-preview I2V payload", () => {
+    const plan: GrokVideoPlan = { prompt: "dance", mode: "image-to-video", duration: 5, resolution: "480p", aspectRatio: "16:9", webSearchCalls: 0 };
+    const payload = buildVideoGenerationPayload(plan, { model: "grok-imagine-video-1.5-preview", sourceImageUrl: "data:image/png;base64,AAAA" });
+    assert.equal(payload.model, "grok-imagine-video-1.5-preview");
+    assert.deepEqual(payload.image, { url: "data:image/png;base64,AAAA" });
   });
 });
