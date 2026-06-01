@@ -9,4 +9,6 @@ export const ENABLE_CARD_NEWS_MODE =
   import.meta.env.VITE_IMA2_CARD_NEWS === "1" ||
   import.meta.env.VITE_IMA2_DEV === "1";
 
-export const ENABLE_AGENT_MODE = import.meta.env.VITE_IMA2_AGENT_MODE !== "0";
+export const ENABLE_AGENT_MODE =
+  import.meta.env.VITE_IMA2_AGENT_MODE === "1" ||
+  import.meta.env.VITE_IMA2_DEV === "1";

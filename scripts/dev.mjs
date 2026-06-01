@@ -21,6 +21,7 @@ console.log("[dev] building UI with dev diagnostics …");
 const build = run("npm", ["run", "ui:build"], {
   VITE_IMA2_DEV: "1",
   VITE_IMA2_CARD_NEWS: "1",
+  VITE_IMA2_AGENT_MODE: "1",
 });
 if (build.status !== 0) process.exit(build.status ?? 1);
 

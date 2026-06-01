@@ -80,7 +80,7 @@ export default function App() {
 
   useEffect(() => {
     hydrateHistory();
-    loadSessions();
+    if (ENABLE_AGENT_MODE) loadSessions();
     reconcileInflight();
     startInFlightPolling();
   }, [hydrateHistory, loadSessions, reconcileInflight, startInFlightPolling]);

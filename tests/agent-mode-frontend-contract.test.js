@@ -10,18 +10,21 @@ function readSource(path) {
 }
 
 describe("Agent Mode frontend shell contract", () => {
-  it("exposes Agent mode by default with an explicit opt-out gate", () => {
+  it("exposes Agent mode only through the dev feature gate", () => {
     const devMode = readSource("ui/src/lib/devMode.ts");
     const types = readSource("ui/src/types.ts");
     const store = readSource("ui/src/store/useAppStore.ts");
+    const app = readSource("ui/src/App.tsx");
     const main = readSource("ui/src/main.tsx");
     const switcher = readSource("ui/src/components/UIModeSwitch.tsx");
 
     assert.match(devMode, /export const ENABLE_AGENT_MODE/);
-    assert.match(devMode, /VITE_IMA2_AGENT_MODE !== "0"/);
+    assert.match(devMode, /VITE_IMA2_AGENT_MODE === "1"/);
+    assert.match(devMode, /VITE_IMA2_DEV === "1"/);
     assert.match(types, /"classic" \| "node" \| "card-news" \| "agent"/);
     assert.match(store, /raw === "agent"/);
     assert.match(store, /m === "agent" && !ENABLE_AGENT_MODE/);
+    assert.match(app, /if \(ENABLE_AGENT_MODE\) loadSessions\(\);/);
     assert.match(store, /return "classic";/);  // default mode for new users
     assert.match(main, /canonicalizeLocalhostOrigin/);
     assert.match(main, /window\.location\.hostname !== "localhost"/);
