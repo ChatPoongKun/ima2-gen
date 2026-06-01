@@ -9,7 +9,7 @@ export type WorkspaceOverrides = {
 };
 
 export const DEFAULT_WORKSPACE_PRESET: WorkspaceOverrides = {
-  promptBuilderSurface: "off",
+  promptBuilderSurface: "right-panel",
   composerPlacement: "sidebar",
   multimodeHistoryGrouping: "individual",
   restoreComposerFromHistory: true,

@@ -18,7 +18,7 @@ import { useI18n } from "../i18n";
 import { isEditableTarget } from "../lib/domEvents";
 import { getImageModelShortLabel } from "../lib/imageModels";
 import { isVideoItem } from "../lib/videoMedia";
-import { continuitySummary } from "../lib/videoContinuity";
+import { buildVideoDragPayload, continuitySummary } from "../lib/videoContinuity";
 import { formatReasoningLabel } from "../lib/reasoning";
 import type { GenerateItem } from "../types";
 import {
@@ -208,6 +208,11 @@ export function Canvas() {
                 autoPlay
                 loop
                 playsInline
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("application/ima2-ref", JSON.stringify(buildVideoDragPayload(currentImage)));
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
                 style={{
                   transform: `translate(${viewer.pan.x}px, ${viewer.pan.y}px) scale(${viewer.zoom})`,
                 }}
@@ -216,9 +221,14 @@ export function Canvas() {
               <img
                 className="result-img"
                 key={imageKey ?? undefined}
-                src={imageSrc}
+                src={imageSrc!}
                 alt={t("canvas.resultAlt")}
                 decoding="async"
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("application/ima2-ref", JSON.stringify({ image: currentImage.url || currentImage.image, filename: currentImage.filename }));
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
                 style={{
                   transform: `translate(${viewer.pan.x}px, ${viewer.pan.y}px) scale(${viewer.zoom})`,
                 }}
