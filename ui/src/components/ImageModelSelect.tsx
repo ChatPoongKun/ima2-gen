@@ -27,7 +27,6 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
   const setImageModel = useAppStore((s) => s.setImageModel);
   const videoModelSelected = useAppStore((s) => s.videoModelSelected);
   const selectVideoModel = useAppStore((s) => s.selectVideoModel);
-  const provider = useAppStore((s) => s.provider);
   const reasoningEffort = useAppStore((s) => s.reasoningEffort);
   const setReasoningEffort = useAppStore((s) => s.setReasoningEffort);
   const id = variant === "settings" ? "settings-image-model" : "sidebar-image-model";
@@ -36,7 +35,7 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
     ?? modelOptions[0];
   const currentReasoning = REASONING_EFFORT_OPTIONS.find((option) => option.value === reasoningEffort)
     ?? REASONING_EFFORT_OPTIONS[0];
-  const isGrok = provider === "grok";
+
 
   const onChange = (event: ChangeEvent<HTMLSelectElement>) => {
     setImageModel(event.target.value as ImageModel);
