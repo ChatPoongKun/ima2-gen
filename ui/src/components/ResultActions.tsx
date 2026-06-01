@@ -42,6 +42,7 @@ export function ResultActions({
   const actionImage = imageOverride ?? currentImage;
   if (!actionImage) return null;
   const isVideo = isVideoItem(actionImage);
+  const videoSrc = isVideo ? (actionImage.url || actionImage.image) : "";
   const canExportToComfy = Boolean(actionImage.filename);
   const canAnimate = Boolean(actionImage.filename) && !isVideo;
 
@@ -90,7 +91,7 @@ export function ResultActions({
   const copyImage = async () => {
     try {
       if (isVideo) {
-        const frame = await extractLastFrame(actionImage.image);
+        const frame = await extractLastFrame(videoSrc);
         await copyDataUrlToClipboard(frame);
       } else {
         await copyDataUrlToClipboard(actionImage.image);
@@ -103,7 +104,7 @@ export function ResultActions({
 
   const copyFirstFrame = async () => {
     try {
-      const frame = await extractFirstFrame(actionImage.image);
+      const frame = await extractFirstFrame(videoSrc);
       await copyDataUrlToClipboard(frame);
       showToast(t("toast.frameCopied"));
     } catch {
@@ -113,7 +114,7 @@ export function ResultActions({
 
   const copyMidFrame = async () => {
     try {
-      const frame = await extractMidFrame(actionImage.image);
+      const frame = await extractMidFrame(videoSrc);
       await copyDataUrlToClipboard(frame);
       showToast(t("toast.frameCopied"));
     } catch {
