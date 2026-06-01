@@ -4,10 +4,12 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 
-const CLI_ARGS = ["--import", "tsx", "/Users/jun/Developer/new/700_projects/ima2-gen/bin/ima2.ts"];
+const REPO_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+const CLI_ARGS = ["--import", "tsx", join(REPO_ROOT, "bin", "ima2.ts")];
 const tempDirs = [];
 const servers = [];
 
