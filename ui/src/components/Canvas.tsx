@@ -227,25 +227,34 @@ export function Canvas() {
                 </div>
               </>
             ) : (
-              <img
-                className="result-img"
-                key={imageKey ?? undefined}
-                src={imageSrc!}
-                alt={t("canvas.resultAlt")}
-                decoding="async"
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData("application/ima2-ref", JSON.stringify({ image: currentImage.url || currentImage.image, filename: currentImage.filename }));
-                  e.dataTransfer.effectAllowed = "copy";
-                }}
-                style={{
-                  transform: `translate(${viewer.pan.x}px, ${viewer.pan.y}px) scale(${viewer.zoom})`,
-                }}
-                onDoubleClick={(event) => {
-                  event.stopPropagation();
-                  openCanvas();
-                }}
-              />
+              <>
+                <img
+                  className="result-img"
+                  key={imageKey ?? undefined}
+                  src={imageSrc!}
+                  alt={t("canvas.resultAlt")}
+                  decoding="async"
+                  style={{
+                    transform: `translate(${viewer.pan.x}px, ${viewer.pan.y}px) scale(${viewer.zoom})`,
+                  }}
+                  onDoubleClick={(event) => {
+                    event.stopPropagation();
+                    openCanvas();
+                  }}
+                />
+                <div
+                  className="result-drag-handle"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("application/ima2-ref", JSON.stringify({ image: currentImage.url || currentImage.image, filename: currentImage.filename }));
+                    e.dataTransfer.effectAllowed = "copy";
+                  }}
+                  title={t("canvas.dragToComposer")}
+                  aria-label={t("canvas.dragToComposer")}
+                >
+                  DRAG
+                </div>
+              </>
             )}
             <ViewerControls
               zoom={viewer.zoom}
