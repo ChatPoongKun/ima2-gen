@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ulid } from "ulid";
 import { embedImageMetadataBestEffort } from "./imageMetadataStore.js";
@@ -392,8 +392,14 @@ async function persistAgentImage(
   const embedded = await embedImageMetadataBestEffort(Buffer.from(response.b64, "base64"), format, meta, {
     version: ctx.packageVersion,
   });
-  await writeFile(join(ctx.config.storage.generatedDir, filename), embedded.buffer);
-  await writeFile(join(ctx.config.storage.generatedDir, `${filename}.json`), JSON.stringify(meta)).catch(() => {});
+  const filePath = join(ctx.config.storage.generatedDir, filename);
+  await writeFile(filePath, embedded.buffer);
+  try {
+    await writeFile(`${filePath}.json`, JSON.stringify(meta));
+  } catch (err) {
+    await unlink(filePath).catch(() => {});
+    throw err;
+  }
   invalidateHistoryIndex();
   logEvent("agent", "saved", { requestId, sessionId, filename });
   return importAgentImage(sessionId, {
@@ -503,8 +509,14 @@ async function persistAgentVideo(
     usage: result.usage,
     webSearchCalls: result.webSearchCalls,
   };
-  await writeFile(join(ctx.config.storage.generatedDir, filename), result.videoBuffer);
-  await writeFile(join(ctx.config.storage.generatedDir, `${filename}.json`), JSON.stringify(meta)).catch(() => {});
+  const filePath = join(ctx.config.storage.generatedDir, filename);
+  await writeFile(filePath, result.videoBuffer);
+  try {
+    await writeFile(`${filePath}.json`, JSON.stringify(meta));
+  } catch (err) {
+    await unlink(filePath).catch(() => {});
+    throw err;
+  }
   invalidateHistoryIndex();
   logEvent("agent", "video_saved", { requestId, sessionId, filename });
   return importAgentImage(sessionId, {
