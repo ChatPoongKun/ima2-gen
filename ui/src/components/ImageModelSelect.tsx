@@ -163,21 +163,17 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
           className="image-model-select__trigger image-model-select__trigger--pill"
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label={isGrok
-            ? t("sidebar.quickSettingsModelOnlyAria", { model: current.shortLabel })
-            : t("sidebar.quickSettingsAria", {
-              model: current.shortLabel,
-              effort: currentReasoning.shortLabel,
-            })}
+          aria-label={t("sidebar.quickSettingsAria", {
+            model: current.shortLabel,
+            effort: currentReasoning.shortLabel,
+          })}
           onClick={() => setOpen((next) => !next)}
         >
           <span className="image-model-select__trigger-top">
             <span className="image-model-select__trigger-model">{videoModelSelected ? (VIDEO_MODEL_OPTIONS.find((o) => o.value === videoModelSelected)?.shortLabel ?? VIDEO_MODEL_OPTIONS[0].shortLabel) : current.shortLabel}</span>
             <span className="image-model-select__trigger-chevron" aria-hidden="true">▾</span>
           </span>
-          {isGrok ? null : (
-            <span className="image-model-select__trigger-effort">{currentReasoning.shortLabel}</span>
-          )}
+          <span className="image-model-select__trigger-effort">{currentReasoning.shortLabel}</span>
         </button>
         {open ? createPortal(
           <div
