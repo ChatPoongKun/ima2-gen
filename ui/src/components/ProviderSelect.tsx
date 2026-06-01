@@ -70,9 +70,9 @@ export function ProviderSelect({ allowGrok = true }: ProviderSelectProps) {
   const [blocked, setBlocked] = useState<Provider | null>(null);
 
   const PROVIDERS: { value: Provider; label: string }[] = [
-    { value: "oauth", label: "GPT OAuth" },
-    { value: "api", label: t("provider.apiLabel") },
-    { value: "grok", label: "Grok" },
+    { value: "oauth", label: "GPT\nOAuth" },
+    { value: "api", label: "GPT\nAPI" },
+    { value: "grok", label: "Grok\nOAuth" },
   ];
 
   const providerAvailability = {

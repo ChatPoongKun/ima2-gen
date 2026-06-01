@@ -3233,6 +3233,10 @@ body {
   font-size: 12px;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
+  white-space: pre-line;
+  text-align: center;
+  justify-content: center;
+  line-height: 1.2;
 }
 .provider-pill:hover {
   border-color: var(--border-strong);
