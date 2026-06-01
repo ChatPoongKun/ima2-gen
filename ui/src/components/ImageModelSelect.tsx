@@ -262,31 +262,29 @@ export function ImageModelSelect({ variant }: ImageModelSelectProps) {
                 </button>
               ))}
             </div>
-            {isGrok ? null : (
-              <div className="image-model-select__section" role="group" aria-label={t("sidebar.reasoningLabel")}>
-                <div className="image-model-select__section-title">{t("sidebar.reasoningLabel")}</div>
-                {REASONING_EFFORT_OPTIONS.map((option, index) => (
-                  <button
-                    key={option.value}
-                    ref={(node) => {
-                      menuItemRefs.current[modelOptions.length + VIDEO_MODEL_OPTIONS.length + index] = node;
-                    }}
-                    type="button"
-                    className={`image-model-select__item${option.value === reasoningEffort ? " is-active" : ""}`}
-                    role="menuitemradio"
-                    aria-checked={option.value === reasoningEffort}
-                    tabIndex={-1}
-                    onClick={() => {
-                      setReasoningEffort(option.value as ReasoningEffort);
-                      setOpen(false);
-                    }}
-                  >
-                    <span>{option.shortLabel}</span>
-                    <small>{t(option.fullLabelKey)}</small>
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="image-model-select__section" role="group" aria-label={t("sidebar.reasoningLabel")}>
+              <div className="image-model-select__section-title">{t("sidebar.reasoningLabel")}</div>
+              {REASONING_EFFORT_OPTIONS.map((option, index) => (
+                <button
+                  key={option.value}
+                  ref={(node) => {
+                    menuItemRefs.current[modelOptions.length + VIDEO_MODEL_OPTIONS.length + index] = node;
+                  }}
+                  type="button"
+                  className={`image-model-select__item${option.value === reasoningEffort ? " is-active" : ""}`}
+                  role="menuitemradio"
+                  aria-checked={option.value === reasoningEffort}
+                  tabIndex={-1}
+                  onClick={() => {
+                    setReasoningEffort(option.value as ReasoningEffort);
+                    setOpen(false);
+                  }}
+                >
+                  <span>{option.shortLabel}</span>
+                  <small>{t(option.fullLabelKey)}</small>
+                </button>
+              ))}
+            </div>
           </div>,
           document.body,
         ) : null}
