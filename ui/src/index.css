@@ -2669,8 +2669,10 @@ body {
   flex-wrap: wrap;
 }
 .composer__tool {
+  flex: 1 1 0;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 5px 10px;
   font-family: var(--mono);
