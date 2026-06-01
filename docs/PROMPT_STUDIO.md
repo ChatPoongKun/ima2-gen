@@ -15,7 +15,7 @@ you want a reproducible way to report a workspace issue.
 | Multimode | Starts several separate image requests from the current prompt. | Each slot is a candidate output, not a collage panel or a guaranteed scene sequence. |
 | 1:1 Direct | Sends the prompt through with less rewriting by the app. | Use it for exact wording, strict prompt experiments, or provider-side prompt syntax. |
 | Model quick menu | Changes the image model and reasoning effort from the sidebar header. | The full Settings workspace remains the detailed configuration page. |
-| Recent generations | Shows the visible Prompt Studio history domain. | Arrow keys move inside the same visible recent domain instead of hidden older rows. |
+| Recent generations | Shows the visible Prompt Studio history domain. | Arrow keys move inside the same visible recent domain instead of hidden older rows. Video items render as video thumbnails. Drag any thumbnail to the composer to add it as a reference image. |
 | Gallery | Browses saved local images, All/Favorites tabs, and folders. | Favorite toggles should preserve the gallery viewport you were browsing. |
 | Prompt library | Imports saved prompt text into the composer intentionally. | Library insert/continue actions are explicit prompt imports; passive image selection is not. |
 
