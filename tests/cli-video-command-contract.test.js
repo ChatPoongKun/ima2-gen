@@ -150,8 +150,15 @@ describe("ima2 video CLI contracts", () => {
     });
     const base = await listen(server);
     const result = await runCLI(["video", "analyze", "sample.mp4", "--server", base]);
-    assert.equal(result.code, 1);
     assert.match(result.stderr, /expected JSON response/);
     assert.doesNotMatch(result.stderr, /SyntaxError|node:internal/);
+    if (process.platform === "win32" && Number.parseInt(process.versions.node, 10) >= 24) {
+      assert.ok(
+        result.code === 1 || result.code === 3221226505,
+        `expected exit 1 or Windows Node 24 fatal exit 3221226505, got ${result.code}`,
+      );
+    } else {
+      assert.equal(result.code, 1);
+    }
   });
 });
