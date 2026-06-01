@@ -1,6 +1,6 @@
 import type { GenerateItem } from "../types";
 
-export const ACTIVE_VIDEO_PROMPT_GUIDANCE = "영상 생성 프롬프트에는 화면 흐름, 동작 흐름, 소리/무음, 대사/무대사, 마지막 프레임 의도를 입력해야 합니다.";
+export const ACTIVE_VIDEO_PROMPT_GUIDANCE = "영상 생성 프롬프트에는 화면 흐름, 동작 흐름, 소리/무음, 대사/무대사, 마지막 프레임 의도를 입력해야 합니다. 선택한 초수 전체를 자연스럽게 쓰도록 초반 구도, 이어지는 동작/감정 변화, 안정된 마지막 화면까지 확장해 주세요.";
 
 export type VideoContinuityEntry = {
   id: string;
@@ -100,6 +100,7 @@ export function buildContinuityPromptChip(lineage: VideoContinuityLineage): { id
       "The attached image is the last frame of the previous video.",
       latest ? `Continue from previous revisedPrompt #${latest.ordinal}: ${latest.revisedPrompt}` : null,
       "The new prompt must define next motion, camera, sound/music/no-music, dialogue/no-dialogue, and ending frame.",
+      "Pace the new clip to naturally fill the selected duration with a production-level sequence from the last-frame anchor.",
     ].filter(Boolean).join("\n"),
   };
 }

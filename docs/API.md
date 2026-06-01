@@ -270,7 +270,10 @@ Generate a video via the Grok video provider. Returns Server-Sent Events.
 
 Blank prompts return `PROMPT_REQUIRED` with a `guidance` string. The active
 prompt should describe visual flow, motion flow, sound/music/no-music,
-dialogue/no-dialogue, and ending frame.
+dialogue/no-dialogue, ending frame, and duration pacing. The video planner uses
+the selected duration as the full clip runtime and expands short requests into a
+production-level sequence with opening composition, connected motion/emotion
+change, and a stable ending frame suitable for continuation.
 
 When `continueFromVideo` is present, the server treats the generated `.mp4`
 sidecar as authoritative. Client `continuityLineage` cannot override it. The

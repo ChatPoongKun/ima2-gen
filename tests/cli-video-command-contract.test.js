@@ -68,7 +68,7 @@ describe("ima2 video CLI contracts", () => {
     assert.match(stdout, /ima2 video continue <prompt> --video <generated-file>/);
     assert.match(stdout, /ima2 video frame/);
     assert.match(stdout, /ima2 video analyze <generated-file>/);
-    assert.match(stdout, /--duration <1\.\.15>[\s\S]*Duration in seconds\. Default: 5/);
+    assert.match(stdout, /--duration <1\.\.15>[\s\S]*Duration in seconds\. Default: 5\. Prompt motion should naturally fill this length/);
     assert.match(stdout, /--duration <2\.\.10>[\s\S]*Extension duration only\. Default: 6/);
     assert.match(stdout, /--topic <text>/);
     assert.match(stdout, /grok-imagine-video-1\.5-preview/);
@@ -78,6 +78,7 @@ describe("ima2 video CLI contracts", () => {
     const noPrompt = await runCLI(["video"]);
     assert.equal(noPrompt.code, 2);
     assert.match(noPrompt.stderr, /Active video prompt required/);
+    assert.match(noPrompt.stderr, /naturally fill the selected duration/);
 
     const badGenerate = await runCLI(["video", "clip", "--duration", "6abc"]);
     assert.equal(badGenerate.code, 2);
@@ -107,6 +108,7 @@ describe("ima2 video CLI contracts", () => {
     const noContinuePrompt = await runCLI(["video", "continue", "--video", "sample.mp4"]);
     assert.equal(noContinuePrompt.code, 2);
     assert.match(noContinuePrompt.stderr, /Active video prompt required/);
+    assert.match(noContinuePrompt.stderr, /stable ending frame/);
   });
 
   it("sends continueFromVideo for video continue", async () => {

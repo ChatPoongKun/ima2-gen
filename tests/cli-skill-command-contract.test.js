@@ -41,6 +41,8 @@ describe("CLI packaged skill contract", () => {
     assert.match(skill, /jq -r '\.filename'/);
     assert.doesNotMatch(skill, /jq -r '\.url'/);
     assert.match(skill, /Structured Video Prompt Template/);
+    assert.match(skill, /duration pacing/);
+    assert.match(skill, /production-level sequence/);
     assert.match(skill, /Expected Motion/);
     assert.match(skill, /Dialogue/);
     assert.match(skill, /Ending Frame/);

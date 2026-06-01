@@ -11,6 +11,10 @@ import {
   type GrokVideoEvent,
   type GrokVideoPlan,
 } from "../lib/grokVideoAdapter.js";
+import {
+  buildGrokVideoPlannerSystemPrompt,
+  formatDurationPacingGuidance,
+} from "../lib/grokVideoPlannerPrompt.js";
 import { normalizeGrokVideoModel, VALID_GROK_VIDEO_MODELS } from "../lib/imageModels.js";
 import { parsePngInfo } from "../lib/pngInfo.js";
 import { config } from "../config.js";
@@ -146,10 +150,32 @@ describe("Grok video adapter", () => {
       referenceImageUrls: ["data:image/png;base64,A", "data:image/png;base64,B"],
     });
     const system = String(payload.messages[0].content);
+    const userText = String((payload.messages[1].content as any[])[0].text);
     assert.match(system, /Dialogue\/audio intent/);
     assert.match(system, /Ending frame \/ continuity handoff/);
     assert.match(system, /no background music/);
     assert.match(system, /sound effects only/);
+    assert.match(system, /Duration pacing is mandatory/);
+    assert.match(userText, /Duration pacing \(10s total\)/);
+    assert.match(userText, /production-level cinematic sequence/);
+    assert.match(userText, /opening composition -> connected motion or emotion change -> clear action or camera development -> stable ending frame/);
+  });
+
+  it("formats duration pacing without forbidding useful timing detail", () => {
+    const guidance = formatDurationPacingGuidance(15, "text-to-video");
+    assert.match(guidance, /15s total/);
+    assert.match(guidance, /naturally across the entire duration/);
+    assert.match(guidance, /production-level cinematic sequence/);
+    assert.match(guidance, /precise timing would improve the result/);
+    assert.doesNotMatch(guidance, /Do not use second-by-second/);
+    assert.doesNotMatch(guidance, /0\.0-2\.0s/);
+  });
+
+  it("keeps the planner system prompt duration-scaled instead of word-count capped", () => {
+    const system = buildGrokVideoPlannerSystemPrompt();
+    assert.match(system, /Duration pacing is mandatory/);
+    assert.match(system, /scale detail to the requested duration/);
+    assert.doesNotMatch(system, /30-80 words/);
   });
 
   it("rejects I2V without a source image", () => {

@@ -331,16 +331,19 @@ Prompts are NOT sent directly to the video model. A Grok planner (grok-4.3) rewr
 | Surface | Files | Responsibility |
 |---------|-------|----------------|
 | Image search/planner | `lib/grokImageAdapter.ts` | Web-search context and final image prompt for Grok image generation/editing. |
-| Video planner | `lib/grokVideoAdapter.ts` | Final video prompt for T2V/I2V/Ref2V, including continuity lineage when present. |
+| Video planner | `lib/grokVideoAdapter.ts`, `lib/grokVideoPlannerPrompt.ts` | Final video prompt for T2V/I2V/Ref2V, duration pacing, and continuity lineage when present. |
 | Video analyzer | `routes/videoExtended.ts` | First/last-frame analysis prompt for recreating or continuing an existing generated video. |
 | Agent/runtime prompt use | `lib/agentRuntime.ts`, card/template planner modules | Higher-level orchestration surfaces that may create image/video prompt inputs but do not replace the video planner contract. |
 
-For video, the Grok 4.3 planner must produce one compact English prompt with:
+For video, the Grok 4.3 planner must produce one focused English prompt with:
 core subject, expected action/motion, camera/composition, environment/style,
 dialogue/audio intent, ending frame/continuity handoff, and constraints. If
 `videoContinuity` exists, the lineage is authoritative context: continue from
 the latest clip's final frame and final audio/dialogue state without restarting
-the scene.
+the scene. The planner also applies duration pacing: use the selected seconds as
+the full clip runtime, expand even short requests into a production-level
+sequence, and make the clip feel complete through composition, blocking, camera
+movement, motion rhythm, sound/dialogue timing, and an ending hold.
 
 ### Active Video Prompt Requirement
 
@@ -352,13 +355,17 @@ agents should always write an active prompt that includes:
 - sound flow: music style, no music, room tone, or sound-effects-only
 - dialogue flow: exact line or explicit no-dialogue
 - ending frame: final pose, camera state, last spoken words, and final sound cue
+- duration pacing: make the selected seconds feel naturally filled with a
+  production-level sequence from opening composition to connected change to
+  stable ending frame
 
 Template:
 
 ```text
 From the attached last frame, <subject/action> moves from A to B while the
 camera <movement>. Sound: <music/no music/SFX/room tone>. Dialogue: <line or no
-dialogue>. End on <final frame and final audio state>.
+dialogue>. Pace the selected duration with a complete visual sequence. End on
+<final frame and final audio state>.
 ```
 
 ### Prerequisites

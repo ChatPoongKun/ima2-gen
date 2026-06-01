@@ -9,7 +9,7 @@ import { basename, dirname, join } from "node:path";
 const VALID_RESOLUTIONS = new Set(["480p", "720p"]);
 const VALID_ASPECT_RATIOS = new Set(["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "auto"]);
 const VALID_MODELS = new Set(["grok-imagine-video", "grok-imagine-video-1.5-preview"]);
-const ACTIVE_VIDEO_PROMPT_GUIDANCE = "Active video prompt required: describe visual flow, motion flow, sound/no-music intent, dialogue/no-dialogue intent, and the desired ending frame.";
+const ACTIVE_VIDEO_PROMPT_GUIDANCE = "Active video prompt required: describe visual flow, motion flow, sound/no-music intent, dialogue/no-dialogue intent, and the desired ending frame. Pace the scene to naturally fill the selected duration with an opening composition, connected motion/emotion change, and stable ending frame.";
 
 function parseIntegerFlag(value: unknown, fallback: number, label: string): number {
   const raw = value === undefined ? String(fallback) : String(value);
@@ -92,7 +92,7 @@ const HELP = `
     analyze     Analyze video with Grok 4.3 vision
 
   Options (generate mode):
-        --duration <1..15>              Duration in seconds. Default: 5
+        --duration <1..15>              Duration in seconds. Default: 5. Prompt motion should naturally fill this length
         --resolution <480p|720p>        Default: 480p
         --aspect-ratio <ratio|auto>     1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, auto. Default: auto
         --model <name>                  grok-imagine-video, grok-imagine-video-1.5-preview
@@ -368,7 +368,7 @@ async function videoContinueCmd(argv: string[]) {
   const args = parseArgs(argv, spec);
   rejectUnknownFlags(args);
   if (args.help) {
-    out(`  ima2 video continue <prompt> --video <generated-file>\n\n  Generate a new clip from a generated video's last frame and carry branch-local revisedPrompt lineage.\n\n  Prompt must describe visual flow, motion, sound/music/no-music, dialogue/no-dialogue, and ending frame.\n\n  Options:\n        --video <file>                 Generated .mp4 filename (required)\n        --duration <1..15>             Default: 5\n        --resolution <480p|720p>       Default: 720p\n        --aspect-ratio <ratio|auto>    Default: auto\n        --model <name>                 grok-imagine-video, grok-imagine-video-1.5-preview\n    -o, --out <file>                   Download continued video to file\n        --output <file>                Alias for --out\n        --json                         Print JSON result\n        --timeout <sec>                Default: 600\n        --server <url>                 Override server URL`);
+    out(`  ima2 video continue <prompt> --video <generated-file>\n\n  Generate a new clip from a generated video's last frame and carry branch-local revisedPrompt lineage.\n\n  Prompt must describe visual flow, motion, sound/music/no-music, dialogue/no-dialogue, ending frame, and how the selected duration should feel naturally filled.\n\n  Options:\n        --video <file>                 Generated .mp4 filename (required)\n        --duration <1..15>             Default: 5. Prompt motion should naturally fill this length\n        --resolution <480p|720p>       Default: 720p\n        --aspect-ratio <ratio|auto>    Default: auto\n        --model <name>                 grok-imagine-video, grok-imagine-video-1.5-preview\n    -o, --out <file>                   Download continued video to file\n        --output <file>                Alias for --out\n        --json                         Print JSON result\n        --timeout <sec>                Default: 600\n        --server <url>                 Override server URL`);
     return;
   }
   const prompt = args.positional.join(" ");

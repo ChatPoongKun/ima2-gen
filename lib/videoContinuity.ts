@@ -4,6 +4,7 @@ import { basename, join } from "node:path";
 export const ACTIVE_VIDEO_PROMPT_GUIDANCE = [
   "Active video prompt required.",
   "Describe visual flow, motion flow, sound or no-music intent, dialogue or no-dialogue intent, and the desired ending frame.",
+  "Pace the scene to naturally fill the selected duration, expanding even short requests into an opening composition, connected motion/emotion change, and stable ending frame.",
   "Example: From the attached last frame, the subject turns toward camera, rain sound rises, no background music, one whispered line finishes before a still close-up ending.",
 ].join(" ");
 

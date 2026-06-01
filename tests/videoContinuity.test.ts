@@ -55,4 +55,6 @@ test("active video prompt guard only blocks blank input", () => {
   assert.equal(requireActiveVideoPrompt("  비가 그치고 대사가 끝난다  "), "비가 그치고 대사가 끝난다");
   assert.match(ACTIVE_VIDEO_PROMPT_GUIDANCE, /motion flow/);
   assert.match(ACTIVE_VIDEO_PROMPT_GUIDANCE, /ending frame/);
+  assert.match(ACTIVE_VIDEO_PROMPT_GUIDANCE, /naturally fill the selected duration/);
+  assert.match(ACTIVE_VIDEO_PROMPT_GUIDANCE, /opening composition/);
 });

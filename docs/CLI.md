@@ -133,10 +133,12 @@ Video generate flags:
 | `--session <id>` | Session ID |
 
 Blank video prompts are rejected. Prompts should include visual flow, camera or
-subject motion, sound/no-music intent, dialogue/no-dialogue intent, and ending
+subject motion, sound/no-music intent, dialogue/no-dialogue intent, ending
+frame, and duration pacing. The selected seconds should feel naturally filled:
+opening composition, connected motion/emotion change, then a stable ending
 frame. Example: `from the last frame, she turns toward camera, rain grows
-louder, no background music, says "기다려", end on a still close-up after the
-line finishes`.
+louder, no background music, says "기다려", use the full duration for the turn
+and rain build, end on a still close-up after the line finishes`.
 
 Video edit/extend flags:
 
