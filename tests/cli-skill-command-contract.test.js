@@ -32,9 +32,14 @@ describe("CLI packaged skill contract", () => {
     assert.match(skill, /reference-to-video \| 10s/);
     assert.match(skill, /does not support `reference_images` Ref2V/);
     assert.match(skill, /supports image-to-video/);
+    assert.match(skill, /white-canvas image-to-video anchor/);
     assert.match(skill, /requestedModel/);
     assert.match(skill, /effectiveModel/);
     assert.match(skill, /modelFallback/);
+    assert.match(skill, /video\.effectiveModel/);
+    assert.match(skill, /jq -r '\.path'/);
+    assert.match(skill, /jq -r '\.filename'/);
+    assert.doesNotMatch(skill, /jq -r '\.url'/);
     assert.match(skill, /Structured Video Prompt Template/);
     assert.match(skill, /Expected Motion/);
     assert.match(skill, /Dialogue/);

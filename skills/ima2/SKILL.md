@@ -295,7 +295,7 @@ ima2 video "cinematic" --ref a.png --ref b.png      # reference-to-video (max 7)
 | 1 | image-to-video | 15s |
 | 2-7 | reference-to-video | 10s |
 
-`grok-imagine-video-1.5-preview` supports image-to-video but does not support `reference_images` Ref2V. For 2+ references, use `grok-imagine-video` and keep duration at 10s or less. ima2 may auto-retry a rejected 1.5 Ref2V request with the base model; read `effectiveModel` and `modelFallback` from the final result before naming or reporting the output.
+`grok-imagine-video-1.5-preview` supports image-to-video but does not support `reference_images` Ref2V. For 2+ references, use `grok-imagine-video` and keep duration at 10s or less. Prompt-only 1.5 text-to-video is implemented as an internal white-canvas image-to-video anchor so the 1.5 endpoint receives an image input. ima2 may auto-retry a rejected 1.5 Ref2V request with the base model; read `effectiveModel` and `modelFallback` from the final result before naming or reporting the output.
 
 ### Parameters
 
@@ -334,7 +334,7 @@ ima2 serve          # server must be running
 ### Output
 
 SSE streaming events: `planning` → `submitted` → `progress` (0-100%) → `done`.
-The `submitted` and `done` payloads include `requestedModel`, `effectiveModel`, and `modelFallback` so agents can report when a requested 1.5-preview Ref2V job actually ran on `grok-imagine-video`. With `--json`, prints the final result object to stdout.
+The `submitted` and `done` payloads include `requestedModel`, `effectiveModel`, and `modelFallback` so agents can report when a requested 1.5-preview Ref2V job actually ran on `grok-imagine-video`. CLI `--json` prints `video.requestedModel`, `video.effectiveModel`, and `video.modelFallback`; use `path`/`filename` for local chaining.
 
 ### Discover Valid Parameters
 
@@ -451,17 +451,17 @@ done
 Edit an existing video with a text prompt. This uses xAI's real video edit endpoint and saves the result as a generated video artifact.
 
 ```bash
-# Get the video URL from a previous generation
-VIDEO_URL=$(ima2 video "ocean waves" --json | jq -r '.url')
+# Get the local video file from a previous generation
+VIDEO_FILE=$(ima2 video "ocean waves" --json | jq -r '.path')
 
 # Edit: change style
-ima2 video edit "Make the water glow neon blue, bioluminescent" --video "$VIDEO_URL"
+ima2 video edit "Make the water glow neon blue, bioluminescent" --video "$VIDEO_FILE"
 
 # Edit: add object
-ima2 video edit "Add a sailboat in the distance" --video "$VIDEO_URL"
+ima2 video edit "Add a sailboat in the distance" --video "$VIDEO_FILE"
 
 # Edit: change mood
-ima2 video edit "Make it stormy with dark clouds" --video "$VIDEO_URL"
+ima2 video edit "Make it stormy with dark clouds" --video "$VIDEO_FILE"
 ```
 
 Constraints: grok-imagine-video only, input mp4 <=8.7s. Use `-o/--out` if you also need a local copy outside the generated directory.
@@ -474,13 +474,13 @@ Constraints: grok-imagine-video only, extension duration 2-10s. 1.5-preview is n
 
 ```bash
 # Generate initial clip
-VIDEO_URL=$(ima2 video "a bird takes flight from a branch" --duration 5 --json | jq -r '.url')
+VIDEO_FILE=$(ima2 video "a bird takes flight from a branch" --duration 5 --json | jq -r '.path')
 
 # Extend: add 5 more seconds
-ima2 video extend "the bird soars higher into the clouds" --video "$VIDEO_URL" --duration 5
+ima2 video extend "the bird soars higher into the clouds" --video "$VIDEO_FILE" --duration 5
 
 # Chain extensions for longer videos
-EXTENDED=$(ima2 video extend "camera follows the bird" --video "$VIDEO_URL" --duration 5 --json | jq -r '.url')
+EXTENDED=$(ima2 video extend "camera follows the bird" --video "$VIDEO_FILE" --duration 5 --json | jq -r '.filename')
 ima2 video extend "bird lands on a distant tree" --video "$EXTENDED" --duration 5
 ```
 
@@ -594,6 +594,6 @@ ima2 video "sleek product reveal, rotating camera, premium studio lighting" \
   --ref product.png --duration 10 --aspect-ratio 16:9
 
 # Step 3: Extend with lifestyle shot
-PRODUCT_VID=$(ima2 video "product reveal" --ref product.png --json | jq -r '.url')
+PRODUCT_VID=$(ima2 video "product reveal" --ref product.png --json | jq -r '.path')
 ima2 video extend "person puts on the earbuds and smiles" --video "$PRODUCT_VID" --duration 5
 ```

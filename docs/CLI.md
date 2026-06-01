@@ -149,7 +149,7 @@ Video mode is auto-detected from `--ref` count:
 | 1 | image-to-video |
 | 2–7 | reference-to-video (max 10s duration) |
 
-`grok-imagine-video-1.5-preview` supports image-to-video, but not `reference_images` reference-to-video. For 2+ refs, use `grok-imagine-video`; if ima2 auto-retries from 1.5-preview to the base model, read `effectiveModel` and `modelFallback` from the final JSON/SSE payload. Video edit and extension are also base-model only.
+`grok-imagine-video-1.5-preview` supports image-to-video, but not `reference_images` reference-to-video. Prompt-only 1.5 text-to-video uses an internal white-canvas image-to-video anchor. For 2+ refs, use `grok-imagine-video`; if ima2 auto-retries from 1.5-preview to the base model, read `video.effectiveModel` and `video.modelFallback` from CLI `--json`, or `effectiveModel` and `modelFallback` from SSE. Video edit and extension are also base-model only.
 
 SSE events: `planning` → `submitted` → `progress` (0–100%) → `done` or `error`.
 
