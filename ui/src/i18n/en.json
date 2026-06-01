@@ -56,6 +56,7 @@
     "sessionReloadedElsewhere": "Graph version changed, so the latest graph was reloaded.",
     "promptCopied": "Prompt copied",
     "imageCopied": "Copied to clipboard",
+    "frameCopied": "Frame copied to clipboard",
     "copyFailed": "Copy failed",
     "openGeneratedDirFailed": "Could not open the image folder. Run ima2 doctor to check the storage path.",
     "openGeneratedDirOpened": "Opened the generated image folder.",
@@ -534,6 +535,9 @@
   "result": {
     "download": "Download",
     "copyImage": "Copy image",
+    "copyLastFrame": "Last",
+    "copyFirstFrame": "First",
+    "copyMidFrame": "Mid",
     "copyPrompt": "Copy prompt",
     "continueHere": "Continue here",
     "continueHereTitle": "Import this image's prompt and keep working",

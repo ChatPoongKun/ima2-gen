@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { useI18n } from "../i18n";
 import { exportImageToComfy } from "../lib/api";
-import { isVideoItem } from "../lib/videoMedia";
+import { isVideoItem, extractFirstFrame, extractMidFrame, extractLastFrame } from "../lib/videoMedia";
 import { continueFromItem } from "../lib/continueFromItem";
 import type { GenerateItem } from "../types";
 
@@ -41,8 +41,9 @@ export function ResultActions({
 
   const actionImage = imageOverride ?? currentImage;
   if (!actionImage) return null;
+  const isVideo = isVideoItem(actionImage);
   const canExportToComfy = Boolean(actionImage.filename);
-  const canAnimate = Boolean(actionImage.filename) && !isVideoItem(actionImage);
+  const canAnimate = Boolean(actionImage.filename) && !isVideo;
 
   const animate = async () => {
     if (!actionImage.filename || animating) return;
@@ -65,28 +66,51 @@ export function ResultActions({
     a.click();
   };
 
+  const copyDataUrlToClipboard = async (dataUrl: string) => {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    let pngBlob: Blob;
+    if (blob.type === "image/png") {
+      pngBlob = blob;
+    } else {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      const url = URL.createObjectURL(blob);
+      await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = reject; img.src = url; });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext("2d")!.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      pngBlob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => b ? resolve(b) : reject(), "image/png"));
+    }
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+  };
+
   const copyImage = async () => {
     try {
-      const res = await fetch(actionImage.image);
-      const blob = await res.blob();
-      let pngBlob: Blob;
-      if (blob.type === "image/png") {
-        pngBlob = blob;
-      } else {
-        // Convert to PNG for clipboard compatibility
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        const url = URL.createObjectURL(blob);
-        await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = reject; img.src = url; });
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        canvas.getContext("2d")!.drawImage(img, 0, 0);
-        URL.revokeObjectURL(url);
-        pngBlob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => b ? resolve(b) : reject(), "image/png"));
-      }
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
-      showToast(t("toast.imageCopied"));
+      await copyDataUrlToClipboard(actionImage.image);
+      showToast(t(isVideo ? "toast.frameCopied" : "toast.imageCopied"));
+    } catch {
+      showToast(t("toast.copyFailed"), true);
+    }
+  };
+
+  const copyFirstFrame = async () => {
+    try {
+      const frame = await extractFirstFrame(actionImage.image);
+      await copyDataUrlToClipboard(frame);
+      showToast(t("toast.frameCopied"));
+    } catch {
+      showToast(t("toast.copyFailed"), true);
+    }
+  };
+
+  const copyMidFrame = async () => {
+    try {
+      const frame = await extractMidFrame(actionImage.image);
+      await copyDataUrlToClipboard(frame);
+      showToast(t("toast.frameCopied"));
     } catch {
       showToast(t("toast.copyFailed"), true);
     }
@@ -171,8 +195,18 @@ export function ResultActions({
         {t("result.download")}
       </button>
       <button type="button" className="action-btn" onClick={copyImage}>
-        {t("result.copyImage")}
+        {t(isVideo ? "result.copyLastFrame" : "result.copyImage")}
       </button>
+      {isVideo && (
+        <>
+          <button type="button" className="action-btn" onClick={copyFirstFrame}>
+            {t("result.copyFirstFrame")}
+          </button>
+          <button type="button" className="action-btn" onClick={copyMidFrame}>
+            {t("result.copyMidFrame")}
+          </button>
+        </>
+      )}
       <button type="button" className="action-btn" onClick={copyPrompt}>
         {t("result.copyPrompt")}
       </button>
