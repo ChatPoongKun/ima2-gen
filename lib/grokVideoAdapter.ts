@@ -74,6 +74,7 @@ export interface GrokVideoOptions {
   plannedPrompt?: string;
   webSearchCalls?: number;
   continuityLineage?: VideoContinuityLineage | null;
+  plannerModel?: string;
   onEvent?: (ev: GrokVideoEvent) => void;
 }
 
@@ -247,7 +248,7 @@ export async function planGrokVideo(prompt: string, ctx: RouteRuntimeContext, op
     duration,
     resolution,
     aspectRatio,
-    plannerModel: cfg.plannerModel,
+    plannerModel: options.plannerModel || cfg.plannerModel,
     searchSummary: search.summary,
     sourceImageUrl: options.sourceImage ? sourceImageUrl(options.sourceImage, options.sourceMime) : undefined,
     referenceImageUrls,

@@ -206,6 +206,8 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         ? `[Series topic: ${topic}]\n[Previous prompts in series:\n${chain.map((p, i) => `${i + 1}. ${p}`).join("\n")}\n]\n\n${activePrompt}`
         : activePrompt;
 
+      const plannerModel = typeof req.body?.plannerModel === "string" ? req.body.plannerModel.trim() : undefined;
+
       const result = await generateVideoViaGrok(effectivePrompt, ctx, {
         model: modelCheck.model,
         mode,
@@ -217,6 +219,7 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         signal: cancelController.signal,
         requestId,
         continuityLineage: parentLineage,
+        plannerModel: plannerModel || undefined,
         onEvent,
       });
 

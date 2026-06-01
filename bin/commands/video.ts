@@ -61,6 +61,7 @@ const SPEC = {
     resolution:    { type: "string", default: "480p" },
     "aspect-ratio": { type: "string", default: "auto" },
     model:         { type: "string" },
+    "planner-model": { type: "string" },
     topic:         { type: "string" },
     ref:           { type: "string", repeatable: true },
     out:           { short: "o", type: "string" },
@@ -96,6 +97,7 @@ const HELP = `
         --resolution <480p|720p>        Default: 480p
         --aspect-ratio <ratio|auto>     1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, auto. Default: auto
         --model <name>                  grok-imagine-video, grok-imagine-video-1.5-preview
+        --planner-model <name>          Planner model override (e.g. grok-4.3, grok-composer-2.5-fast)
         --topic <text>                  Series topic for prompt chain continuity
         --ref <file>                    Attach source/reference image (repeatable, max 7)
     -o, --out <file>                    Output file path
@@ -180,6 +182,7 @@ export default async function videoCmd(argv: string[]) {
     requestId,
   };
   if (args.model) body.model = args.model;
+  if (args["planner-model"]) body.plannerModel = args["planner-model"];
   if (args.session) body.sessionId = args.session;
   if (args.topic) body.topic = args.topic;
   if (referenceImages.length === 1) {
@@ -357,6 +360,7 @@ async function videoContinueCmd(argv: string[]) {
       resolution: { type: "string", default: "720p" },
       "aspect-ratio": { type: "string", default: "auto" },
       model: { type: "string" },
+      "planner-model": { type: "string" },
       out: { short: "o", type: "string" },
       output: { type: "string" },
       json: { type: "boolean" },
@@ -396,6 +400,7 @@ async function videoContinueCmd(argv: string[]) {
     continueFromVideo: args.video,
   };
   if (args.model) body.model = args.model;
+  if (args["planner-model"]) body.plannerModel = args["planner-model"];
   const data = await runVideoGenerateRequest(server.base, body, args.timeout, Boolean(args.json));
   const outPath = (args.out || args.output) as string | undefined;
   if (outPath) await downloadReturnedVideo(server.base, data, outPath, timeoutSignal(args.timeout));
