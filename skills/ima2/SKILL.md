@@ -60,7 +60,7 @@ ima2 gen "cinematic mountain" --model gpt-5.5 --reasoning-effort high
 ```
 
 Use Grok when the request should run through bundled progrok, mandatory xAI Web
-Search, `grok-4.3` planning, and xAI Images API:
+Search, planner pass (default: `grok-composer-2.5-fast`), and xAI Images API:
 
 ```bash
 ima2 grok login
