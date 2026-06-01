@@ -56,8 +56,20 @@ Current validated support:
 
 - `grok-imagine-video-1.5-preview` works for I2V through `POST /v1/videos/generations`.
 - Native prompt-only T2V failed in live smoke; ima2 uses a white-canvas I2V fallback.
-- `reference_images` / Ref2V failed in progrok live smoke and should be treated as not supported until revalidated.
+- `reference_images` / Ref2V fails with xAI HTTP 400: `` `reference_images` is not supported for this model. ``
+- Putting `data:video/mp4` inside `reference_images` also fails with the same HTTP 400 before video-type handling.
+- Putting `data:video/mp4` inside the I2V `image` field starts a request but the job immediately fails while polling: `Unable to process input image for video generation.`
+- Sending a `video` field to `/v1/videos/generations` with 1.5 fails as prompt-only T2V: `Text-to-video is not supported for this model.`
 - `/v1/videos/edits` and `/v1/videos/extensions` are restricted in ima2 to `grok-imagine-video` only.
+
+Live 2026-06-01 direct REST smoke through progrok proxy:
+
+| Case | Payload shape | Result |
+|---|---|---|
+| 1.5 + two PNG refs | `reference_images: [{data:image/png}, {data:image/png}]` | HTTP 400, `` `reference_images` is not supported for this model. `` |
+| 1.5 + MP4 in refs | `reference_images: [{data:video/mp4}, {data:image/png}]` | HTTP 400, `` `reference_images` is not supported for this model. `` |
+| 1.5 + MP4 as `image` | `image: {data:video/mp4}` | start HTTP 200 with request id, then poll `failed`: `Unable to process input image for video generation.` |
+| 1.5 + `video` on generations | `video: {data:video/mp4}` | HTTP 400, `Text-to-video is not supported for this model.` |
 
 ### Adapter implication
 
