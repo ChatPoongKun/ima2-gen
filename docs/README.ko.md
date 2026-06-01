@@ -30,6 +30,37 @@ ima2 serve
 
 > **npx로 실행하고 싶다면?** [NPX_QUICKSTART.md](NPX_QUICKSTART.md)를 참고하세요.
 
+### 원클릭 설치 (npm 없어도 됩니다)
+
+Node.js나 npm이 없어도 플랫폼별 설치 스크립트로 한 번에 설치할 수 있습니다.
+
+**macOS:**
+```bash
+curl -fsSL https://lidge-jun.github.io/ima2-gen/install-mac.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://lidge-jun.github.io/ima2-gen/install-windows.ps1 | iex
+```
+
+**Linux / WSL:**
+```bash
+curl -fsSL https://lidge-jun.github.io/ima2-gen/install-linux.sh | bash
+```
+
+각 스크립트가 nvm/fnm/brew/winget을 감지하고, 없으면 Node LTS를 자동 설치한 뒤, ima2-gen을 설치합니다.
+
+### 업데이트
+
+Ctrl+C로 서버를 종료한 뒤:
+
+```bash
+npm install -g ima2-gen@latest
+```
+
+v1.1.22부터 Ctrl+C가 DB, 소켓, 자식 프로세스를 깨끗하게 정리합니다. 이전 버전이거나 Windows에서 `EBUSY` 에러가 나면 위의 설치 스크립트를 다시 실행하세요 — 잔여 프로세스를 자동으로 정리합니다.
+
 ### 설정
 
 `ima2 setup`으로 인증 방식을 선택합니다:
