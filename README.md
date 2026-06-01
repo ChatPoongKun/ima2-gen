@@ -41,6 +41,27 @@ If `3333` is already occupied, `ima2-gen` binds the next available port and writ
 
 > **Using npx?** See [docs/NPX_QUICKSTART.md](docs/NPX_QUICKSTART.md) for the `npx ima2-gen serve` workflow.
 
+### One-Click Install (no npm required)
+
+Don't have Node.js or npm? Use the platform install script — it detects your environment, installs Node LTS if needed, then installs ima2-gen.
+
+**macOS:**
+```bash
+curl -fsSL https://lidge-jun.github.io/ima2-gen/install-mac.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://lidge-jun.github.io/ima2-gen/install-windows.ps1 | iex
+```
+
+**Linux / WSL:**
+```bash
+curl -fsSL https://lidge-jun.github.io/ima2-gen/install-linux.sh | bash
+```
+
+Each script checks for nvm/fnm/brew/winget, installs Node LTS through the best available method, and handles stale process cleanup automatically.
+
 ### Setup
 
 `ima2 setup` offers four authentication choices:
@@ -52,10 +73,15 @@ If `3333` is already occupied, `ima2-gen` binds the next available port and writ
 
 Video generation requires Grok OAuth (option 2 or 3). Run `ima2 grok login` separately if you already have GPT OAuth configured and want to add video support; it defaults to the manual-paste flow.
 
-Before updating a global install on Windows, stop any running `ima2 serve`
-process. If npm reports `EBUSY` or `resource busy or locked`, close ima2
-terminals, end stale `node.exe` processes if needed, and retry. If the lock
-persists, reboot and run the update before starting ima2 again.
+### Updating
+
+Stop the running server with Ctrl+C, then:
+
+```bash
+npm install -g ima2-gen@latest
+```
+
+Ctrl+C now performs a clean shutdown — closing the database, stopping child processes, and releasing file locks. On older versions (< 1.1.22) or if you see `EBUSY` on Windows, use the install script which handles stale process cleanup automatically.
 
 ## What It Does
 

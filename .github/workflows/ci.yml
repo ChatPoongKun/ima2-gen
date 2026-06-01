@@ -57,6 +57,25 @@ jobs:
         run: node bin/ima2.js capabilities --json
       - name: CLI smoke (--version)
         run: node bin/ima2.js --version
+      - name: Graceful shutdown (SIGINT clean exit)
+        shell: bash
+        run: |
+          node server.js &
+          SERVER_PID=$!
+          sleep 3
+          kill -SIGINT $SERVER_PID 2>/dev/null || true
+          TIMEOUT=10; while kill -0 $SERVER_PID 2>/dev/null && [ $TIMEOUT -gt 0 ]; do sleep 1; TIMEOUT=$((TIMEOUT-1)); done
+          if kill -0 $SERVER_PID 2>/dev/null; then
+            echo "::error::Server did not exit within 10s after SIGINT"
+            kill -9 $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+          wait $SERVER_PID
+          EXIT_CODE=$?
+          echo "Server exited with code $EXIT_CODE"
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::warning::Server exited with non-zero code $EXIT_CODE (may be signal-based exit)"
+          fi
       - name: Publish dry-run
         if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
         run: npm run publish:dry-run

@@ -1,54 +1,135 @@
-# ima2-gen 원클릭 설치 (Windows / PowerShell)
+# ima2-gen one-click install (Windows / PowerShell)
 #
-# 사용 (PowerShell 실행정책에 따라 한 줄로):
+# Usage (one-liner):
 #   irm https://lidge-jun.github.io/ima2-gen/install-windows.ps1 | iex
 #
-# 또는 파일을 받아 실행:
+# Or download and run:
 #   powershell -ExecutionPolicy Bypass -File .\install-windows.ps1
 #
-# 동작 순서:
-#   1. Node.js 설치 확인 (없으면 winget으로 설치, winget 없으면 안내)
-#   2. ima2-gen 전역 설치 (npm install -g ima2-gen)
-#   3. ima2 serve 실행 (포트 3333)
+# Steps:
+#   1. Kill stale ima2/node processes (prevents EBUSY on update)
+#   2. Detect Node.js (nvm-windows → winget → installer link)
+#   3. Verify Node >= 20
+#   4. Install ima2-gen globally
+#   5. Launch ima2 serve
 #
-# 지원: Windows 10 이상, PowerShell 5.1 또는 PowerShell 7
+# Requires: Windows 10+, PowerShell 5.1+
 
 $ErrorActionPreference = 'Stop'
+$MIN_NODE = 20
 
 function Print($msg) { Write-Host "▸ $msg" -ForegroundColor Cyan }
+function Ok($msg)    { Write-Host "✔ $msg" -ForegroundColor Green }
 function Warn($msg)  { Write-Host "⚠ $msg" -ForegroundColor Yellow }
 function Fail($msg)  { Write-Host "✗ $msg" -ForegroundColor Red; exit 1 }
 
-# 1. Node.js 확인
+function Refresh-Path {
+    $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+                [System.Environment]::GetEnvironmentVariable('Path', 'User')
+    # nvm-windows specific
+    $nvmHome = [System.Environment]::GetEnvironmentVariable('NVM_HOME', 'User')
+    $nvmLink = [System.Environment]::GetEnvironmentVariable('NVM_SYMLINK', 'User')
+    if ($nvmHome -and $env:Path -notlike "*$nvmHome*") {
+        $env:Path = "$nvmHome;$env:Path"
+    }
+    if ($nvmLink -and $env:Path -notlike "*$nvmLink*") {
+        $env:Path = "$nvmLink;$env:Path"
+    }
+}
+
+# ── 1. Kill stale processes (EBUSY prevention) ──────────────────────
+
+$stale = Get-Process node -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -like '*ima2*' -or $_.CommandLine -like '*ima2*' }
+if (-not $stale) {
+    $stale = Get-Process node -ErrorAction SilentlyContinue |
+        Where-Object { $_.MainModule.FileName -like '*node_modules*ima2*' }
+}
+if ($stale) {
+    Warn "Stopping stale ima2 node processes ($($stale.Count) found)…"
+    $stale | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+}
+
+# ── 2. Find or install Node.js ──────────────────────────────────────
+
 if (Get-Command node -ErrorAction SilentlyContinue) {
     $nodeVersion = node --version
-    Print "Node.js 감지됨: $nodeVersion"
+    Print "Node.js detected: $nodeVersion"
 }
 else {
-    Warn 'Node.js가 설치되어 있지 않습니다.'
-    if (Get-Command winget -ErrorAction SilentlyContinue) {
-        Print 'winget으로 Node.js LTS를 설치합니다…'
-        winget install --id OpenJS.NodeJS.LTS -e --silent --accept-package-agreements --accept-source-agreements
-        # 새 PATH 적용을 위해 환경변수 다시 읽기
-        $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + `
-                    [System.Environment]::GetEnvironmentVariable('Path', 'User')
+    Warn 'Node.js not found. Searching for install methods…'
+
+    # Try nvm-windows
+    if (Get-Command nvm -ErrorAction SilentlyContinue) {
+        Print 'nvm-windows detected. Installing Node LTS…'
+        nvm install lts
+        nvm use lts
+        Refresh-Path
+    }
+    # Try winget
+    elseif (Get-Command winget -ErrorAction SilentlyContinue) {
+        Print 'Installing Node.js LTS via winget…'
+        winget install --id OpenJS.NodeJS.LTS -e --silent `
+            --accept-package-agreements --accept-source-agreements
+        Refresh-Path
     }
     else {
-        Fail 'winget이 없습니다. https://nodejs.org 에서 Node.js LTS를 직접 받아 설치하시고 다시 실행해 주세요.'
+        Fail 'No package manager found. Install Node.js from https://nodejs.org or install nvm-windows from https://github.com/coreybutler/nvm-windows/releases'
     }
 }
 
-# 2. ima2-gen 설치
-Print 'ima2-gen을 전역으로 설치합니다…'
-$installResult = & npm install -g ima2-gen 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host $installResult
-    Fail 'ima2-gen 설치에 실패했습니다. PowerShell을 관리자 권한으로 다시 실행하거나, npm prefix를 사용자 폴더로 바꿔 주세요.'
-}
-Print 'ima2-gen 설치 완료'
+# ── 3. Version gate ─────────────────────────────────────────────────
 
-# 3. 실행
-Print '이미지 스튜디오를 띄웁니다 (Ctrl+C로 종료)…'
-Print '브라우저가 자동으로 열리지 않으면 http://localhost:3333 으로 접속하세요.'
+Refresh-Path
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    Fail 'node is not on PATH after install. Close this terminal, open a new one, and re-run.'
+}
+
+$major = [int]((node --version) -replace 'v(\d+)\..*', '$1')
+if ($major -lt $MIN_NODE) {
+    Fail "Node v$major is too old. ima2-gen requires Node >= $MIN_NODE. Run: nvm install lts"
+}
+Ok "Node $(node --version), npm $(npm --version)"
+
+# ── 4. Install ima2-gen ─────────────────────────────────────────────
+
+# Pre-clean: force-remove stale locks from previous versions
+$npmGlobal = (npm prefix -g 2>$null)
+if ($npmGlobal) {
+    $lockCandidate = Join-Path $npmGlobal 'node_modules' '.package-lock.json'
+    if (Test-Path $lockCandidate) {
+        try {
+            Remove-Item $lockCandidate -Force -ErrorAction SilentlyContinue
+        } catch {}
+    }
+}
+
+Print 'Installing ima2-gen globally…'
+$output = & npm install -g ima2-gen 2>&1
+if ($LASTEXITCODE -ne 0) {
+    $outputStr = $output -join "`n"
+    if ($outputStr -match 'EBUSY|EPERM|resource busy') {
+        Warn 'File lock detected. Killing all node processes and retrying…'
+        Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+        Start-Sleep -Seconds 3
+        npm cache clean --force 2>$null
+        $output = & npm install -g ima2-gen 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host ($output -join "`n")
+            Fail 'Install still failed after cleanup. Reboot, then run this script again before starting ima2.'
+        }
+    }
+    else {
+        Write-Host ($output -join "`n")
+        Fail 'Install failed. Try running PowerShell as Administrator.'
+    }
+}
+Ok 'ima2-gen installed'
+
+# ── 5. Launch ────────────────────────────────────────────────────────
+
+Print 'Starting image studio (Ctrl+C to stop)…'
+Print 'If the browser does not open, visit http://localhost:3333'
 Write-Host ''
 & ima2 serve

@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# ima2-gen one-click install (macOS)
+# ima2-gen one-click install (Linux / WSL)
 #
 # Usage:
-#   curl -fsSL https://lidge-jun.github.io/ima2-gen/install-mac.sh | bash
+#   curl -fsSL https://lidge-jun.github.io/ima2-gen/install-linux.sh | bash
 #   or
-#   bash install-mac.sh
+#   bash install-linux.sh
 #
 # Steps:
-#   1. Detect Node.js (nvm → fnm → brew → direct nvm install)
+#   1. Detect Node.js (nvm → fnm → system pkg → auto-install nvm)
 #   2. Verify Node >= 20
-#   3. Kill stale ima2/node processes that hold file locks
+#   3. Kill stale ima2 processes
 #   4. Install ima2-gen globally
 #   5. Launch ima2 serve
 
@@ -50,15 +50,14 @@ else
     print "fnm detected. Installing Node LTS…"
     fnm install --lts
     eval "$(fnm env)"
-  # Try Homebrew
-  elif command -v brew >/dev/null 2>&1; then
-    print "Installing Node.js via Homebrew…"
-    brew install node
-  # Last resort: install nvm
   else
-    print "No package manager found. Installing nvm…"
+    # Auto-install nvm (works without sudo)
+    print "No version manager found. Installing nvm…"
     curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
     load_nvm
+    if ! command -v nvm >/dev/null 2>&1; then
+      fail "nvm install succeeded but nvm not on PATH. Open a new terminal and re-run."
+    fi
     nvm install --lts
     nvm use --lts
   fi
@@ -86,11 +85,11 @@ fi
 # ── 4. Install ima2-gen ─────────────────────────────────────────────
 
 print "Installing ima2-gen globally…"
-if npm install -g ima2-gen; then
+if npm install -g ima2-gen 2>/dev/null; then
   ok "ima2-gen $(ima2 --version 2>/dev/null || echo 'installed')"
 else
-  warn "Permission denied. Retrying with sudo…"
-  sudo npm install -g ima2-gen || fail "Install failed. Check npm permissions or set a user prefix: npm config set prefix ~/.npm-global"
+  warn "Permission denied. Trying with sudo…"
+  sudo npm install -g ima2-gen || fail "Install failed. Set a user prefix: npm config set prefix ~/.npm-global"
 fi
 
 # ── 5. Launch ────────────────────────────────────────────────────────
