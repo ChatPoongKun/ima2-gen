@@ -69,7 +69,7 @@
 }
 
 .quota-bar__reset {
-  min-width: 32px;
+  min-width: 56px;
   text-align: right;
   opacity: 0.6;
 }
