@@ -37,7 +37,9 @@ test("toast store keeps an append-only visible log with dismiss support", () => 
 });
 
 test("toast component renders a bottom-right stack with active-tab timeout behavior", () => {
-  assert.match(toastSource, /TOAST_VISIBLE_TIMEOUT_MS = 30_000/, "active-tab timeout should be 30 seconds");
+  assert.match(toastSource, /TOAST_VISIBLE_TIMEOUT_MS = 3_000/, "active-tab timeout should be 3 seconds");
+  assert.match(toastSource, /TOAST_MAX_VISIBLE = 5/, "visible toasts should be capped at 5");
+  assert.match(toastSource, /\.slice\(-TOAST_MAX_VISIBLE\)/, "rows should be sliced to max visible");
   assert.match(toastSource, /document\.visibilityState === "visible"/, "tab activity should use visibility state");
   assert.match(toastSource, /visibilitychange/, "component should react to tab visibility changes");
   assert.match(toastSource, /className="toast-stack"/, "component should render a stack container");

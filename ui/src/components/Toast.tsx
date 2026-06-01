@@ -3,7 +3,8 @@ import { useI18n } from "../i18n";
 import { errorCodes } from "../lib/errorCodes";
 import { useAppStore } from "../store/useAppStore";
 
-const TOAST_VISIBLE_TIMEOUT_MS = 30_000;
+const TOAST_VISIBLE_TIMEOUT_MS = 3_000;
+const TOAST_MAX_VISIBLE = 5;
 
 export function Toast() {
   const { t } = useI18n();
@@ -96,7 +97,7 @@ export function Toast() {
         createdAt: card.createdAt,
       };
     }),
-  ].sort((a, b) => a.createdAt - b.createdAt);
+  ].sort((a, b) => a.createdAt - b.createdAt).slice(-TOAST_MAX_VISIBLE);
 
   if (rows.length === 0) return null;
 

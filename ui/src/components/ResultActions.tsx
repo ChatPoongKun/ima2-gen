@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { useI18n } from "../i18n";
 import { exportImageToComfy } from "../lib/api";
-import { isVideoItem, extractFirstFrame, extractMidFrame } from "../lib/videoMedia";
+import { isVideoItem, extractFirstFrame, extractMidFrame, extractLastFrame } from "../lib/videoMedia";
 import { continueFromItem } from "../lib/continueFromItem";
 import type { GenerateItem } from "../types";
 
@@ -89,7 +89,12 @@ export function ResultActions({
 
   const copyImage = async () => {
     try {
-      await copyDataUrlToClipboard(actionImage.image);
+      if (isVideo) {
+        const frame = await extractLastFrame(actionImage.image);
+        await copyDataUrlToClipboard(frame);
+      } else {
+        await copyDataUrlToClipboard(actionImage.image);
+      }
       showToast(t(isVideo ? "toast.frameCopied" : "toast.imageCopied"));
     } catch {
       showToast(t("toast.copyFailed"), true);
