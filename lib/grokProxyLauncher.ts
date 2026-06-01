@@ -96,6 +96,11 @@ export async function startGrokProxy(options: GrokProxyOptions = {}) {
     currentChild = child;
     authRequired = false;
 
+    child.on("error", (err) => {
+      console.error(`[grok] failed to start progrok proxy: ${err.message}`);
+      if (currentChild === child) currentChild = null;
+    });
+
     child.stdout?.on("data", (d) => {
       const msg = normalizeGrokProxyMessage(d.toString().trim());
       if (!msg) return;
@@ -115,10 +120,6 @@ export async function startGrokProxy(options: GrokProxyOptions = {}) {
       for (const line of msg.split(/\r?\n/)) {
         if (isGrokProxyAuthRequiredMessage(line)) authRequired = true;
       }
-    });
-
-    child.on("error", (err) => {
-      console.error(`[grok] failed to start progrok proxy: ${err.message}`);
     });
 
     child.on("exit", (code) => {

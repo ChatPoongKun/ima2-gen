@@ -33,6 +33,11 @@ export function startOAuthProxy(options: any = {}) {
     });
     currentChild = child;
 
+    child.on("error", (err) => {
+      console.error(`[gpt-oauth] failed to start proxy: ${err.message}`);
+      if (currentChild === child) currentChild = null;
+    });
+
     child.stdout?.on("data", (d) => {
       const msg = d.toString().trim();
       if (!msg) return;

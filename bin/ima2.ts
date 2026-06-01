@@ -206,6 +206,10 @@ async function serve(serveArgs: string[] = []) {
     cwd: ROOT,
   });
 
+  child.on("error", (err) => {
+    console.error(`[ima2] Failed to start server: ${err.message}`);
+    process.exit(1);
+  });
   child.on("exit", (code) => process.exit(code));
 
   process.on("SIGINT", () => killProcessTree(child.pid));

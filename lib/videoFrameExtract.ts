@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { open, readFile, realpath, stat, unlink } from "node:fs/promises";
-import { extname, join, resolve, sep } from "node:path";
+import { extname, isAbsolute, join, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -15,7 +15,7 @@ function routeError(message: string, status = 400): Error & { status: number } {
 
 export async function safeGeneratedFilePath(generatedDir: string, file: string, options: { requireMp4?: boolean } = {}): Promise<string> {
   const base = resolve(generatedDir);
-  const target = file.startsWith("/") ? resolve(file) : resolve(base, file);
+  const target = isAbsolute(file) ? resolve(file) : resolve(base, file);
   if (target !== base && !target.startsWith(`${base}${sep}`)) {
     throw routeError("invalid file path", 400);
   }
@@ -54,7 +54,7 @@ export async function assertLocalMp4(path: string): Promise<void> {
 }
 
 export async function extractVideoFrame(input: string, output: string, position: string): Promise<void> {
-  const options = { timeout: FFMPEG_TIMEOUT_MS, killSignal: "SIGKILL" as const, maxBuffer: 1024 * 1024 };
+  const options = { timeout: FFMPEG_TIMEOUT_MS, killSignal: (process.platform === "win32" ? "SIGTERM" : "SIGKILL") as NodeJS.Signals, maxBuffer: 1024 * 1024 };
   if (position === "last") {
     await execFileAsync("ffmpeg", ["-y", "-sseof", "-3", "-i", input, "-update", "1", "-q:v", "1", output], options);
     return;
