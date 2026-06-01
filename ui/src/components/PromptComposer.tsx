@@ -330,7 +330,6 @@ export function PromptComposer({ variant = "sidebar" }: PromptComposerProps) {
           </svg>
           <span className="sr-only">Video</span>
         </button>
-        <div className="composer__toolbar-break" />
         <button
           type="button"
           className={`composer__tool${isDirectMode ? " composer__tool--on" : ""}`}
