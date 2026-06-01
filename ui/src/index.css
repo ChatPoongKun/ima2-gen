@@ -1692,12 +1692,12 @@ body {
 .image-model-select__trigger--pill {
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   padding: 5px 14px;
   border: 1.5px solid var(--blue);
   border-radius: 10px;
   background: var(--accent-soft);
-  min-width: 90px;
+  min-width: 0;
   height: auto;
   transition: border-color 0.15s, background 0.15s;
 }
@@ -1725,22 +1725,11 @@ body {
   margin-left: 1px;
 }
 
-.image-model-select__trigger-args {
-  display: block;
-  font-size: 10px;
-  color: var(--text-faint);
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  line-height: 1.15;
-}
-
-.image-model-select__trigger-separator {
-  color: var(--text-faint);
-}
-
 .image-model-select__trigger-effort {
-  color: var(--green);
   font-size: 10px;
+  color: var(--green);
+  letter-spacing: 0.02em;
+  line-height: 1.1;
 }
 
 .image-model-select--settings select {
