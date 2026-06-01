@@ -574,7 +574,7 @@ body {
 .logo {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -586,7 +586,7 @@ body {
 .logo-actions {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   margin-left: auto;
   flex: 0 0 auto;
 }
@@ -1693,9 +1693,9 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  padding: 5px 14px;
+  padding: 4px 9px;
   border: 1.5px solid var(--blue);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--accent-soft);
   min-width: 0;
   height: auto;
