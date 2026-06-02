@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { readFile, rm, stat, writeFile, mkdir } from "node:fs/promises";
-import { join, resolve, sep } from "node:path";
+import { extname, join, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { randomBytes } from "node:crypto";
 import { logEvent } from "./logger.js";
@@ -204,10 +204,12 @@ function parseAgyOutput(stdout: string): { artifactPath: string; ext: string } {
     return { artifactPath: p, ext };
   }
 
-  const pathMatch = stdout.match(/\/[^\s"']+\/(brain|artifacts)\/[^\s"']+\.(png|jpg|jpeg|webp)/i);
+  const normalizedStdout = stdout.replace(/\\/g, "/");
+  const pathMatch = normalizedStdout.match(/\/[^\s"']+\/(brain|artifacts)\/[^\s"']+\.(png|jpg|jpeg|webp)/i);
   if (pathMatch) {
-    const ext = pathMatch[0].split(".").pop() || "png";
-    return { artifactPath: pathMatch[0], ext };
+    const artifactPath = process.platform === "win32" ? pathMatch[0].replace(/\//g, "\\") : pathMatch[0];
+    const ext = extname(artifactPath).slice(1) || "png";
+    return { artifactPath, ext };
   }
 
   throw agyError(
@@ -224,7 +226,9 @@ function spawnAgy(prompt: string, signal?: AbortSignal): Promise<{ stdout: strin
       env: {
         PATH: process.env.PATH,
         HOME: process.env.HOME,
+        USERPROFILE: process.env.USERPROFILE,
         TMPDIR: process.env.TMPDIR,
+        TEMP: process.env.TEMP,
         LANG: process.env.LANG,
         GEMINI_API_KEY: process.env.GEMINI_API_KEY,
       },
@@ -282,6 +286,7 @@ function spawnAgy(prompt: string, signal?: AbortSignal): Promise<{ stdout: strin
       child.kill("SIGTERM");
       return reject(agyError("Generation canceled", 499, "GENERATION_CANCELED"));
     }
+    child.stdin.on("error", () => {});
     child.stdin.write(prompt);
     child.stdin.end();
   });
@@ -359,7 +364,11 @@ export async function generateViaAgy(
       join(homedir(), ".cache"),
       tmpdir(),
     ];
-    const isSafePath = allowedPrefixes.some((prefix) => resolvedPath.startsWith(prefix + sep) || resolvedPath.startsWith(prefix));
+    const normalizedResolved = resolvedPath.replace(/\\/g, "/");
+    const isSafePath = allowedPrefixes.some((prefix) => {
+      const normalizedPrefix = prefix.replace(/\\/g, "/");
+      return normalizedResolved.startsWith(normalizedPrefix + "/") || normalizedResolved === normalizedPrefix;
+    });
     if (!isSafePath) {
       throw agyError(
         `Agy artifact path outside allowed directories: ${resolvedPath}`,

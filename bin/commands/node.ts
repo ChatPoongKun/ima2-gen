@@ -9,11 +9,11 @@ const HELP = `
   ima2 node <subcommand> [options]
 
   Subcommands:
-    generate <prompt...> [--parent <nodeId>] [--ref <file>...] [--provider <auto|oauth|api|grok>] [--no-stream] [...gen-style flags]
+    generate <prompt...> [--parent <nodeId>] [--ref <file>...] [--provider <auto|oauth|api|grok|grok-api|agy|gemini-api>] [--no-stream] [...gen-style flags]
     show <nodeId> [--json]
 
   Generate options:
-        --provider <auto|oauth|api|grok>  Provider for this request; grok uses progrok proxy
+        --provider <auto|oauth|api|grok|grok-api|agy|gemini-api>  Provider for this request
 `;
 
 const GEN_FLAGS = {

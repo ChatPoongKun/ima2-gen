@@ -304,7 +304,7 @@ function getGlobalPrefixCandidates({ env, execPath, argv1 }: PrefixOpts): string
 }
 
 function addHomebrewPrefix(prefixes: Set<string>, execPath: string): void {
-  const marker = `${sep}Cellar${sep}node`;
+  const marker = "/Cellar/node";
   const idx = execPath.indexOf(marker);
   if (idx > 0) prefixes.add(execPath.slice(0, idx));
 }

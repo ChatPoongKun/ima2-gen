@@ -9,8 +9,8 @@ import { tmpdir } from "node:os";
 // Integration-ish: boot the real server on a random port, hit /api/health,
 // verify advertisement file lifecycle, kill, verify cleanup.
 
-const PORT = String(3500 + Math.floor(Math.random() * 400));
-const OAUTH_PORT = String(10532 + Math.floor(Math.random() * 400));
+const PORT = String(14700 + Math.floor(Math.random() * 300));
+const OAUTH_PORT = String(15100 + Math.floor(Math.random() * 300));
 const FAKE_HOME = mkdtempSync(join(tmpdir(), "ima2-test-home-"));
 const FAKE_GENERATED_DIR = mkdtempSync(join(tmpdir(), "ima2-test-generated-"));
 

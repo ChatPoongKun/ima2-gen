@@ -111,7 +111,7 @@ export function envOverrideForKey(key: string): { envVar: string; value: string 
 }
 
 export function displayPath(p: string): string {
-  const home = process.env.HOME || "";
+  const home = process.env.HOME || process.env.USERPROFILE || "";
   return home && p.startsWith(home) ? p.replace(home, "~") : p;
 }
 

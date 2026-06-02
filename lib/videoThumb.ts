@@ -26,7 +26,7 @@ export async function generateVideoThumbnail(videoPath: string): Promise<string>
       thumbPath,
     ], {
       timeout: FFMPEG_THUMB_TIMEOUT_MS,
-      killSignal: process.platform === "win32" ? "SIGTERM" as NodeJS.Signals : "SIGKILL" as NodeJS.Signals,
+      killSignal: process.platform === "win32" ? "SIGTERM" : "SIGKILL",
       maxBuffer: 1024 * 1024,
     });
     return thumbPath;
