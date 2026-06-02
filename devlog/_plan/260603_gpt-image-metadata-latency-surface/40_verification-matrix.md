@@ -13,6 +13,11 @@ Date: 2026-06-03
 | Sequence means staged prompts | Backend and real OAuth sequence generation | Already patched in prior sequence work |
 | Three image tool docs are incorporated into planning | Devlog comparison document | Done in this plan set |
 | No hidden assistant tool is treated as directly pluggable API | Plan explicitly states non-goal | Done in this plan set |
+| SAFETY_INTENT_POLICY removed | promptSafetyPolicy.ts exports empty or removed | Pending — research complete |
+| Negative prompt injection removed | Developer prompt no longer appends "avoid bad anatomy..." | Pending |
+| Prompt builder safety rules softened | systemPrompt.ts no longer pre-filters with vague rules | Pending |
+| Simple prompts no longer blocked | "여자 일러스트 그려줘" and equivalent succeed without moderation_blocked | Pending — requires runtime test |
+| Moderation research documented | 05_moderation-censorship-research.md with external+internal evidence | Done |
 
 ## Commands To Re-Run After Implementation
 
@@ -44,6 +49,16 @@ Browser QA:
 cli-jaw browser start --agent
 cli-jaw browser navigate "http://localhost:3333"
 cli-jaw browser snapshot --interactive
+```
+
+Moderation reduction verification:
+
+```bash
+# Before/after comparison: simple prompts that previously triggered moderation
+node bin/ima2.js gen --provider oauth --model gpt-5.4-mini --quality low --size 1024x1024 --json --server http://localhost:3333 "여자 일러스트 그려줘"
+node bin/ima2.js gen --provider oauth --model gpt-5.4-mini --quality low --size 1024x1024 --json --server http://localhost:3333 "a knight fighting a dragon"
+node bin/ima2.js gen --provider oauth --model gpt-5.4-mini --quality low --size 1024x1024 --json --server http://localhost:3333 "character reference sheet, guy in shorts"
+node bin/ima2.js gen --provider oauth --model gpt-5.4-mini --quality low --size 1024x1024 --json --server http://localhost:3333 "make the character skin a little paler"
 ```
 
 Manual browser assertions:
