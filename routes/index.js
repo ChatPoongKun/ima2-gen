@@ -21,6 +21,8 @@ import { registerGrokRoutes } from "./grok.js";
 import { registerVideoRoutes } from "./video.js";
 import { registerVideoExtendedRoutes } from "./videoExtended.js";
 import { registerQuotaRoutes } from "./quota.js";
+import { registerAuthRoutes } from "./auth.js";
+import { mountKeyRoutes } from "./keys.js";
 import { requireRuntimeContext } from "../lib/runtimeContext.js";
 export function configureRoutes(app, ctxRaw) {
     const ctx = requireRuntimeContext(ctxRaw);
@@ -48,4 +50,6 @@ export function configureRoutes(app, ctxRaw) {
     registerVideoRoutes(app, ctx);
     registerVideoExtendedRoutes(app, ctx);
     registerQuotaRoutes(app, ctx);
+    registerAuthRoutes(app);
+    mountKeyRoutes(app, ctx);
 }

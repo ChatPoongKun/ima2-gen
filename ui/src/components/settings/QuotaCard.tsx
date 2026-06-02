@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "../../i18n";
 
 interface QuotaWindow {
@@ -19,6 +19,14 @@ interface QuotaResult {
 interface QuotaResponse {
   codex?: QuotaResult;
   grok?: QuotaResult;
+}
+
+interface SwitchState {
+  phase: "idle" | "starting" | "waiting" | "complete" | "error";
+  userCode?: string;
+  verificationUrl?: string;
+  sessionId?: string;
+  error?: string;
 }
 
 function barColor(pct: number): string {
@@ -66,21 +74,134 @@ function QuotaBar({ window: w }: { window: QuotaWindow }) {
   );
 }
 
+function SwitchAccountButton({ provider, onComplete }: { provider: "grok" | "codex"; onComplete: () => void }) {
+  const [state, setState] = useState<SwitchState>({ phase: "idle" });
+
+  const startSwitch = useCallback(async () => {
+    setState({ phase: "starting" });
+    try {
+      const res = await fetch("/api/auth/switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Request failed" })) as { error?: string };
+        setState({ phase: "error", error: err.error || `HTTP ${res.status}` });
+        return;
+      }
+      const data = await res.json() as { sessionId: string; userCode: string; verificationUrl: string };
+      setState({ phase: "waiting", ...data });
+      window.open(data.verificationUrl, "_blank");
+    } catch (e) {
+      setState({ phase: "error", error: (e as Error).message });
+    }
+  }, [provider]);
+
+  useEffect(() => {
+    if (state.phase !== "waiting" || !state.sessionId) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/auth/switch/${state.sessionId}`);
+        const data = await res.json() as { status: string; error?: string };
+        if (cancelled) return;
+        if (data.status === "complete") {
+          setState({ phase: "complete" });
+          setTimeout(onComplete, 1000);
+          return;
+        }
+        if (data.status === "error" || data.status === "expired") {
+          setState({ phase: "error", error: data.error || data.status });
+          return;
+        }
+      } catch { /* retry */ }
+      if (!cancelled) setTimeout(poll, 3000);
+    };
+    const timer = setTimeout(poll, 3000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [state.phase, state.sessionId, onComplete]);
+
+  if (state.phase === "idle") {
+    return (
+      <button
+        type="button"
+        className="settings-action-btn"
+        style={{ width: "100%", marginTop: "6px" }}
+        onClick={startSwitch}
+      >
+        Switch {provider === "grok" ? "Grok" : "Codex"} Account
+      </button>
+    );
+  }
+
+  if (state.phase === "starting") {
+    return (
+      <div className="quota-card__hint" style={{ textAlign: "center", marginTop: "6px" }}>
+        Starting login...
+      </div>
+    );
+  }
+
+  if (state.phase === "waiting") {
+    return (
+      <div style={{ marginTop: "6px", padding: "8px", background: "var(--surface, #f5f5f5)", borderRadius: "6px", fontSize: "12px" }}>
+        <div style={{ textAlign: "center", marginBottom: "4px" }}>
+          Enter this code in the opened tab:
+        </div>
+        <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 700, fontFamily: "monospace", letterSpacing: "2px", margin: "6px 0" }}>
+          {state.userCode}
+        </div>
+        <div style={{ textAlign: "center", color: "var(--text-dim, #888)", fontSize: "11px" }}>
+          Waiting for approval...
+        </div>
+      </div>
+    );
+  }
+
+  if (state.phase === "complete") {
+    return (
+      <div className="quota-card__hint" style={{ textAlign: "center", marginTop: "6px", color: "var(--success, #22c55e)" }}>
+        Account switched! Refreshing...
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: "6px" }}>
+      <div className="quota-card__hint" style={{ color: "var(--error, #e53935)", marginBottom: "4px" }}>
+        {state.error || "Switch failed"}
+      </div>
+      <button
+        type="button"
+        className="settings-action-btn"
+        style={{ width: "100%", fontSize: "11px" }}
+        onClick={() => setState({ phase: "idle" })}
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
 export function QuotaCard() {
   const { t } = useI18n();
   const [data, setData] = useState<QuotaResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetch("/api/quota")
-        .then((r) => r.json() as Promise<QuotaResponse>)
-        .then(setData)
-        .catch(() => setData(null))
-        .finally(() => setLoading(false));
-    }, 1500);
-    return () => clearTimeout(timer);
+  const refreshQuota = useCallback(() => {
+    setLoading(true);
+    fetch("/api/quota")
+      .then((r) => r.json() as Promise<QuotaResponse>)
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(refreshQuota, 1500);
+    return () => clearTimeout(timer);
+  }, [refreshQuota]);
 
   const codex = data?.codex;
   const grok = data?.grok;
@@ -117,6 +238,7 @@ export function QuotaCard() {
           ) : (
             <span className="quota-card__hint">{t("settings.quota.noData")}</span>
           )}
+          <SwitchAccountButton provider="codex" onComplete={refreshQuota} />
         </div>
 
         <div className="quota-card">
@@ -135,7 +257,7 @@ export function QuotaCard() {
           ) : hasGrokWindows ? (
             grok!.windows.map((w) => <QuotaBar key={w.label} window={w} />)
           ) : grok?.authenticated === false ? (
-            <span className="quota-card__hint">Run `progrok login` to enable billing bar</span>
+            <span className="quota-card__hint">Not logged in</span>
           ) : (
             <a
               href="https://grok.com/?_s=usage"
@@ -146,6 +268,7 @@ export function QuotaCard() {
               {t("settings.quota.grokUsageLink")}
             </a>
           )}
+          <SwitchAccountButton provider="grok" onComplete={refreshQuota} />
         </div>
       </div>
     </article>
