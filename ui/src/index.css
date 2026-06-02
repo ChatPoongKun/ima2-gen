@@ -1275,14 +1275,26 @@ body {
   cursor: not-allowed;
   transform: none;
 }
-.generate-btn.loading {
-  background: var(--surface-2);
-  color: var(--text-dim);
-  border: 1px solid var(--border);
-  box-shadow: none;
+.generate-btn--active {
+  background: var(--accent-bright);
+  color: var(--accent-ink);
+  box-shadow: 0 10px 28px var(--accent-shadow);
 }
-.generate-btn.loading::before {
-  content: none;
+.generate-btn__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
 }
 .generate-row__readiness {
   border: 1px solid var(--border);

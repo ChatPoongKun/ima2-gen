@@ -8,18 +8,20 @@ export function GenerateButton() {
   const { t } = useI18n();
 
   const loading = activeGenerations > 0;
-  const label = loading
-    ? t("generate.buttonLoading", { n: activeGenerations })
-    : t("generate.button");
 
   return (
     <div className="generate-row">
       <button
         type="button"
-        className={`generate-btn${loading ? " loading" : ""}`}
+        className={`generate-btn${loading ? " generate-btn--active" : ""}`}
         onClick={() => void generate()}
       >
-        {label}
+        {t("generate.button")}
+        {loading ? (
+          <span className="generate-btn__count" aria-label={t("generate.buttonLoading", { n: activeGenerations })}>
+            {activeGenerations}
+          </span>
+        ) : null}
       </button>
       <button
         type="button"
