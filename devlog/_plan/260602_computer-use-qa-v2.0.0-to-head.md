@@ -88,3 +88,38 @@ The goal is complete only when:
 - All available OAuth providers have actual generation artifacts, not just mocked tests.
 - Frontend/backend verification employees report no blockers after patches.
 - `main` is pushed to origin when the working tree is clean or remaining dirt is explicitly outside this QA scope.
+
+## Execution Evidence — 2026-06-02
+
+### OAuth Generation Artifacts
+
+| Provider | Result | Artifact |
+|---|---:|---|
+| GPT OAuth image | PASS | `/Users/jun/.ima2/generated/ima2-20260602-214619.png` |
+| Grok OAuth image | PASS | `/Users/jun/.ima2/generated/ima2-20260602-214647.png` |
+| Gemini OAuth / agy image | PASS | `/Users/jun/.ima2/generated/ima2-20260602-214932.png` |
+| Grok OAuth video V1.5 | PASS | `/Users/jun/.ima2/generated/1780404663937_ea7f47c6.mp4` |
+
+### Verification Commands
+
+| Check | Result |
+|---|---:|
+| `npm test` | PASS, 923/923 |
+| `npm run typecheck` | PASS |
+| `npm run typecheck:tests` | PASS |
+| `cd ui && npx tsc -b --noEmit` | PASS |
+| `npm run ui:build` | PASS |
+| `npm run build:server` | PASS |
+| `npm run build:cli` | PASS |
+| `npm audit --audit-level=high` | PASS, no high/critical findings |
+
+### UI Automation Evidence
+
+- Computer Use path was attempted directly against Google Chrome.
+- `get_app_state(app="Google Chrome")` timed out after 120 seconds.
+- `list_apps()` also timed out after 120 seconds, proving the issue is not app-specific.
+- `jaw doctor --tcc --fix` reported Accessibility granted, Google Chrome installed, and "All good".
+- Restarting the stuck Computer Use client/service changed the failure mode to `Transport closed`.
+- Exact precondition blocker: current Computer Use MCP transport is unavailable in this session.
+- Supplemental CDP verification confirmed the Grok video V/V1.5 controls and generated-video result UI.
+- Supplemental screenshot: `/Users/jun/.cli-jaw-3470/screenshots/screenshot_1780404702061.png`.
