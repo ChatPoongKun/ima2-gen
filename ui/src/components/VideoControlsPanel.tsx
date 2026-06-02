@@ -15,8 +15,15 @@ const RES_ITEMS = [
 const ASPECT_ITEMS = ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"].map((v) => ({ value: v, label: v }));
 const DURATIONS = [3, 5, 8, 10, 12, 15];
 
+const VIDEO_MODELS: Array<{ value: string; label: string; sub: string }> = [
+  { value: "grok-imagine-video", label: "Grok V", sub: "Fast" },
+  { value: "grok-imagine-video-1.5-preview", label: "Grok V1.5", sub: "Preview" },
+];
+
 export function VideoControlsPanel() {
   const { t } = useI18n();
+  const videoModelSelected = useAppStore((s) => s.videoModelSelected);
+  const selectVideoModel = useAppStore((s) => s.selectVideoModel);
   const refCount = useAppStore((s) => s.activeVideoRefCount());
   const duration = useAppStore((s) => s.videoDuration);
   const setDuration = useAppStore((s) => s.setVideoDuration);
@@ -51,6 +58,23 @@ export function VideoControlsPanel() {
 
   return (
     <div className="right-panel-settings video-controls">
+      <div className="option-group">
+        <div className="section-title">{t("quality.grokModelTitle") ?? "Model"}</div>
+        <div className="option-row">
+          {VIDEO_MODELS.map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              className={`option-btn${videoModelSelected === m.value ? " active" : ""}`}
+              onClick={() => selectVideoModel(m.value)}
+            >
+              {m.label}
+              <br />
+              <span className="option-sub">{m.sub}</span>
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="provider-compat-note" role="note">
         <strong>{t("video.modeLabel")}</strong>
         <span>{t(`video.mode.${mode}`, { n: refCount })}</span>
