@@ -118,18 +118,18 @@ export async function generateViaGeminiApi(
   }
 
   const imageParams = parseGeminiImageParams(options.size);
-  const body = {
-    contents: buildContents(prompt, references),
-    generation_config: {
-      response_modalities: ["TEXT", "IMAGE"],
-      response_format: {
-        image: {
-          aspect_ratio: imageParams.aspectRatio,
-          image_size: imageParams.imageSize,
+  const generationConfig: Record<string, unknown> = useVertex
+    ? { responseModalities: ["TEXT", "IMAGE"] }
+    : {
+        response_modalities: ["TEXT", "IMAGE"],
+        response_format: {
+          image: {
+            aspect_ratio: imageParams.aspectRatio,
+            image_size: imageParams.imageSize,
+          },
         },
-      },
-    },
-  };
+      };
+  const body = { contents: buildContents(prompt, references), generation_config: generationConfig };
 
   logEvent("gemini-api", "generate:start", {
     requestId: options.requestId,
