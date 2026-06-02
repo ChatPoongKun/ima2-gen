@@ -181,15 +181,17 @@ export function GenerationControlsPanel() {
               type="button"
               className={`option-btn${imageModel === "nano-banana-2" ? " active" : ""}`}
               onClick={() => setImageModel("nano-banana-2")}
+              style={{ lineHeight: "1.3" }}
             >
-              <span>Nano Banana 2</span><br /><small>Flash</small>
+              <span>Nano</span><br /><span>Banana 2</span>
             </button>
             <button
               type="button"
               className={`option-btn${imageModel === "nano-banana-pro" ? " active" : ""}`}
               onClick={() => setImageModel("nano-banana-pro")}
+              style={{ lineHeight: "1.3" }}
             >
-              <span>Nano Banana Pro</span><br /><small>Pro</small>
+              <span>Nano</span><br /><span>Banana Pro</span>
             </button>
           </div>
         </div>
