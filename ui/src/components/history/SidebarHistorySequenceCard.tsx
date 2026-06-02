@@ -1,5 +1,4 @@
 import { getGalleryItemKey } from "../../lib/galleryNavigation";
-import { isVideoItem } from "../../lib/videoMedia";
 import {
   getSequenceThumbSlotCount,
   type SidebarHistoryEntry,
@@ -44,23 +43,13 @@ export function SidebarHistorySequenceCard({
           {Array.from({ length: slotCount }).map((_, index) => {
             const item = entry.items[index];
             return item ? (
-              isVideoItem(item) ? (
-                <video
-                  key={getGalleryItemKey(item)}
-                  src={item.url || item.image}
-                  muted
-                  playsInline
-                  preload="metadata"
-                />
-              ) : (
-                <img
-                  key={getGalleryItemKey(item)}
-                  src={item.thumb || item.url || item.image}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                />
-              )
+              <img
+                key={getGalleryItemKey(item)}
+                src={item.thumb || item.url || item.image}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
             ) : (
               <span
                 key={`sequence-placeholder-${entry.sequenceId}-${index}`}

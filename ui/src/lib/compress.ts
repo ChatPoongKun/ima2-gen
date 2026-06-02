@@ -126,6 +126,19 @@ export async function compressToBase64(file: File, opts: CompressOptions = {}): 
         return dataUrl;
       }
     }
+
+    // Aggressive fallback: shrink to 2048 and retry
+    const shrunk = clampDimensions(w, h, 2048);
+    canvas.width = shrunk.w;
+    canvas.height = shrunk.h;
+    ctx.drawImage(bitmap, 0, 0, shrunk.w, shrunk.h);
+    for (const q of [0.7, 0.5, 0.35]) {
+      const blob = await canvasToBlob(canvas, "image/jpeg", q);
+      const dataUrl = await blobToDataUrl(blob);
+      if (b64LengthOfDataUrl(dataUrl) <= cfg.maxB64Bytes) {
+        return dataUrl;
+      }
+    }
     throw new Error("이미지 압축 실패. JPEG/PNG로 미리 변환 후 다시 시도해 주세요.");
   } finally {
     bitmap.close?.();

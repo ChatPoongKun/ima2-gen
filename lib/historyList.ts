@@ -2,6 +2,8 @@ import { mkdir, readFile, readdir, stat } from "fs/promises";
 import { dirname, join } from "path";
 import { config } from "../config.js";
 import { readEmbeddedImageMetadataFromFile } from "./imageMetadataStore.js";
+import { thumbPathForVideo, thumbUrlForVideo } from "./videoThumb.js";
+import { thumbPathForImage, thumbUrlForImage } from "./imageThumb.js";
 
 import { errInfo } from "./errInfo.js";
 async function listImageFiles(baseDir: string) {
@@ -14,7 +16,7 @@ async function listImageFiles(baseDir: string) {
       const full = join(dir, entry.name);
       if (entry.isDirectory() && depth > 0) {
         await walk(full, depth - 1);
-      } else if (entry.isFile() && /\.(png|jpe?g|webp|mp4)$/i.test(entry.name)) {
+      } else if (entry.isFile() && /\.(png|jpe?g|webp|mp4)$/i.test(entry.name) && !entry.name.endsWith(".thumb.jpg")) {
         out.push({ full, rel: full.slice(baseDir.length + 1), name: entry.name });
       }
     }
@@ -31,10 +33,21 @@ export async function listHistoryRows(baseDir = config.storage.generatedDir) {
   const rows = await Promise.all(imgs.map(async ({ full, rel, name }) => {
     const st = await stat(full).catch(() => null);
     const meta = await readImageMetadata(full, rel);
+    const isVideo = /\.mp4$/i.test(name);
+    const encodedUrl = `/generated/${rel.split("/").map(encodeURIComponent).join("/")}`;
+    let thumb: string | null = null;
+    if (isVideo) {
+      const thumbExists = await stat(thumbPathForVideo(full)).then(() => true, () => false);
+      if (thumbExists) thumb = thumbUrlForVideo(encodedUrl);
+    } else {
+      const imgThumbExists = await stat(thumbPathForImage(full)).then(() => true, () => false);
+      if (imgThumbExists) thumb = thumbUrlForImage(encodedUrl);
+    }
     return {
       filename: rel,
       url: `/generated/${rel.split("/").map(encodeURIComponent).join("/")}`,
-      mediaType: meta?.mediaType || (/\.mp4$/i.test(name) ? "video" : "image"),
+      thumb,
+      mediaType: meta?.mediaType || (isVideo ? "video" : "image"),
       video: meta?.video || null,
       videoSeries: meta?.videoSeries || null,
       videoContinuity: meta?.videoContinuity || null,

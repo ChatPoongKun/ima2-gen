@@ -47,12 +47,15 @@ export function SidebarHistoryImageCard({
         onDragStart={onDragStart}
       >
         {isVideo ? (
-          <video
-            src={item.url || item.image}
-            muted
-            playsInline
-            preload="metadata"
-          />
+          <>
+            <img
+              src={item.thumb || item.url || item.image}
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
+            <span className="sidebar-history__play-badge" aria-hidden="true">▶</span>
+          </>
         ) : (
           <img
             src={item.thumb || item.url || item.image}

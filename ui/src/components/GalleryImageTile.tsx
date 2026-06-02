@@ -35,13 +35,16 @@ export function GalleryImageTile({ item, active, itemRef, onSelect, onDelete, on
         onDragStart={onDragStart}
       >
         {isVideoItem(item) ? (
-          <video
-            src={item.url || item.image}
-            muted
-            playsInline
-            preload="metadata"
-            className="gallery__tile-video"
-          />
+          <div className="gallery__tile-video-wrap">
+            <img
+              src={item.thumb || item.url || item.image}
+              alt={item.prompt ?? t("gallery.imageAltFallback")}
+              loading="lazy"
+              decoding="async"
+              className="gallery__tile-video"
+            />
+            <span className="gallery__play-badge" aria-hidden="true">▶</span>
+          </div>
         ) : (
           <img
             src={item.thumb || item.image}

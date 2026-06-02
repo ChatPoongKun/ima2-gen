@@ -168,13 +168,9 @@ export function HistoryStrip() {
               const seqActive = activeKey === seqKey;
               if (isVideoItem(seqItem)) {
                 return (
-                  <video
+                  <div
                     key={seqKey}
-                    ref={(node) => { thumbRefs.current[seqKey] = node; }}
-                    src={seqItem.url || seqItem.image}
-                    muted
-                    playsInline
-                    preload="metadata"
+                    ref={(node) => { thumbRefs.current[seqKey] = node as HTMLElement; }}
                     className={`history-thumb history-thumb--video history-thumb--fade-in${seqActive ? " active" : ""}`}
                     onClick={() => selectHistory(seqItem)}
                     draggable
@@ -182,7 +178,10 @@ export function HistoryStrip() {
                       e.dataTransfer.setData("application/ima2-ref", JSON.stringify(buildVideoDragPayload(seqItem)));
                       e.dataTransfer.effectAllowed = "copy";
                     }}
-                  />
+                  >
+                    <img src={seqItem.thumb || seqItem.url || seqItem.image} alt="" loading="lazy" decoding="async" />
+                    <span className="history-thumb__play-badge" aria-hidden="true">▶</span>
+                  </div>
                 );
               }
               return (
@@ -212,13 +211,9 @@ export function HistoryStrip() {
 
         if (isVideoItem(item)) {
           return (
-            <video
+            <div
               key={key}
-              ref={(node) => { thumbRefs.current[key] = node; }}
-              src={item.url || item.image}
-              muted
-              playsInline
-              preload="metadata"
+              ref={(node) => { thumbRefs.current[key] = node as HTMLElement; }}
               className={`history-thumb history-thumb--video${active ? " active" : ""}`}
               onClick={() => selectHistory(item)}
               draggable
@@ -226,7 +221,10 @@ export function HistoryStrip() {
                 e.dataTransfer.setData("application/ima2-ref", JSON.stringify(buildVideoDragPayload(item)));
                 e.dataTransfer.effectAllowed = "copy";
               }}
-            />
+            >
+              <img src={item.thumb || item.url || item.image} alt="" loading="lazy" decoding="async" />
+              <span className="history-thumb__play-badge" aria-hidden="true">▶</span>
+            </div>
           );
         }
         return (
