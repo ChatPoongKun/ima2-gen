@@ -131,3 +131,6 @@ The goal is complete only when:
 - CDP screenshot confirmed Codex switch-account waiting state with `Open tab again` and `Copy link`: `/Users/jun/.cli-jaw-3470/screenshots/screenshot_1780405624864.png`.
 - CDP walkthrough verified reload/persistence, gallery/history access, video/image thumbnail rails, Grok image controls, and Gemini API controls.
 - Gemini API 21:9 + 4K selection showed `4K 6336×2688` and did not trigger a GPT pixel-limit modal.
+- CDP screenshot confirmed Grok image `Grok+` + `2K` controls after toggle: `/Users/jun/.cli-jaw-3470/screenshots/screenshot_1780406023822.png`.
+- CDP snapshot and screenshot confirmed Gemini API `Nano Banana Pro`, `21:9`, and `4K 6336×2688`: `/Users/jun/.cli-jaw-3470/screenshots/screenshot_1780406055992.png`.
+- CDP reload persistence check confirmed the same `nbp api`, Gemini API selected, `21:9` active, and `4K6336×2688` active state after refresh: `/Users/jun/.cli-jaw-3470/screenshots/screenshot_1780406087923.png`.
