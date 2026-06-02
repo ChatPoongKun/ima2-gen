@@ -144,6 +144,39 @@
   background: var(--bg);
 }
 
+.sidebar-history__thumb--skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    color-mix(in srgb, var(--amber) 18%, var(--surface-2)) 50%,
+    var(--surface-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  opacity: 1;
+  cursor: default;
+}
+.sidebar-history__thumb--collection-skeleton {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 2px;
+  background: var(--border);
+  opacity: 1;
+  cursor: default;
+}
+.sidebar-collection-mini--skeleton {
+  aspect-ratio: 1/1;
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    color-mix(in srgb, var(--amber) 18%, var(--surface-2)) 50%,
+    var(--surface-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
 .sidebar-history__sequence {
   position: relative;
   display: grid;

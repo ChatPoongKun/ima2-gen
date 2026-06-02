@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAppStore } from "../../store/useAppStore";
 import { useI18n } from "../../i18n";
 import {
@@ -11,6 +11,27 @@ import { SidebarHistorySequenceCard } from "./SidebarHistorySequenceCard";
 
 const COLLAPSED_STORAGE_KEY = "ima2.sidebarHistoryCollapsed";
 
+function SidebarSkeletonCard() {
+  return (
+    <div className="sidebar-history__item">
+      <div className="sidebar-history__thumb sidebar-history__thumb--skeleton" aria-label="Generating..." />
+    </div>
+  );
+}
+
+function SidebarCollectionSkeleton({ count }: { count: number }) {
+  const slots = Math.min(count, 4);
+  return (
+    <div className="sidebar-history__item">
+      <div className="sidebar-history__thumb sidebar-history__thumb--collection-skeleton">
+        {Array.from({ length: slots }, (_, i) => (
+          <div key={i} className="sidebar-collection-mini sidebar-collection-mini--skeleton" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SidebarHistory() {
   const history = useAppStore((s) => s.history);
   const currentImage = useAppStore((s) => s.currentImage);
@@ -18,6 +39,8 @@ export function SidebarHistory() {
   const showHistorySequence = useAppStore((s) => s.showHistorySequence);
   const trashHistoryItem = useAppStore((s) => s.trashHistoryItem);
   const trashHistorySequence = useAppStore((s) => s.trashHistorySequence);
+  const inFlight = useAppStore((s) => s.inFlight);
+  const multimodeSequences = useAppStore((s) => s.multimodeSequences);
   const activePreviewSequenceId = useAppStore((s) => {
     const id = s.multimodePreviewFlightId;
     if (!id) return null;
@@ -94,7 +117,22 @@ export function SidebarHistory() {
       </div>
       {collapsed ? null : (
         <div className="sidebar-history__grid">
-          {visibleHistory.length === 0 ? (
+          {inFlight.map((flight) => {
+            const seq = multimodeSequences[flight.id];
+            if (flight.kind === "multimode" && seq) {
+              const skeletons: ReactNode[] = [
+                <SidebarCollectionSkeleton key={`coll-sk-${flight.id}`} count={seq.requested} />,
+              ];
+              for (let i = 0; i < seq.requested; i++) {
+                if (!seq.images[i]) {
+                  skeletons.push(<SidebarSkeletonCard key={`sk-${flight.id}-${i}`} />);
+                }
+              }
+              return skeletons;
+            }
+            return <SidebarSkeletonCard key={`sk-${flight.id}`} />;
+          })}
+          {visibleHistory.length === 0 && inFlight.length === 0 ? (
             <button
               type="button"
               className="sidebar-history__empty"
