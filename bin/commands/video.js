@@ -59,6 +59,7 @@ const SPEC = {
         "aspect-ratio": { type: "string", default: "auto" },
         model: { type: "string" },
         "planner-model": { type: "string" },
+        storyboard: { type: "boolean" },
         topic: { type: "string" },
         ref: { type: "string", repeatable: true },
         out: { short: "o", type: "string" },
@@ -94,6 +95,7 @@ const HELP = `
         --aspect-ratio <ratio|auto>     1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, auto. Default: auto
         --model <name>                  grok-imagine-video, grok-imagine-video-1.5-preview
         --planner-model <name>          Planner model override (e.g. grok-4.3, gpt-5.5)
+        --storyboard                    Enable storyboard mode (maintains character/scene continuity)
         --topic <text>                  Series topic for prompt chain continuity
         --ref <file>                    Attach source/reference image (repeatable, max 7)
     -o, --out <file>                    Output file path
@@ -188,6 +190,8 @@ export default async function videoCmd(argv) {
         body.model = args.model;
     if (args["planner-model"])
         body.plannerModel = args["planner-model"];
+    if (args.storyboard)
+        body.storyboard = true;
     if (args.session)
         body.sessionId = args.session;
     if (args.topic)
@@ -413,6 +417,7 @@ async function videoContinueCmd(argv) {
             "aspect-ratio": { type: "string", default: "auto" },
             model: { type: "string" },
             "planner-model": { type: "string" },
+            storyboard: { type: "boolean" },
             out: { short: "o", type: "string" },
             output: { type: "string" },
             json: { type: "boolean" },
@@ -466,6 +471,8 @@ async function videoContinueCmd(argv) {
         body.model = args.model;
     if (args["planner-model"])
         body.plannerModel = args["planner-model"];
+    if (args.storyboard)
+        body.storyboard = true;
     const data = await runVideoGenerateRequest(server.base, body, args.timeout, Boolean(args.json));
     const outPath = (args.out || args.output);
     if (outPath)
