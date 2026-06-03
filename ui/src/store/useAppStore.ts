@@ -141,7 +141,8 @@ import {
 } from "../lib/galleryShortcuts";
 import { compareSequenceItems, getSidebarHistoryShortcutTarget } from "../lib/history/sidebarHistory";
 import { resolveWorkspaceSettings } from "../lib/workspaceProfile";
-import { isVideoUrl, extractLastFrame } from "../lib/videoMedia";
+import { isVideoUrl, isVideoItem, extractLastFrame } from "../lib/videoMedia";
+import { releaseOrphanedPreview } from "../lib/multimodeSequences";
 import { ACTIVE_VIDEO_PROMPT_GUIDANCE, buildVideoContinuityFromItem } from "../lib/videoContinuity";
 
 export type GalleryScope = "current-session" | "all";
@@ -3503,12 +3504,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const isWithinGrid = activeSeq && target && activeSeq.images.some(
       (img) => img.filename === target.filename,
     );
-    set({
+    set((state) => ({
       currentImage: target,
       unseenGeneratedCount: 0,
       multimodePreviewFlightId: isWithinGrid ? previewId : null,
+      // Leaving a browsed-history grid: drop the orphaned "history:" preview so
+      // multimodeSequences does not grow across a session (RCA 01 Defect G).
+      multimodeSequences: releaseOrphanedPreview(state.multimodeSequences, previewId, Boolean(isWithinGrid)),
       ...composerPatch,
-    });
+    }));
   },
 
   showHistorySequence: (sequenceId) => {
@@ -3535,7 +3539,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       canvasOpen: false,
       multimodePreviewFlightId: previewId,
       multimodeSequences: {
-        ...state.multimodeSequences,
+        // Releasing the previously-previewed history sequence before adding the
+        // new one keeps multimodeSequences from accumulating on repeated opens.
+        ...releaseOrphanedPreview(state.multimodeSequences, state.multimodePreviewFlightId, false),
         [previewId]: {
           sequenceId,
           requestId: previewId,
@@ -4632,7 +4638,14 @@ async function addHistory(
   set: (p: Partial<AppState>) => void,
   get: () => AppState,
 ): Promise<void> {
-  const thumb = await compressImage(item.image).catch(() => item.image);
+  // Videos must not get an <img>-based thumb: compressImage loads the mp4 into
+  // an <img>, fails, and resolves to the raw url, which then both bypasses the
+  // <video> placeholder and fires a broken lazy <img src=*.mp4> (RCA 01 Defect
+  // E nuance). Leave thumb undefined so the UI renders the static placeholder
+  // until the server backfills a real thumbnail.
+  const thumb = isVideoItem(item)
+    ? undefined
+    : await compressImage(item.image).catch(() => item.image);
   const url = item.filename ? `/generated/${item.filename}` : item.image;
   const withThumb: GenerateItem = {
     ...item,

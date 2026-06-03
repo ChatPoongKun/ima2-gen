@@ -3,6 +3,7 @@ import type { GenerateItem } from "../../types";
 import { getGalleryItemKey } from "../../lib/galleryNavigation";
 import { isVideoItem } from "../../lib/videoMedia";
 import { buildVideoDragPayload } from "../../lib/videoContinuity";
+import { VideoThumbPlaceholder } from "../VideoThumbPlaceholder";
 
 type SidebarHistoryImageCardProps = {
   item: GenerateItem;
@@ -51,7 +52,7 @@ export function SidebarHistoryImageCard({
             {item.thumb ? (
               <img src={item.thumb} alt="" loading="lazy" decoding="async" />
             ) : (
-              <video src={item.url || item.image} muted playsInline preload="metadata" />
+              <VideoThumbPlaceholder />
             )}
             <span className="sidebar-history__play-badge" aria-hidden="true">▶</span>
           </>

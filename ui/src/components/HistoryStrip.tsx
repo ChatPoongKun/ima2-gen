@@ -9,6 +9,7 @@ import {
   isGalleryVisibleItem,
   uniqueGalleryItems,
 } from "../lib/galleryNavigation";
+import { VideoThumbPlaceholder } from "./VideoThumbPlaceholder";
 
 function SkeletonThumb({ id }: { id: string }) {
   return (
@@ -56,14 +57,7 @@ function CollectionThumb({
       {slots.map((img, i) => {
         const isVid = !img.thumb && (isVideoUrl(img.url) || isVideoUrl(img.image));
         return isVid ? (
-          <video
-            key={i}
-            className="collection-mini"
-            src={img.url || img.image}
-            muted
-            playsInline
-            preload="metadata"
-          />
+          <VideoThumbPlaceholder key={i} className="collection-mini" />
         ) : (
           <img
             key={i}
@@ -194,7 +188,7 @@ export function HistoryStrip() {
                     {seqItem.thumb ? (
                       <img src={seqItem.thumb} alt="" loading="lazy" decoding="async" />
                     ) : (
-                      <video src={seqItem.url || seqItem.image} muted playsInline preload="metadata" />
+                      <VideoThumbPlaceholder />
                     )}
                     <span className="history-thumb__play-badge" aria-hidden="true">▶</span>
                   </div>
@@ -241,7 +235,7 @@ export function HistoryStrip() {
               {item.thumb ? (
                 <img src={item.thumb} alt="" loading="lazy" decoding="async" />
               ) : (
-                <video src={item.url || item.image} muted playsInline preload="metadata" />
+                <VideoThumbPlaceholder />
               )}
               <span className="history-thumb__play-badge" aria-hidden="true">▶</span>
             </div>

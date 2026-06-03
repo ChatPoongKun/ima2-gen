@@ -2,6 +2,7 @@ import type { DragEvent, MouseEvent } from "react";
 import type { GenerateItem } from "../types";
 import { isVideoItem } from "../lib/videoMedia";
 import { buildVideoDragPayload } from "../lib/videoContinuity";
+import { VideoThumbPlaceholder } from "./VideoThumbPlaceholder";
 
 type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -45,13 +46,7 @@ export function GalleryImageTile({ item, active, itemRef, onSelect, onDelete, on
                 className="gallery__tile-video"
               />
             ) : (
-              <video
-                src={item.url || item.image}
-                muted
-                playsInline
-                preload="metadata"
-                className="gallery__tile-video"
-              />
+              <VideoThumbPlaceholder className="gallery__tile-video" />
             )}
             <span className="gallery__play-badge" aria-hidden="true">▶</span>
           </div>

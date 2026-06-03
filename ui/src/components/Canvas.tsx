@@ -232,6 +232,7 @@ export function Canvas() {
                   src={imageSrc!}
                   alt={t("canvas.resultAlt")}
                   decoding="async"
+                  fetchPriority="high"
                   style={{
                     transform: `translate(${viewer.pan.x}px, ${viewer.pan.y}px) scale(${viewer.zoom})`,
                   }}

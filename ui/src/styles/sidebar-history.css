@@ -135,8 +135,10 @@
 
 .sidebar-history__thumb img,
 .sidebar-history__thumb video,
+.sidebar-history__thumb .video-thumb-placeholder,
 .sidebar-history__sequence-grid img,
-.sidebar-history__sequence-grid video {
+.sidebar-history__sequence-grid video,
+.sidebar-history__sequence-grid .video-thumb-placeholder {
   width: 100%;
   height: 100%;
   display: block;

@@ -1,5 +1,6 @@
 import { getGalleryItemKey } from "../../lib/galleryNavigation";
 import { isVideoItem } from "../../lib/videoMedia";
+import { VideoThumbPlaceholder } from "../VideoThumbPlaceholder";
 import {
   getSequenceThumbSlotCount,
   type SidebarHistoryEntry,
@@ -45,13 +46,7 @@ export function SidebarHistorySequenceCard({
             const item = entry.items[index];
             if (item && isVideoItem(item) && !item.thumb) {
               return (
-                <video
-                  key={getGalleryItemKey(item)}
-                  src={item.url || item.image}
-                  muted
-                  playsInline
-                  preload="metadata"
-                />
+                <VideoThumbPlaceholder key={getGalleryItemKey(item)} />
               );
             }
             return item ? (
