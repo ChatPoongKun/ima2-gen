@@ -3,6 +3,7 @@
 > Status: **INVESTIGATION ONLY (no code changed)** · 2026-06-03
 > Reporter: Jun · Investigator: Boss(Bocchi)
 > Trigger commits: yesterday's gallery work (2026-06-02)
+> 후속: **새로고침하면 복구되는 누적성 hang**(비디오 디코더·연결 고갈)은 `01_runtime-accumulation-hang.md` 참조. 본 문서는 *결정적* 흰화면(A/B/C), 01은 *누적성* hang(D/E/F/G).
 
 ## TL;DR (한 줄 요약)
 
