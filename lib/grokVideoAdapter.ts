@@ -77,6 +77,7 @@ export interface GrokVideoOptions {
   plannerModel?: string;
   directApiKey?: string;
   onEvent?: (ev: GrokVideoEvent) => void;
+  storyboardActive?: boolean;
 }
 
 interface VideoConfig {
