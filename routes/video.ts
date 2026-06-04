@@ -2,6 +2,11 @@ import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import { atomicWriteJson } from "../lib/atomicWrite.js";
 import { join } from "path";
 import { randomBytes } from "crypto";
+import { execFile } from "child_process";
+import { tmpdir } from "os";
+import { promisify } from "util";
+
+const execFileAsync = promisify(execFile);
 import type { Express, Request, Response } from "express";
 import { startJob, finishJob, registerJobAbortController, isJobCanceled, setJobPhase } from "../lib/inflight.js";
 import { isGenerationCanceledError, makeGenerationCanceledError } from "../lib/generationCancel.js";
@@ -80,6 +85,32 @@ async function resolveSourceImage(
   return { b64: null, filename: null };
 }
 
+const STORYBOARD_TRIM_SECONDS = "1.0";
+
+async function trimStoryboardLeadIn(buffer: Buffer, requestId: string): Promise<Buffer> {
+  const tmpIn = join(tmpdir(), `ima2_sb_trim_in_${requestId.replace(/[^a-zA-Z0-9_-]/g, "_")}.mp4`);
+  const tmpOut = join(tmpdir(), `ima2_sb_trim_out_${requestId.replace(/[^a-zA-Z0-9_-]/g, "_")}.mp4`);
+  try {
+    await writeFile(tmpIn, buffer);
+    logEvent("video", "storyboard:trim-start", { requestId, inputBytes: buffer.length, trimSeconds: STORYBOARD_TRIM_SECONDS });
+    await execFileAsync("ffmpeg", [
+      "-y", "-ss", STORYBOARD_TRIM_SECONDS, "-i", tmpIn,
+      "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+      "-c:a", "aac", "-b:a", "128k",
+      "-avoid_negative_ts", "make_zero", tmpOut,
+    ], { timeout: 60_000 });
+    const trimmed = await readFile(tmpOut);
+    logEvent("video", "storyboard:trimmed", { requestId, originalBytes: buffer.length, trimmedBytes: trimmed.length, trimSeconds: STORYBOARD_TRIM_SECONDS });
+    return trimmed;
+  } catch (trimError: any) {
+    logEvent("video", "storyboard:trim-exec-error", { requestId, error: trimError.message, stderr: trimError.stderr?.slice?.(0, 500) });
+    throw trimError;
+  } finally {
+    await unlink(tmpIn).catch(() => {});
+    await unlink(tmpOut).catch(() => {});
+  }
+}
+
 export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
   const ctx = requireRuntimeContext(ctxRaw);
   app.post("/api/video/generate", async (req: Request, res: Response) => {
@@ -131,6 +162,14 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
           "- Continue from the previous frame's exact composition, pose, and spatial arrangement.",
           "- Lock lighting direction, color palette, environment, and style.",
           "- Describe ONLY what changes: action, camera movement, dialogue, sound.",
+          "",
+          "STORYBOARD IMAGE SOURCE RULE (HIGHEST PRIORITY — OVERRIDES ALL OTHER RULES):",
+          "- The source image is a 3x3 storyboard grid. Panel 1 (top-left) is a BLACK LEAD-IN FRAME — it contains no scene content.",
+          "- The video starts from black (Panel 1), then transitions into the action scene from Panel 2.",
+          "- Panels 2-9 contain the action sequence. Describe and animate only Panels 2-9.",
+          "- Start your rewritten prompt with: 'Fading in from black into the full-screen scene of [Panel 2 description],' — the server auto-trims the black lead-in.",
+          "- The storyboard grid must NEVER appear as a visible grid in any frame. The output is a single continuous cinematic clip.",
+          "- Do NOT reference Panel 1 in the action description — it is only a technical black frame.",
           "",
           "PROMPT STRUCTURE (layered caption format):",
           "- Shot foundation: type + camera motion (dolly, pan, tracking, crane, static).",
@@ -251,6 +290,7 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         plannerModel: plannerModel || undefined,
         directApiKey,
         onEvent,
+        storyboardActive,
       });
 
       const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
@@ -294,7 +334,15 @@ export function registerVideoRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         ...(topic ? { videoSeries: { topic, chainIndex: chain.length } } : {}),
         ...(storyboardActive ? { storyboard: true } : {}),
       };
-      await saveGeneratedVideoArtifact(ctx, filename, result.videoBuffer, meta);
+      let finalBuffer = result.videoBuffer;
+      if (storyboardActive) {
+        try {
+          finalBuffer = await trimStoryboardLeadIn(result.videoBuffer, requestId);
+        } catch (trimErr: any) {
+          logEvent("video", "storyboard:trim-failed", { requestId, error: trimErr.message });
+        }
+      }
+      await saveGeneratedVideoArtifact(ctx, filename, finalBuffer, meta);
       generateVideoThumbnail(join(ctx.config.storage.generatedDir, filename)).catch(() => {});
       invalidateHistoryIndex();
 
