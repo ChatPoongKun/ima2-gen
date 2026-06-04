@@ -402,6 +402,12 @@ Generate a high-quality still image first, then animate it. This produces better
 
 **Critical rule for i2v**: Compose ALL characters and the environment together in ONE image. Do NOT use individual portrait refs for i2v — the video model needs a single composed scene to animate from.
 
+**Keyframe image provider rule (MANDATORY)**:
+- **Primary**: GPT Image 2 (OpenAI, `provider: oauth`) with `quality: high`, maximum resolution matching the target video aspect ratio. For 16:9 video use `1792x1024`. For 1:1 use `1024x1024`. For 9:16 use `1024x1792`.
+- **Fallback**: Grok (`provider: grok`, model `grok-imagine-image-quality`). Only aspect ratio must match — resolution does not matter because i2v accepts any resolution source image and internally rescales.
+- GPT Image 2 produces superior keyframes: better lighting coherence, character consistency, and fine detail that survives i2v animation. Always try GPT first.
+- The i2v model internally rescales the source image to its native resolution regardless of input size, so there is no benefit to upscaling a Grok fallback image.
+
 **ref2v vs i2v decision**:
 
 | Scenario | Use | Why |
@@ -412,7 +418,11 @@ Generate a high-quality still image first, then animate it. This produces better
 
 ```bash
 # Multi-character scene: compose BOTH characters in one image first
+# Primary: GPT Image 2 at high quality, max resolution, aspect ratio matching 16:9 video
 ima2 gen "cinematic wide shot of Bruce Lee in yellow tracksuit facing Elon Musk in dark gi, underground fight arena, dramatic lighting, 16:9" --quality high --size 1792x1024 -o scene.png
+
+# Fallback if GPT fails: Grok quality model, match aspect ratio only
+# ima2 gen "same prompt" --provider grok --model grok-imagine-image-quality --size 1824x1024 -o scene.png
 
 # Then animate from the composed scene
 ima2 video "Bruce throws a rapid jeet kune do combination" --ref scene.png --duration 10 --resolution 720p --aspect-ratio 16:9
@@ -438,30 +448,88 @@ ima2 video "close-up of rain drops on a neon sign reflection" \
 
 The planner receives previous prompts from the same topic as continuity context. This is best-effort prompt guidance, not a guarantee that subjects, palette, or style will remain identical. For branch-local continuation, use `ima2 video continue` instead.
 
-#### Storyboard-to-Video Chaining (image→video→lastframe loop)
+#### Storyboard-to-Video Chaining (9-panel storyboard → i2v loop)
 
-For maximum control, generate each keyframe as a GPT Image 2 still, animate it, extract the last frame, and use it as the anchor for the next keyframe:
+The highest-quality video production workflow. Since Grok i2v accepts only **one image input**, pack the entire action sequence into a single 3×3 (9-panel) storyboard grid image. The i2v model reads the panels as a visual script and animates the progression.
 
-```bash
-# Step 1: Generate composed keyframe
-ima2 gen "Bruce and Elon face off in underground arena, dramatic lighting" --quality high --size 1792x1024 -o frame1.png
+**Full workflow**:
 
-# Step 2: Animate (i2v, 10s clip)
-ima2 video "Bruce throws JKD combination" --ref frame1.png --duration 10 --resolution 720p
-
-# Step 3: Continue from last frame (sequential, not parallel)
-CLIP1=$(ima2 ls -n 1 --json | jq -r '.items[0].filename')
-ima2 video continue "Elon counterattacks with haymaker" --video "$CLIP1" --duration 10
-
-# Repeat: each clip's last frame seeds the next
+```
+keyframe image (GPT high)
+    → GPT i2i with reference → 9-panel storyboard grid
+        → Grok i2v (reads panels, animates sequence)
+            → extract last frame
+                → GPT i2i with last frame → next 9-panel storyboard
+                    → Grok i2v
+                        → repeat
 ```
 
-**GPT Image 2 storyboard prompting rules** (from production research):
-- Copy character visual descriptions **verbatim** across all frame prompts — do not paraphrase
-- First frame is the **anchor**: all subsequent frames inherit its composition, lighting, and character designs
-- Change **one variable per step**: shot scale, action, or camera — keep everything else constant
-- Use the `images.edit` API with `image[]` array or Responses API `input_image` content blocks for multi-ref
-- ChatGPT Thinking mode (not API) can produce up to 8 consistent frames from one prompt; API users should generate frames sequentially with shared character descriptions
+**Step 1 — Opening keyframe** (GPT Image 2, `quality: high`, max resolution matching target aspect ratio):
+
+```bash
+ima2 gen "cinematic wide shot of two fighters in a dojo, dramatic lighting" \
+  --quality high --size 1792x1024 --storyboard
+```
+
+Fallback: Grok `grok-imagine-image-quality`, match aspect ratio only — resolution does not matter because i2v internally rescales.
+
+**Step 2 — 9-panel storyboard grid** (GPT Image 2 with keyframe as reference):
+
+```bash
+# Use the keyframe as reference, prompt describes 9 sequential panels
+ima2 gen "Using this scene as reference, create a 3x3 storyboard grid (9 panels, thin black borders) showing a 15-second action sequence. Panel 1 (0s): ... Panel 2 (2s): ... Panel 9 (15s): ... Maintain identical character designs across all panels." \
+  --ref keyframe.png --quality high --size 1024x1024
+```
+
+**9-panel storyboard rules**:
+- Grid layout: 3×3, thin black borders between panels
+- Read order: left-to-right, top-to-bottom (panels 1-9)
+- **Panel 1 (top-left) MUST be solid black** — this is a lead-in frame, not content. The i2v model starts from Panel 1's pixels; a black frame ensures the video begins with a clean fade-in instead of showing the grid. The 1-second black lead-in is auto-trimmed by the server.
+- Panels 2-9 carry the action sequence (8 key moments with timestamps)
+- Character designs MUST be identical across all panels
+- Vary camera angle per panel for dynamic energy
+- Each panel should look like a film still, not a sketch
+- Do NOT add timestamp labels or text to panels — they burn into the video
+- Square format (1024×1024) works best — i2v rescales internally
+
+**Step 3 — Animate storyboard via i2v**:
+
+```bash
+ima2 video "This is a 9-panel storyboard. Animate the full sequence as one continuous 15-second clip following panels left-to-right, top-to-bottom. Panel 1: ... Panel 9: ... Sound: [describe music, SFX, dialogue]. Camera: [describe movement per beat]." \
+  --ref storyboard.png --duration 15 --resolution 720p --model grok-imagine-video-1.5-preview
+```
+
+**i2v prompt rules for storyboard input**:
+- Explicitly state "This is a 9-panel storyboard" at the start
+- Reference each panel by number with its action description
+- Always include Sound/Music direction — never leave audio undefined
+- Include Camera direction per beat (wide, close-up, tracking, handheld, slow-mo)
+- Describe the end frame explicitly for continuation
+
+**Step 4 — Extract last frame and repeat**:
+
+```bash
+# Extract last frame via ffmpeg
+ffmpeg -sseof -0.1 -i clip.mp4 -frames:v 1 -q:v 2 -update 1 lastframe.jpg -y
+
+# Generate next storyboard using last frame as reference
+ima2 gen "Using this fight scene last frame as reference, create a 3x3 storyboard grid..." \
+  --ref lastframe.jpg --quality high --size 1024x1024
+
+# Animate next storyboard
+ima2 video "This is a 9-panel storyboard..." --ref storyboard2.png --duration 15
+```
+
+**Fallback: continueFromVideo** — If a storyboard image triggers content moderation (common with intense action/fight scenes), fall back to `video continue` with a detailed text prompt instead:
+
+```bash
+ima2 video continue "detailed action description with sound and camera direction" \
+  --video "$PREV_CLIP" --duration 15
+```
+
+**Clip duration is flexible** — use 15s for action-dense sequences with many beats, 10s for transitions, 5s for quick cuts. The 9-panel storyboard works best with 15s clips (each panel ≈ 1.5-2s of screen time).
+
+**Music and sound are MANDATORY** in i2v prompts — describe the score (orchestral, percussion, taiko drums), sound effects (impacts, whooshes, crashes), dialogue lines, and audio transitions. "No music" or undefined audio produces flat, lifeless output.
 
 #### Video Continuation (extend/sequel)
 
