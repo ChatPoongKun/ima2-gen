@@ -72,9 +72,16 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
       const storyboardActive = req.body?.storyboard === true;
       const storyboardPrefix = storyboardActive
         ? [
-          "[STORYBOARD MODE — Video Production Keyframe]",
-          "This image is a keyframe for a multi-shot VIDEO storyboard. It will be animated via image-to-video.",
+          "[STORYBOARD MODE — Video Production Keyframe / Storyboard Grid]",
+          "This image will be used for video production. It may be a single keyframe OR a 3x3 storyboard grid.",
           "The prompt and all injected instructions MUST be in English.",
+          "",
+          "IF GENERATING A 3x3 STORYBOARD GRID:",
+          "- Panel 1 (top-left) MUST be COMPLETELY SOLID BLACK — no image, no text, just pure black.",
+          "- Panels 2-9 contain the action sequence (8 key moments).",
+          "- Do NOT add timestamp labels or text overlays to any panel — they burn into the video.",
+          "- Maintain identical character designs across all panels.",
+          "- Each panel should look like a cinematic film still, not a sketch.",
           "",
           "CHARACTER LOCK:",
           "- Identify each character by 2-3 VISUAL identifiers (clothing color + physique + position/props). Never by name alone.",
