@@ -1,0 +1,14 @@
+.git
+.agents
+.codex
+node_modules
+ui/node_modules
+ui/dist
+outputs
+work
+npm-debug.log*
+*.tmp
+*.log
+Dockerfile
+docker-compose*.yml
+

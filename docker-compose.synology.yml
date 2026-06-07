@@ -1,0 +1,20 @@
+services:
+  ima2-gen:
+    image: ima2-gen:oauth
+    container_name: ima2-gen
+    ports:
+      - "3333:3333"
+    environment:
+      HOME: /data
+      CODEX_HOME: /data/codex
+      IMA2_CONFIG_DIR: /data/ima2
+      IMA2_HOST: 0.0.0.0
+      IMA2_PORT: 3333
+      IMA2_GENERATED_DIR: /data/generated
+      IMA2_TRASH_DIR: /data/generated/.trash
+      IMA2_DB_PATH: /data/sessions.db
+      IMA2_GENERATION_REQUEST_LOG_FILE: /data/generation-requests.json
+    volumes:
+      - /volume1/docker/ima2-gen/data:/data
+    restart: unless-stopped
+
