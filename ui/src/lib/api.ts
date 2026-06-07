@@ -112,6 +112,40 @@ export function postGenerate(payload: GenerateRequest): Promise<GenerateResponse
   });
 }
 
+export type GenerationRequestLogEntry = {
+  id: string;
+  requestId: string;
+  createdAt: number;
+  prompt: string;
+  requested: number;
+  succeeded: number;
+  error: string | null;
+};
+
+export function getGenerationRequestLog(): Promise<{ items: GenerationRequestLogEntry[] }> {
+  return jsonFetch("/api/generation-requests");
+}
+
+export type NetworkSettings = {
+  allowExternalAccess: boolean;
+  currentHost: string;
+  nextHost?: string;
+  envOverride: boolean;
+  restartRequired: boolean;
+};
+
+export function getNetworkSettings(): Promise<NetworkSettings> {
+  return jsonFetch("/api/settings/network");
+}
+
+export function updateNetworkSettings(allowExternalAccess: boolean): Promise<NetworkSettings> {
+  return jsonFetch("/api/settings/network", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ allowExternalAccess }),
+  });
+}
+
 function parseSseBlock(block: string): { event: string | null; data: unknown } | null {
   let event: string | null = null;
   const dataLines: string[] = [];

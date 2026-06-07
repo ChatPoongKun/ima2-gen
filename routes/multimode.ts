@@ -273,7 +273,7 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
         });
         const mmFilePath = join(ctx.config.storage.generatedDir, filename);
         await writeFile(mmFilePath, embedded.buffer);
-        await safeWriteSidecar(mmFilePath + ".json", meta);
+        if (resultFormat !== "png") await safeWriteSidecar(mmFilePath + ".json", meta);
         generateImageThumbnailFromBuffer(embedded.buffer, mmFilePath).catch(() => {});
         invalidateHistoryIndex();
         const item = {

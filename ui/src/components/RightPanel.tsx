@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { useI18n } from "../i18n";
 import { GenerationControlsPanel } from "./GenerationControlsPanel";
+import { GenerationRequestLogPanel } from "./GenerationRequestLogPanel";
 import { isPromptBuilderEnabled } from "../lib/workspaceProfile";
 
 const LazyPromptLibraryPanel = lazy(() =>
@@ -14,7 +15,7 @@ const LazyPromptBuilderPanel = lazy(() =>
   })),
 );
 
-type RightPanelTab = "settings" | "library" | "builder";
+type RightPanelTab = "settings" | "library" | "history" | "builder";
 
 export function RightPanel() {
   const open = useAppStore((s) => s.rightPanelOpen);
@@ -28,6 +29,7 @@ export function RightPanel() {
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.matchMedia("(max-width: 800px)").matches : false,
   );
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -40,13 +42,16 @@ export function RightPanel() {
   const builderEnabled = isPromptBuilderEnabled(workspaceProfile) && !isMobile;
   const drawerOpen = isMobile ? open : true;
 
-  const activeTab: RightPanelTab = promptBuilderOpen && builderEnabled
+  const activeTab: RightPanelTab = historyOpen
+    ? "history"
+    : promptBuilderOpen && builderEnabled
     ? "builder"
     : promptLibraryOpen
       ? "library"
       : "settings";
 
   const setTab = (tab: RightPanelTab) => {
+    setHistoryOpen(tab === "history");
     if (tab === "builder") {
       if (!promptBuilderOpen) togglePromptBuilder();
       if (promptLibraryOpen) setPromptLibraryOpen(false);
@@ -91,17 +96,6 @@ export function RightPanel() {
           hidden={!open}
         >
           <div className="right-panel-tabs" role="tablist" aria-label={t("panel.detailSettings")}>
-            {builderEnabled ? (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "builder"}
-                className={`right-panel-tabs__button${activeTab === "builder" ? " active" : ""}`}
-                onClick={() => setTab("builder")}
-              >
-                {t("promptBuilder.title")}
-              </button>
-            ) : null}
             <button
               type="button"
               role="tab"
@@ -115,11 +109,31 @@ export function RightPanel() {
               type="button"
               role="tab"
               aria-selected={activeTab === "library"}
-              className={`right-panel-tabs__button right-panel-tabs__button--full${activeTab === "library" ? " active" : ""}`}
+              className={`right-panel-tabs__button${activeTab === "library" ? " active" : ""}`}
               onClick={() => setTab("library")}
             >
               {t("promptLibrary.title")}
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "history"}
+              className={`right-panel-tabs__button${activeTab === "history" ? " active" : ""}`}
+              onClick={() => setTab("history")}
+            >
+              {t("generationLog.title")}
+            </button>
+            {builderEnabled ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "builder"}
+                className={`right-panel-tabs__button${activeTab === "builder" ? " active" : ""}`}
+                onClick={() => setTab("builder")}
+              >
+                {t("promptBuilder.title")}
+              </button>
+            ) : null}
           </div>
           {activeTab === "builder" && builderEnabled ? (
             <Suspense fallback={<div className="prompt-library-panel__loading">{t("common.loading")}</div>}>
@@ -129,6 +143,8 @@ export function RightPanel() {
             <Suspense fallback={<div className="prompt-library-panel__loading">{t("common.loading")}</div>}>
               <LazyPromptLibraryPanel variant="embedded" />
             </Suspense>
+          ) : activeTab === "history" ? (
+            <GenerationRequestLogPanel />
           ) : (
             <GenerationControlsPanel />
           )}

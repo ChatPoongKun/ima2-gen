@@ -20,6 +20,7 @@ import {
 } from "../lib/generationCancel.js";
 import { logEvent, logError } from "../lib/logger.js";
 import { hasPngAlphaChannel, parsePngInfo } from "../lib/pngInfo.js";
+import { embedImageMetadataBestEffort } from "../lib/imageMetadataStore.js";
 import { invalidateHistoryIndex } from "../lib/historyIndex.js";
 
 import { errInfo } from "../lib/errInfo.js";
@@ -280,8 +281,6 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
       const filename = `${Date.now()}_${randomBytes(ctx.config.ids.generatedHexBytes).toString("hex")}.${editExt}`;
       const editBuffer = Buffer.from(resultB64, "base64");
       const editFilePath = join(ctx.config.storage.generatedDir, filename);
-      await writeFile(editFilePath, editBuffer);
-      generateImageThumbnailFromBuffer(editBuffer, editFilePath).catch(() => {});
       const meta = {
         prompt,
         userPrompt: prompt,
@@ -302,7 +301,14 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         webSearchCalls,
         webSearchEnabled,
       };
-      await safeWriteSidecar(join(ctx.config.storage.generatedDir, filename + ".json"), meta);
+      const embedded = await embedImageMetadataBestEffort(editBuffer, editExt, meta, {
+        version: ctx.packageVersion,
+      });
+      await writeFile(editFilePath, embedded.buffer);
+      generateImageThumbnailFromBuffer(embedded.buffer, editFilePath).catch(() => {});
+      if (editExt !== "png") {
+        await safeWriteSidecar(join(ctx.config.storage.generatedDir, filename + ".json"), meta);
+      }
       invalidateHistoryIndex();
       finishHttpStatus = 200;
       finishMeta = { filename, imageChars: resultB64.length };

@@ -2098,6 +2098,56 @@ body {
   border-radius: 8px;
   background: var(--surface-2);
 }
+.generation-request-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.generation-request-log__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.generation-request-log__item:hover {
+  border-color: var(--accent);
+}
+.generation-request-log__prompt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.generation-request-log__count {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+.generation-request-log__count.is-error {
+  color: var(--danger);
+}
+.generation-request-log__empty {
+  padding: 20px 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+}
+.settings-network-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 12px;
+}
 .right-panel-tabs__button {
   min-width: 0;
   min-height: 30px;

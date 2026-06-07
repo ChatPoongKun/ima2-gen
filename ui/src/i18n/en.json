@@ -1313,5 +1313,19 @@
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "reset": "Reset zoom"
+  },
+  "generationLog": {
+    "title": "Requests",
+    "empty": "No generation requests yet.",
+    "copy": "Copy this prompt",
+    "copied": "Prompt copied."
+  },
+  "settingsNetwork": {
+    "title": "External access",
+    "body": "Bind to 0.0.0.0 after restart so other devices can connect. Keep this off to bind only to 127.0.0.1.",
+    "restart": "Restart ima2-gen to apply this change.",
+    "envOverride": "IMA2_HOST is set and overrides this setting.",
+    "enabled": "Allowed",
+    "disabled": "Local only"
   }
 }

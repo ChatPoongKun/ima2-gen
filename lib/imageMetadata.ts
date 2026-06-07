@@ -60,8 +60,19 @@ export function buildIma2MetadataPayload(meta: any = {}, context: any = {}) {
     parentNodeId: stringOrNull(meta.parentNodeId, 120),
     clientNodeId: stringOrNull(meta.clientNodeId, 120),
     requestId: stringOrNull(meta.requestId, 160),
+    composerPrompt: stringOrNull(meta.composerPrompt),
+    composerInsertedPrompts: Array.isArray(meta.composerInsertedPrompts)
+      ? meta.composerInsertedPrompts.slice(0, 50)
+      : undefined,
     refsCount: Number.isFinite(meta.refsCount) ? meta.refsCount : 0,
     webSearchCalls: Number.isFinite(meta.webSearchCalls) ? meta.webSearchCalls : 0,
+    webSearchEnabled: typeof meta.webSearchEnabled === "boolean" ? meta.webSearchEnabled : undefined,
+    usage: isPlainObject(meta.usage) ? meta.usage : undefined,
+    sequenceId: stringOrNull(meta.sequenceId, 160),
+    sequenceIndex: numberOrNull(meta.sequenceIndex),
+    sequenceTotalRequested: numberOrNull(meta.sequenceTotalRequested),
+    sequenceTotalReturned: numberOrNull(meta.sequenceTotalReturned),
+    sequenceStatus: stringOrNull(meta.sequenceStatus, 40),
     styleSheetApplied: Boolean(meta.styleSheetApplied),
   };
   return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined));

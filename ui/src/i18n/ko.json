@@ -1313,5 +1313,19 @@
     "zoomIn": "확대",
     "zoomOut": "축소",
     "reset": "확대 초기화"
+  },
+  "generationLog": {
+    "title": "요청 기록",
+    "empty": "이미지 생성 요청 기록이 없습니다.",
+    "copy": "이 프롬프트 복사",
+    "copied": "프롬프트가 복사되었습니다."
+  },
+  "settingsNetwork": {
+    "title": "외부 접속 허용",
+    "body": "재시작 후 0.0.0.0에 바인딩하여 다른 장치의 접속을 허용합니다. 끄면 127.0.0.1에서만 접속할 수 있습니다.",
+    "restart": "변경사항을 적용하려면 ima2-gen을 재시작하세요.",
+    "envOverride": "IMA2_HOST 환경 변수가 이 설정보다 우선 적용됩니다.",
+    "enabled": "허용",
+    "disabled": "로컬 전용"
   }
 }

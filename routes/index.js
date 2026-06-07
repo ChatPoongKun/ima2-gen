@@ -24,6 +24,8 @@ import { registerVideoExtendedRoutes } from "./videoExtended.js";
 import { registerQuotaRoutes } from "./quota.js";
 import { registerAuthRoutes } from "./auth.js";
 import { mountKeyRoutes } from "./keys.js";
+import { registerGenerationRequestLogRoutes } from "./generationRequestLog.js";
+import { registerNetworkSettingsRoutes } from "./networkSettings.js";
 import { requireRuntimeContext } from "../lib/runtimeContext.js";
 export function configureRoutes(app, ctxRaw) {
     const ctx = requireRuntimeContext(ctxRaw);
@@ -32,6 +34,8 @@ export function configureRoutes(app, ctxRaw) {
     registerStorageRoutes(app, ctx);
     registerMetadataRoutes(app, ctx);
     registerHistoryRoutes(app, ctx);
+    registerGenerationRequestLogRoutes(app, ctx);
+    registerNetworkSettingsRoutes(app, ctx);
     registerAnnotationRoutes(app, ctx);
     registerCanvasVersionRoutes(app, ctx);
     registerImageImportRoutes(app, ctx);

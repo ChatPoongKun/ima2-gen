@@ -29,6 +29,7 @@ import {
 
 import { errInfo } from "../lib/errInfo.js";
 import { requireRuntimeContext, type RouteRuntimeContext, type RuntimeContext } from "../lib/runtimeContext.js";
+import { appendGenerationRequestLog } from "../lib/generationRequestLog.js";
 function validateModeration(ctx: RuntimeContext, moderation: unknown) {
   if (typeof moderation !== "string" || !ctx.config.oauth.validModeration.has(moderation)) {
     return { error: "moderation must be one of: auto, low" };
@@ -51,6 +52,9 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
     let finishErrorCode;
     let finishMeta = {};
     let finishCanceled = false;
+    let requestPrompt = "";
+    let requestedCount = 1;
+    let requestError: string | null = null;
     const cancelController = new AbortController();
     try {
       const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId : null;
@@ -130,6 +134,8 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
       const moderationCheck = validateModeration(ctx, moderation);
       if (moderationCheck.error) return res.status(400).json({ error: moderationCheck.error });
       const count = Math.min(Math.max(parseInt(n) || 1, 1), 8);
+      requestPrompt = typeof prompt === "string" ? prompt : "";
+      requestedCount = count;
       const referencePayload = summarizeReferencePayload(references);
 
       startJob({
@@ -299,6 +305,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
       const results = await Promise.allSettled(Array.from({ length: count }, generateOne));
       throwIfJobCanceled(requestId);
       const images: Array<{ image: string; filename: string; revisedPrompt: any }> = [];
+      const metadataByFilename = new Map<string, Record<string, unknown>>();
       let totalUsage: Record<string, number> | null = null;
       let totalWebSearchCalls = 0;
       let firstRetryMeta: Record<string, unknown> | null = null;
@@ -368,7 +375,8 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
           }
           const filePath = join(ctx.config.storage.generatedDir, filename);
           await writeFile(filePath, embedded.buffer);
-          await safeWriteSidecar(filePath + ".json", meta);
+          if (resultFormat !== "png") await safeWriteSidecar(filePath + ".json", meta);
+          metadataByFilename.set(filename, meta);
           generateImageThumbnailFromBuffer(embedded.buffer, filePath).catch(() => {});
           invalidateHistoryIndex();
           images.push({
@@ -413,6 +421,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
           finishStatus = "error";
           finishHttpStatus = status;
           finishErrorCode = firstErr.code;
+          requestError = firstErr.message || String(firstErr.code);
           return res.status(status).json({
             error: firstErr.message,
             code: firstErr.code,
@@ -442,16 +451,24 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
         finishStatus = "error";
         finishHttpStatus = 500;
         finishErrorCode = "GENERATE_ALL_FAILED";
+        requestError = "All generation attempts failed";
         return res.status(500).json({ error: "All generation attempts failed" });
       }
 
       const elapsed = +((Date.now() - startTime) / 1000).toFixed(1);
-      // Persist elapsed (computed after the generation loop) into each image's sidecar.
-      // forward-fix: only newly generated items get elapsed. The embedded XMP is written
-      // earlier in the loop (before elapsed exists), so history reload relies on this sidecar patch.
+      // Persist elapsed after the parallel generation loop completes.
       await Promise.all(
         images.map(async ({ filename }) => {
           try {
+            if (filename.toLowerCase().endsWith(".png")) {
+              const filePath = join(ctx.config.storage.generatedDir, filename);
+              const meta = { ...(metadataByFilename.get(filename) || {}), elapsed };
+              const embedded = await embedImageMetadataBestEffort(await readFile(filePath), "png", meta, {
+                version: ctx.packageVersion,
+              });
+              await writeFile(filePath, embedded.buffer);
+              return;
+            }
             const sidecarPath = join(ctx.config.storage.generatedDir, filename + ".json");
             const sidecarMeta = JSON.parse(await readFile(sidecarPath, "utf-8"));
             sidecarMeta.elapsed = elapsed;
@@ -516,6 +533,7 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = fallbackCode || "GENERATE_FAILED";
+      requestError = err.message;
       logError("generate", "error", err.raw, { requestId, code: finishErrorCode });
       res.status(err.status || 500).json({
         error: err.message,
@@ -550,6 +568,19 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
         errorCode: finishErrorCode,
         meta: finishMeta,
       });
+      if (requestPrompt) {
+        await appendGenerationRequestLog(ctx.config.storage.generationRequestLogFile, {
+          id: `${Date.now()}_${randomBytes(4).toString("hex")}`,
+          requestId,
+          createdAt: Date.now(),
+          prompt: requestPrompt,
+          requested: requestedCount,
+          succeeded: Number((finishMeta as { imageCount?: number }).imageCount || 0),
+          error: requestError,
+        }).catch((error) => {
+          logError("generate", "request_log_failed", error, { requestId });
+        });
+      }
     }
   });
 }

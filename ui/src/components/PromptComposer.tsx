@@ -288,6 +288,11 @@ export function PromptComposer({ variant = "sidebar" }: PromptComposerProps) {
         placeholder={placeholder}
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            e.currentTarget.blur();
+            return;
+          }
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
             void generate();

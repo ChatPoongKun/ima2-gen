@@ -75,7 +75,11 @@ export const config = {
   server: {
     // Accept both IMA2_PORT and legacy PORT.
     port: pickInt(firstDefined(env.IMA2_PORT, env.PORT), fileCfg.server?.port, 3333),
-    host: pickStr(env.IMA2_HOST, fileCfg.server?.host, "127.0.0.1"),
+    host: pickStr(
+      env.IMA2_HOST,
+      fileCfg.server?.allowExternalAccess === true ? "0.0.0.0" : fileCfg.server?.host,
+      "127.0.0.1",
+    ),
     bodyLimit: pickStr(env.IMA2_BODY_LIMIT, fileCfg.server?.bodyLimit, "50mb"),
   },
   limits: {
@@ -233,6 +237,11 @@ export const config = {
       join(configDir, "prompt-import-discovery.json"),
     ),
     configFile: join(configDir, "config.json"),
+    generationRequestLogFile: pickStr(
+      env.IMA2_GENERATION_REQUEST_LOG_FILE,
+      fileCfg.storage?.generationRequestLogFile,
+      join(configDir, "generation-requests.json"),
+    ),
     advertiseFile: pickStr(env.IMA2_ADVERTISE_FILE, fileCfg.storage?.advertiseFile, join(configDir, "server.json")),
     staticMaxAge: pickStr(env.IMA2_STATIC_MAX_AGE, fileCfg.storage?.staticMaxAge, "1y"),
   },
