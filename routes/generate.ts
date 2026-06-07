@@ -4,7 +4,6 @@ import { join } from "path";
 import { randomBytes } from "crypto";
 import type { Express, Request, Response } from "express";
 import { detectImageMimeFromB64, summarizeReferencePayload, validateAndNormalizeRefs } from "../lib/refs.js";
-import { generateImageThumbnailFromBuffer } from "../lib/imageThumb.js";
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
@@ -377,7 +376,6 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
           await writeFile(filePath, embedded.buffer);
           if (resultFormat !== "png") await safeWriteSidecar(filePath + ".json", meta);
           metadataByFilename.set(filename, meta);
-          generateImageThumbnailFromBuffer(embedded.buffer, filePath).catch(() => {});
           invalidateHistoryIndex();
           images.push({
             image: `data:${resultMime};base64,${r.value.b64}`,

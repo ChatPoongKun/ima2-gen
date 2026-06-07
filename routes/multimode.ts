@@ -4,7 +4,6 @@ import { join } from "path";
 import { randomBytes } from "crypto";
 import type { Express, Request, Response } from "express";
 import { detectImageMimeFromB64, summarizeReferencePayload, validateAndNormalizeRefs } from "../lib/refs.js";
-import { generateImageThumbnailFromBuffer } from "../lib/imageThumb.js";
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
@@ -274,7 +273,6 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
         const mmFilePath = join(ctx.config.storage.generatedDir, filename);
         await writeFile(mmFilePath, embedded.buffer);
         if (resultFormat !== "png") await safeWriteSidecar(mmFilePath + ".json", meta);
-        generateImageThumbnailFromBuffer(embedded.buffer, mmFilePath).catch(() => {});
         invalidateHistoryIndex();
         const item = {
           image: `data:${resultMime};base64,${image.b64}`,

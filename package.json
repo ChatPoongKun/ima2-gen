@@ -29,7 +29,7 @@
     "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json",
     "build:server": "tsc -p tsconfig.build.json",
     "build:cli": "tsc -p tsconfig.bin.json && node scripts/fix-shebangs.mjs",
-    "postinstall": "echo '\\n  [ima2] Gallery thumbnails will be auto-generated on next server start.\\n  Or run: ima2 backfill-thumbs\\n'"
+    "postinstall": "echo '\\n  [ima2] Video gallery thumbnails can be generated on next server start.\\n  Or run: ima2 backfill-thumbs\\n'"
   },
   "keywords": [
     "openai",

@@ -517,9 +517,9 @@ Keys saved via PUT are stored in `config.json` and hot-updated in the runtime co
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/api/history/backfill-thumbnails` | POST | Generate missing `.thumb.jpg` thumbnails for all images and videos in the generated directory. Returns `{ ok, total, created, skipped, failed }`. Also available offline via `ima2 backfill-thumbs`. |
+| `/api/history/backfill-thumbnails` | POST | Generate missing `.thumb.jpg` thumbnails for videos in the generated directory. Images use their original files as gallery sources and do not create `.thumb.jpg` sidecars. Returns `{ ok, total, created, skipped, failed }`. Also available offline via `ima2 backfill-thumbs`. |
 
-Thumbnails are also generated automatically on server startup for any media files that lack them.
+Video thumbnails are also generated automatically on server startup for video files that lack them.
 
 ## Endpoint → CLI Mapping
 

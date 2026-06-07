@@ -16,7 +16,7 @@ For a quick start, see the [main README](../README.md). For endpoint mapping, se
 | `ima2 open` | Open the web UI in a browser |
 | `ima2 grok login/status/models/proxy` | Manage the bundled progrok runtime used by the Grok provider |
 | `ima2 reset` | Remove saved config |
-| `ima2 backfill-thumbs` | Generate missing gallery thumbnails for images and videos (offline, no running server needed) |
+| `ima2 backfill-thumbs` | Generate missing gallery thumbnails for videos (offline, no running server needed) |
 
 ## Common flags
 

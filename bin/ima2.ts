@@ -297,7 +297,7 @@ function showHelp() {
     cancel <id>    Mark an in-flight job canceled (ima2 cancel --help)
     inflight <sub> Inflight jobs (ls / rm)         (ima2 inflight --help)
     storage <sub>  Storage status / open-dir       (ima2 storage --help)
-    backfill-thumbs  Generate missing thumbnails for gallery performance
+    backfill-thumbs  Generate missing video thumbnails for gallery performance
     billing        API usage / quota
     providers      Configured providers
     oauth <sub>    GPT OAuth proxy status              (ima2 oauth --help)

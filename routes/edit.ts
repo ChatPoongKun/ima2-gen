@@ -4,7 +4,6 @@ import { join } from "path";
 import { randomBytes } from "crypto";
 import type { Express, Request, Response } from "express";
 import { detectImageMimeFromB64 } from "../lib/refs.js";
-import { generateImageThumbnailFromBuffer } from "../lib/imageThumb.js";
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { resolveProviderOptions } from "../lib/providerOptions.js";
@@ -305,7 +304,6 @@ export function registerEditRoutes(app: Express, ctxRaw: RouteRuntimeContext) {
         version: ctx.packageVersion,
       });
       await writeFile(editFilePath, embedded.buffer);
-      generateImageThumbnailFromBuffer(embedded.buffer, editFilePath).catch(() => {});
       if (editExt !== "png") {
         await safeWriteSidecar(join(ctx.config.storage.generatedDir, filename + ".json"), meta);
       }
