@@ -1,5 +1,7 @@
 import { useI18n } from "../i18n";
 import type { PromptItem } from "../lib/api";
+import { copyTextToClipboard } from "../lib/clipboard";
+import { useAppStore } from "../store/useAppStore";
 
 export function PromptDetailModal({
   prompt,
@@ -17,12 +19,14 @@ export function PromptDetailModal({
   onToggleFavorite: () => void;
 }) {
   const { t } = useI18n();
+  const showToast = useAppStore((s) => s.showToast);
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(prompt.text);
+      await copyTextToClipboard(prompt.text);
+      showToast(t("toast.promptCopied"));
     } catch {
-      // ignore
+      showToast(t("toast.copyFailed"), true);
     }
   };
 

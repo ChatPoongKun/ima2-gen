@@ -4,6 +4,7 @@ import { CardNewsBatchBar } from "./CardNewsBatchBar";
 import { PlannerMetaBadge } from "./PlannerMetaBadge";
 import type { CardNewsCard, CardNewsTextField, ImageTemplate } from "../../lib/cardNewsApi";
 import type { CSSProperties } from "react";
+import { copyTextToClipboard } from "../../lib/clipboard";
 
 function copyText(card: CardNewsCard): string {
   const visible = card.textFields
@@ -120,10 +121,10 @@ export function CardStage() {
       </div>
       {card.url ? (
         <div className="card-news-result-actions">
-          <button type="button" onClick={() => navigator.clipboard?.writeText(card.visualPrompt)}>
+          <button type="button" onClick={() => void copyTextToClipboard(card.visualPrompt)}>
             {t("cardNews.actions.copyPrompt")}
           </button>
-          <button type="button" onClick={() => navigator.clipboard?.writeText(copyText(card))}>
+          <button type="button" onClick={() => void copyTextToClipboard(copyText(card))}>
             {t("cardNews.actions.copyCopy")}
           </button>
           <a href={card.url} target="_blank" rel="noreferrer">{t("cardNews.actions.openImage")}</a>

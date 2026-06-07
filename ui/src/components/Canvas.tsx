@@ -20,6 +20,7 @@ import { getImageModelShortLabel } from "../lib/imageModels";
 import { isVideoItem } from "../lib/videoMedia";
 import { buildVideoDragPayload, continuitySummary } from "../lib/videoContinuity";
 import { formatReasoningLabel } from "../lib/reasoning";
+import { copyTextToClipboard } from "../lib/clipboard";
 import type { GenerateItem } from "../types";
 import {
   useViewerTransform,
@@ -80,10 +81,14 @@ export function Canvas() {
     : null;
   const viewer = useViewerTransform(imageKey);
 
-  const copyPrompt = (): void => {
+  const copyPrompt = async (): Promise<void> => {
     if (!currentImage?.prompt) return;
-    void navigator.clipboard.writeText(currentImage.prompt);
-    showToast(t("toast.promptCopied"));
+    try {
+      await copyTextToClipboard(currentImage.prompt);
+      showToast(t("toast.promptCopied"));
+    } catch {
+      showToast(t("toast.copyFailed"), true);
+    }
   };
 
   const handleViewerKeyDown = (event: KeyboardEvent<HTMLElement>): void => {

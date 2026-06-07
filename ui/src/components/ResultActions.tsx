@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { useI18n } from "../i18n";
 import { exportImageToComfy } from "../lib/api";
+import { copyTextToClipboard } from "../lib/clipboard";
 import { isVideoItem, extractFirstFrame, extractMidFrame, extractLastFrame } from "../lib/videoMedia";
 import { continueFromItem } from "../lib/continueFromItem";
 import type { GenerateItem } from "../types";
@@ -122,10 +123,14 @@ export function ResultActions({
     }
   };
 
-  const copyPrompt = () => {
+  const copyPrompt = async () => {
     if (!actionImage.prompt) return;
-    void navigator.clipboard.writeText(actionImage.prompt);
-    showToast(t("toast.promptCopied"));
+    try {
+      await copyTextToClipboard(actionImage.prompt);
+      showToast(t("toast.promptCopied"));
+    } catch {
+      showToast(t("toast.copyFailed"), true);
+    }
   };
 
   const newFromHere = async () => {
@@ -213,7 +218,7 @@ export function ResultActions({
           </button>
         </>
       )}
-      <button type="button" className="action-btn" onClick={copyPrompt}>
+      <button type="button" className="action-btn" onClick={() => void copyPrompt()}>
         {t("result.copyPrompt")}
       </button>
       <button

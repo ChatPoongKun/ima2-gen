@@ -9,6 +9,7 @@ import {
   type StorageStatus,
 } from "../lib/api";
 import { cardNewsManifestDownloadUrl } from "../lib/cardNewsApi";
+import { copyTextToClipboard } from "../lib/clipboard";
 import { dateBucket } from "../lib/galleryUtils";
 import { getGalleryItemKey, isGalleryVisibleItem, uniqueGalleryItems } from "../lib/galleryNavigation";
 import { useI18n } from "../i18n";
@@ -266,7 +267,7 @@ export function GalleryModal() {
     if (!item.setId) return;
     const path = `generated/cardnews/${item.setId}`;
     try {
-      await navigator.clipboard?.writeText(path);
+      await copyTextToClipboard(path);
       showToast(t("gallery.cardNewsPathCopied"));
     } catch {
       showToast(t("toast.copyFailed"), true);
