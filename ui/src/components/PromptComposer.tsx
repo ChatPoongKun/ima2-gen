@@ -151,7 +151,10 @@ export function PromptComposer({ variant = "sidebar" }: PromptComposerProps) {
     const el = textareaRef.current;
     if (!el) return;
     if (variant === "sidebar") {
-      el.style.height = "";
+      if (lastVariantRef.current !== variant) {
+        el.style.height = "";
+        lastVariantRef.current = variant;
+      }
       return;
     }
     if (maxHeightRef.current === null || lastVariantRef.current !== variant) {

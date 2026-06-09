@@ -7,15 +7,34 @@ const root = process.cwd();
 const readSource = (path) => readFileSync(join(root, path), "utf8");
 
 describe("classic UI improvements", () => {
-  it("makes the sidebar prompt vertically resizable from 30vh to 70vh", () => {
+  it("keeps the sidebar prompt at its user-set height within 15vh to 50vh", () => {
     const css = readSource("ui/src/index.css");
     const composer = readSource("ui/src/components/PromptComposer.tsx");
 
     assert.match(css, /\.composer--sidebar \.composer__textarea\s*\{[\s\S]*?height:\s*50vh/);
-    assert.match(css, /\.composer--sidebar \.composer__textarea\s*\{[\s\S]*?min-height:\s*30vh/);
-    assert.match(css, /\.composer--sidebar \.composer__textarea\s*\{[\s\S]*?max-height:\s*70vh/);
+    assert.match(css, /\.composer--sidebar \.composer__textarea\s*\{[\s\S]*?min-height:\s*15vh/);
+    assert.match(css, /\.composer--sidebar \.composer__textarea\s*\{[\s\S]*?max-height:\s*50vh/);
     assert.match(css, /\.composer--sidebar \.composer__textarea\s*\{[\s\S]*?resize:\s*vertical/);
-    assert.match(composer, /if \(variant === "sidebar"\)/);
+    assert.match(
+      composer,
+      /if \(variant === "sidebar"\)\s*\{\s*if \(lastVariantRef\.current !== variant\)/,
+    );
+    assert.doesNotMatch(
+      composer,
+      /if \(variant === "sidebar"\)\s*\{\s*el\.style\.height = "";/,
+    );
+  });
+
+  it("uses a slim themed scrollbar across the interface", () => {
+    const css = readSource("ui/src/index.css");
+    const sidebarHistoryCss = readSource("ui/src/styles/sidebar-history.css");
+
+    assert.match(css, /scrollbar-width:\s*thin/);
+    assert.match(css, /scrollbar-color:[^;]+transparent/);
+    assert.match(css, /\*::\-webkit-scrollbar\s*\{[\s\S]*?width:\s*5px;[\s\S]*?height:\s*5px/);
+    assert.match(css, /\*::\-webkit-scrollbar-thumb\s*\{[\s\S]*?border-radius:\s*999px/);
+    assert.match(css, /\*::\-webkit-scrollbar-thumb:hover/);
+    assert.doesNotMatch(sidebarHistoryCss, /scrollbar-width:\s*none|::-webkit-scrollbar\s*\{[\s\S]*?display:\s*none/);
   });
 
   it("blurs the active element on Escape before editable-target shortcut filtering", () => {
