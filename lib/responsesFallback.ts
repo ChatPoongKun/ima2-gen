@@ -3,6 +3,7 @@ import type { ParsedResponsesResult } from "./responsesParse.js";
 import type { RouteRuntimeContext } from "./runtimeContext.js";
 import { imageToolChoice, tools } from "./responsesTools.js";
 import { emptyResponseError } from "./responsesErrors.js";
+import { buildResponsesInput } from "./responsesInput.js";
 import {
   GENERATE_DEVELOPER_PROMPT,
   GENERATE_NO_SEARCH_DEVELOPER_PROMPT,
@@ -55,13 +56,14 @@ export async function retryPromptOnlyJsonImage({
   reasoningEffort?: string;
 }) {
   if (provider === "api") return null;
-  const retryKind = "prompt_only_with_developer";
+  const directMode = mode === "direct";
+  const retryKind = directMode ? "prompt_only" : "prompt_only_with_developer";
   const retryMeta = {
     retryKind,
     initialEventCount: initial.eventCount,
     initialEventTypes: initial.eventTypes,
     referencesDroppedOnRetry,
-    developerPromptDroppedOnRetry: false,
+    developerPromptDroppedOnRetry: directMode,
     webSearchDroppedOnRetry,
   };
 
@@ -83,10 +85,11 @@ export async function retryPromptOnlyJsonImage({
         signal,
         payload: {
           model,
-          input: [
-            { role: "developer", content: developerPrompt },
-            { role: "user", content: buildUserTextPrompt(prompt, mode, { webSearchEnabled: false }) },
-          ],
+          input: buildResponsesInput(
+            mode,
+            developerPrompt,
+            buildUserTextPrompt(prompt, mode, { webSearchEnabled: false }),
+          ),
           tools: tools(false, { quality, size, moderation }),
           tool_choice: imageToolChoice(true),
           reasoning: { effort: reasoningEffort || "low" },

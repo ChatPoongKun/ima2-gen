@@ -17,6 +17,7 @@ import {
   buildMultimodeSequencePrompt,
   buildUserTextPrompt,
 } from "./prompts.js";
+import { buildResponsesInput } from "../responsesInput.js";
 import { normalizeReferenceForOAuth } from "./references.js";
 import type { OAuthReferenceRef } from "./references.js";
 import {
@@ -90,10 +91,7 @@ export async function generateViaOAuth(
       signal: timeout.signal,
       body: JSON.stringify({
         model,
-        input: [
-          { role: "developer", content: developerPrompt },
-          { role: "user", content: userContent },
-        ],
+        input: buildResponsesInput(mode, developerPrompt, userContent),
         tools,
         tool_choice: "required",
         reasoning: { effort: reasoningEffort },
@@ -287,10 +285,7 @@ export async function generateMultimodeViaOAuth(
       signal: options.signal || timeout.signal,
       body: JSON.stringify({
         model,
-        input: [
-          { role: "developer", content: `${developerPrompt}\n\nN = ${maxImages}.` },
-          { role: "user", content: userContent },
-        ],
+        input: buildResponsesInput(mode, `${developerPrompt}\n\nN = ${maxImages}.`, userContent),
         tools,
         tool_choice: "required",
         reasoning: { effort: reasoningEffort },
@@ -425,17 +420,11 @@ export async function editViaOAuth(prompt: string, imageB64: string, quality: st
       signal: timeout.signal,
       body: JSON.stringify({
         model,
-        input: [
-          { role: "developer", content: developerPrompt },
-          {
-            role: "user",
-            content: [
-              { type: "input_image", image_url: `data:image/jpeg;base64,${imageForRequest.b64}` },
-              ...referenceContent,
-              { type: "input_text", text: textPrompt },
-            ],
-          },
-        ],
+        input: buildResponsesInput(mode, developerPrompt, [
+          { type: "input_image", image_url: `data:image/jpeg;base64,${imageForRequest.b64}` },
+          ...referenceContent,
+          { type: "input_text", text: textPrompt },
+        ]),
         tools,
         tool_choice: "required",
         reasoning: { effort: reasoningEffort },
