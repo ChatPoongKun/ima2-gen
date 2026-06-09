@@ -32,7 +32,7 @@ describe("issue #77 long prompt preview layout contract", () => {
     assert.doesNotMatch(summary, /onCopy/);
   });
 
-  it("bounds prompt metadata so it cannot determine preview height", () => {
+  it("lets the bottom prompt panel resize upward from 10dvh to 50dvh", () => {
     const main = readSource("ui/src/main.tsx");
     const baseCss = readSource("ui/src/index.css");
     const css = readSource("ui/src/styles/result-preview.css");
@@ -52,19 +52,35 @@ describe("issue #77 long prompt preview layout contract", () => {
     assert.match(container, /overflow:\s*hidden/);
     assert.match(visible, /height:\s*min\(100%, calc\(100dvh - 48px\)\)/);
     assert.match(frame, /flex:\s*1 1 auto/);
-    assert.match(frame, /min-height:\s*min\(54dvh, 420px\)/);
+    assert.match(frame, /min-height:\s*0/);
     assert.match(frame, /overflow:\s*hidden/);
     assert.doesNotMatch(css, /^\.result-img\s*\{/m);
     assert.match(image, /max-height:\s*100%/);
     assert.match(image, /object-fit:\s*contain/);
-    assert.match(prompt, /max-height:\s*clamp\(64px, 12dvh, 132px\)/);
-    assert.match(prompt, /overflow-y:\s*auto/);
+    assert.match(prompt, /height:\s*12dvh/);
+    assert.match(prompt, /min-height:\s*10dvh/);
+    assert.match(prompt, /max-height:\s*50dvh/);
+    assert.match(prompt, /overflow:\s*hidden/);
     assert.match(prompt, /flex:\s*0 0 auto/);
+    assert.match(promptText, /flex:\s*1 1 auto/);
+    assert.match(promptText, /overflow-y:\s*auto/);
     assert.match(promptText, /overflow-wrap:\s*anywhere/);
     assert.match(basePromptText, /overflow:\s*visible/);
     assert.doesNotMatch(basePromptText, /max-height|overflow-y:\s*auto/);
     assert.match(workflowCss, /\.result-container > \.result-preview-frame/);
     assert.match(classicCss, /\.classic-workspace__stage \.result-preview-frame/);
     assert.match(classicCss, /\.classic-workspace__stage \.result-prompt\s*\{[\s\S]*?display:\s*none/);
+  });
+
+  it("uses a top drag handle so growth consumes space above the prompt panel", () => {
+    const summary = readSource("ui/src/components/ResultPromptSummary.tsx");
+    const css = readSource("ui/src/styles/result-preview.css");
+
+    assert.match(summary, /className="result-prompt__resize-handle"/);
+    assert.match(summary, /start\.height \+ start\.y - event\.clientY/);
+    assert.match(summary, /window\.innerHeight \* 0\.1/);
+    assert.match(summary, /window\.innerHeight \* 0\.5/);
+    assert.match(css, /\.result-prompt__resize-handle\s*\{[\s\S]*?top:\s*0/);
+    assert.match(css, /\.result-prompt__resize-handle\s*\{[\s\S]*?cursor:\s*ns-resize/);
   });
 });

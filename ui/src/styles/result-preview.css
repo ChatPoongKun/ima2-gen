@@ -10,7 +10,7 @@
 .result-preview-frame {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: min(54dvh, 420px);
+  min-height: 0;
   width: 100%;
   max-width: 100%;
   max-height: 100%;
@@ -59,12 +59,51 @@
 
 .result-prompt {
   flex: 0 0 auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   width: min(100%, 720px);
   max-width: 720px;
-  max-height: clamp(64px, 12dvh, 132px);
-  overflow-x: hidden;
-  overflow-y: auto;
+  height: 12dvh;
+  min-height: 10dvh;
+  max-height: 50dvh;
+  overflow: hidden;
   scrollbar-width: thin;
+}
+
+.result-prompt__resize-handle {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  width: 52px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ns-resize;
+  touch-action: none;
+  transform: translateX(-50%);
+}
+
+.result-prompt__resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 28px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  opacity: 0.72;
+  transform: translateX(-50%);
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.result-prompt__resize-handle:hover::before,
+.result-prompt__resize-handle:focus-visible::before {
+  background: var(--text-dim);
+  opacity: 1;
 }
 
 .result-prompt:hover,
@@ -80,6 +119,10 @@
 
 .result-prompt__text {
   display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   overflow-wrap: anywhere;
   word-break: break-word;
 }

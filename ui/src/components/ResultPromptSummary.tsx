@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useI18n } from "../i18n";
 
 type DiffToken = {
@@ -63,6 +63,9 @@ export function ResultPromptSummary({
 }: ResultPromptSummaryProps) {
   const { t } = useI18n();
   const [view, setView] = useState<"user" | "revised">("user");
+  const [height, setHeight] = useState<number | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const resizeStartRef = useRef<{ y: number; height: number } | null>(null);
   const effectiveRevisedPrompt = revisedPrompt?.trim() || userPrompt;
   const diff = useMemo(
     () => comparePrompts(userPrompt, effectiveRevisedPrompt),
@@ -70,11 +73,48 @@ export function ResultPromptSummary({
   );
   const tokens = view === "user" ? diff.before : diff.after;
 
+  const resizePanel = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeStartRef.current = {
+      y: event.clientY,
+      height: panel.getBoundingClientRect().height,
+    };
+  };
+
+  const continueResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = resizeStartRef.current;
+    if (!start) return;
+    const minHeight = window.innerHeight * 0.1;
+    const maxHeight = window.innerHeight * 0.5;
+    setHeight(Math.min(maxHeight, Math.max(minHeight, start.height + start.y - event.clientY)));
+  };
+
+  const stopResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    resizeStartRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
   return (
     <section
+      ref={panelRef}
       className={`result-prompt result-prompt--${view}`}
       aria-label={t("result.promptComparison")}
+      style={height === null ? undefined : { height }}
     >
+      <button
+        type="button"
+        className="result-prompt__resize-handle"
+        aria-label={t("result.promptComparison")}
+        onPointerDown={resizePanel}
+        onPointerMove={continueResize}
+        onPointerUp={stopResize}
+        onPointerCancel={stopResize}
+      />
       <div className="result-prompt__tabs" role="tablist">
         <button
           type="button"

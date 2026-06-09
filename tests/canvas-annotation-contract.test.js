@@ -85,7 +85,7 @@ describe("canvas annotation contract", () => {
     assert.ok(promptSummaryIndex > frameIndex);
     assert.ok(metaIndex < actionsIndex);
     assert.ok(actionsIndex < promptSummaryIndex);
-    assert.match(promptSource, /className="result-prompt"/);
+    assert.match(promptSource, /className=\{`result-prompt result-prompt--\$\{view\}`\}/);
     assert.match(source, /canvas-annotation-frame[\s\S]*transform: canvasOpen[\s\S]{0,200}translate\(\$\{canvasPanX\}px, \$\{canvasPanY\}px\) scale\(\$\{canvasZoom\}\)/);
     assert.doesNotMatch(source, /<img[\s\S]{0,500}transform: canvasOpen[\s\S]{0,40}scale\(\$\{canvasZoom\}\)/);
   });
