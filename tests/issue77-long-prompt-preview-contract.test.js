@@ -15,7 +15,7 @@ function cssBlock(source, selector) {
 }
 
 describe("issue #77 long prompt preview layout contract", () => {
-  it("renders generated prompts through a shared clamped summary component", () => {
+  it("renders generated prompts through a shared comparison component", () => {
     const canvas = readSource("ui/src/components/Canvas.tsx");
     const canvasModeDetails = readSource("ui/src/components/canvas-mode/CanvasModeResultDetails.tsx");
     const summary = readSource("ui/src/components/ResultPromptSummary.tsx");
@@ -27,9 +27,9 @@ describe("issue #77 long prompt preview layout contract", () => {
     assert.doesNotMatch(canvasModeDetails, /<div className="result-prompt" onClick=\{onCopyPrompt\}>/);
     assert.match(summary, /className="result-prompt"/);
     assert.match(summary, /className="result-prompt__text"/);
-    assert.match(summary, /role="button"/);
-    assert.match(summary, /tabIndex=\{0\}/);
-    assert.match(summary, /event\.key === "Enter" \|\| event\.key === " "/);
+    assert.match(summary, /role="tablist"/);
+    assert.match(summary, /result-prompt__change/);
+    assert.doesNotMatch(summary, /onCopy/);
   });
 
   it("bounds prompt metadata so it cannot determine preview height", () => {

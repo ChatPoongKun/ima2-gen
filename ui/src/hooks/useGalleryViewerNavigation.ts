@@ -26,6 +26,13 @@ export function useGalleryViewerNavigation() {
     if (uiMode !== "classic") return;
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        const activeElement = document.activeElement;
+        if (activeElement instanceof HTMLElement && activeElement !== document.body) {
+          activeElement.blur();
+        }
+        return;
+      }
       if (event.defaultPrevented) return;
       if (isEditableTarget(event.target)) return;
 
@@ -48,8 +55,8 @@ export function useGalleryViewerNavigation() {
       selectHistoryShortcutTarget(action);
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [
     currentImage,
     hasNavigationAnchor,

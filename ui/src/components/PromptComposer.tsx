@@ -150,6 +150,10 @@ export function PromptComposer({ variant = "sidebar" }: PromptComposerProps) {
   useLayoutEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    if (variant === "sidebar") {
+      el.style.height = "";
+      return;
+    }
     if (maxHeightRef.current === null || lastVariantRef.current !== variant) {
       maxHeightRef.current =
         parseCssPixelValue(window.getComputedStyle(el).maxHeight) ?? 0;

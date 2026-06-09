@@ -14,7 +14,6 @@ import { isEditableTarget } from "../../lib/domEvents";
 import { getImageModelShortLabel } from "../../lib/imageModels";
 import type { GenerateItem } from "../../types";
 import { useCreateBlankCanvas } from "../../hooks/useCreateBlankCanvas";
-import { copyTextToClipboard } from "../../lib/clipboard";
 import {
   deleteCanvasAnnotations,
   fetchCanvasAnnotations,
@@ -99,16 +98,6 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [isEditingWithMask, setIsEditingWithMask] = useState(false);
   const annotations = useCanvasAnnotations();
-
-  const copyPrompt = async () => {
-    if (!currentImage?.prompt) return;
-    try {
-      await copyTextToClipboard(currentImage.prompt);
-      showToast(t("toast.promptCopied"));
-    } catch {
-      showToast(t("toast.copyFailed"), true);
-    }
-  };
 
   const displayQuality = formatQualityAlias(currentImage?.quality);
   const displaySize = formatSizeAlias(currentImage?.size);
@@ -494,7 +483,6 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
             displaySize={displaySize}
             displayModel={displayModel}
             onAfterDeleteFocus={restoreResultFocus}
-            onCopyPrompt={copyPrompt}
           />
         </div>
       ) : null}

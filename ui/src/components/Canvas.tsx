@@ -20,7 +20,6 @@ import { getImageModelShortLabel } from "../lib/imageModels";
 import { isVideoItem } from "../lib/videoMedia";
 import { buildVideoDragPayload, continuitySummary } from "../lib/videoContinuity";
 import { formatReasoningLabel } from "../lib/reasoning";
-import { copyTextToClipboard } from "../lib/clipboard";
 import type { GenerateItem } from "../types";
 import {
   useViewerTransform,
@@ -71,7 +70,6 @@ export function Canvas() {
   const activeGenerations = useAppStore((s) => s.activeGenerations);
   const canvasOpen = useAppStore((s) => s.canvasOpen);
   const openCanvas = useAppStore((s) => s.openCanvas);
-  const showToast = useAppStore((s) => s.showToast);
   const { t } = useI18n();
   const [dropActive, setDropActive] = useState(false);
   const { creatingBlankCanvas, createBlankCanvas } = useCreateBlankCanvas();
@@ -80,16 +78,6 @@ export function Canvas() {
     ? `${currentImage.filename ?? currentImage.url ?? currentImage.image}:${currentImage.canvasMergedAt ?? ""}`
     : null;
   const viewer = useViewerTransform(imageKey);
-
-  const copyPrompt = async (): Promise<void> => {
-    if (!currentImage?.prompt) return;
-    try {
-      await copyTextToClipboard(currentImage.prompt);
-      showToast(t("toast.promptCopied"));
-    } catch {
-      showToast(t("toast.copyFailed"), true);
-    }
-  };
 
   const handleViewerKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
     if (event.key === "Delete" || event.key === "Backspace") {
@@ -301,7 +289,10 @@ export function Canvas() {
           </div>
           <ResultActions onAfterDeleteFocus={restoreResultFocus} />
           {currentImage.prompt ? (
-            <ResultPromptSummary prompt={currentImage.prompt} onCopy={copyPrompt} />
+            <ResultPromptSummary
+              userPrompt={currentImage.composerPrompt || currentImage.userPrompt || currentImage.prompt}
+              revisedPrompt={currentImage.revisedPrompt}
+            />
           ) : null}
         </div>
       ) : !currentImage ? (

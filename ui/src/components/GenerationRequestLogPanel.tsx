@@ -51,7 +51,7 @@ export function GenerationRequestLogPanel() {
           title={item.succeeded === 0 && item.error ? item.error : t("generationLog.copy")}
         >
           <span className="generation-request-log__prompt">{item.prompt}</span>
-          <span className={`generation-request-log__count${item.succeeded === 0 ? " is-error" : ""}`}>
+          <span className={`generation-request-log__count${item.succeeded === 0 ? " is-error" : " is-success"}`}>
             {item.succeeded}/{item.requested}
           </span>
         </button>

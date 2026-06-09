@@ -12,7 +12,6 @@ interface CanvasModeResultDetailsProps {
   displaySize: string | null;
   displayModel: string | null;
   onAfterDeleteFocus: () => void;
-  onCopyPrompt: () => void;
 }
 
 export function CanvasModeResultDetails({
@@ -23,7 +22,6 @@ export function CanvasModeResultDetails({
   displaySize,
   displayModel,
   onAfterDeleteFocus,
-  onCopyPrompt,
 }: CanvasModeResultDetailsProps) {
   const { t } = useI18n();
   const meta = [
@@ -47,7 +45,10 @@ export function CanvasModeResultDetails({
         onAfterDeleteFocus={onAfterDeleteFocus}
       />
       {currentImage.prompt ? (
-        <ResultPromptSummary prompt={currentImage.prompt} onCopy={onCopyPrompt} />
+        <ResultPromptSummary
+          userPrompt={currentImage.composerPrompt || currentImage.userPrompt || currentImage.prompt}
+          revisedPrompt={currentImage.revisedPrompt}
+        />
       ) : null}
     </>
   );

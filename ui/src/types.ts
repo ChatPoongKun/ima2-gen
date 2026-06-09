@@ -175,7 +175,7 @@ export type GenerateSingleResponse = {
 };
 
 export type GenerateMultiResponse = {
-  images: Array<{ image: string; filename: string }>;
+  images: Array<{ image: string; filename: string; revisedPrompt?: string | null }>;
   elapsed: number;
   reasoningEffort?: "none" | "low" | "medium" | "high" | "xhigh";
   count: number;

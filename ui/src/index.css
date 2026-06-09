@@ -2133,7 +2133,10 @@ body {
   font-weight: 700;
 }
 .generation-request-log__count.is-error {
-  color: var(--danger);
+  color: var(--red);
+}
+.generation-request-log__count.is-success {
+  color: var(--green);
 }
 .generation-request-log__empty {
   padding: 20px 8px;
@@ -2297,7 +2300,8 @@ body {
 
 .result-prompt {
   max-width: 600px;
-  padding: 10px 16px;
+  width: min(100%, 600px);
+  padding: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -2305,14 +2309,48 @@ body {
   font-size: 12px;
   color: var(--text-dim);
   line-height: 1.5;
-  cursor: pointer;
   transition: all 0.15s;
-  text-align: center;
   word-break: break-word;
 }
 .result-prompt:hover {
   border-color: var(--border-strong);
   color: var(--text);
+}
+.result-prompt__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.result-prompt__tabs button {
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+.result-prompt__tabs button:hover,
+.result-prompt__tabs button:focus-visible {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.result-prompt__tabs button.active {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.result-prompt__text {
+  max-height: 180px;
+  padding: 4px 8px 6px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  text-align: left;
+}
+.result-prompt__change {
+  color: var(--red);
+  font-weight: 700;
 }
 
 .result-meta {
@@ -2962,6 +3000,12 @@ body {
   line-height: 1.5;
   resize: none;
   overflow-y: auto;
+}
+.composer--sidebar .composer__textarea {
+  height: 50vh;
+  min-height: 30vh;
+  max-height: 70vh;
+  resize: vertical;
 }
 .composer__textarea:focus,
 .composer__textarea:focus-visible {
@@ -4263,6 +4307,12 @@ body {
   }
   .composer__textarea {
     min-height: 96px;
+  }
+  .composer--sidebar .composer__textarea {
+    height: auto;
+    min-height: 96px;
+    max-height: var(--composer-textarea-max-height);
+    resize: none;
   }
   .history-strip {
     flex-direction: row;
