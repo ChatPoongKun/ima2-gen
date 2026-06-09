@@ -19,7 +19,6 @@ import {
 } from "./responsesTools.js";
 import { emptyResponseError } from "./responsesErrors.js";
 import { retryPromptOnlyJsonImage } from "./responsesFallback.js";
-import { buildResponsesInput } from "./responsesInput.js";
 import {
   AUTO_PROMPT_FIDELITY_SUFFIX,
   DIRECT_PROMPT_FIDELITY_SUFFIX,
@@ -310,11 +309,10 @@ export async function generateViaResponses(provider: string | undefined, prompt:
     onFinalImage: options.onFinalImage,
     payload: {
       model,
-      input: buildResponsesInput(
-        mode,
-        webSearchEnabled ? GENERATE_DEVELOPER_PROMPT : GENERATE_NO_SEARCH_DEVELOPER_PROMPT,
-        userContent,
-      ),
+      input: [
+        { role: "developer", content: webSearchEnabled ? GENERATE_DEVELOPER_PROMPT : GENERATE_NO_SEARCH_DEVELOPER_PROMPT },
+        { role: "user", content: userContent },
+      ],
       tools: requestTools,
       tool_choice: toolChoice,
       reasoning: { effort: options.reasoningEffort || "low" },
@@ -388,11 +386,10 @@ export async function generateMultimodeViaResponses(provider: string | undefined
     onFinalImage: options.onFinalImage,
     payload: {
       model,
-      input: buildResponsesInput(
-        mode,
-        webSearchEnabled ? MULTIMODE_DEVELOPER_PROMPT : MULTIMODE_NO_SEARCH_DEVELOPER_PROMPT,
-        userContent,
-      ),
+      input: [
+        { role: "developer", content: webSearchEnabled ? MULTIMODE_DEVELOPER_PROMPT : MULTIMODE_NO_SEARCH_DEVELOPER_PROMPT },
+        { role: "user", content: userContent },
+      ],
       tools: requestTools,
       tool_choice: "required",
       reasoning: { effort: options.reasoningEffort || "low" },
@@ -439,11 +436,10 @@ export async function editViaResponses(provider: string | undefined, prompt: str
     signal: options.signal,
     payload: {
       model,
-      input: buildResponsesInput(
-        mode,
-        webSearchEnabled ? EDIT_DEVELOPER_PROMPT : EDIT_NO_SEARCH_DEVELOPER_PROMPT,
-        userContent,
-      ),
+      input: [
+        { role: "developer", content: webSearchEnabled ? EDIT_DEVELOPER_PROMPT : EDIT_NO_SEARCH_DEVELOPER_PROMPT },
+        { role: "user", content: userContent },
+      ],
       tools: requestTools,
       tool_choice: toolChoice,
       reasoning: { effort: options.reasoningEffort || "low" },
