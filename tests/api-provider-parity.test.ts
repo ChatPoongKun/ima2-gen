@@ -96,6 +96,35 @@ async function pngB64({ alpha = false } = {}) {
 }
 
 describe("API provider parity", () => {
+  it("streams each classic batch image before the batch completes", async () => {
+    globalThis.fetch = async (url, init) => {
+      if (String(url).startsWith("http://127.0.0.1:")) {
+        return originalFetch(url, init);
+      }
+      return sseResponse(imageEvents([FINAL_B64]));
+    };
+    await withApp(async ({ baseUrl }) => {
+      const res = await fetch(`${baseUrl}/api/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+        },
+        body: JSON.stringify({
+          prompt: "stream classic batch",
+          provider: "api",
+          n: 2,
+        }),
+      });
+      const text = await res.text();
+      assert.match(res.headers.get("content-type") || "", /text\/event-stream/);
+      assert.equal((text.match(/event: image/g) || []).length, 2);
+      assert.match(text, /event: done/);
+      assert.ok(text.indexOf("event: image") < text.indexOf("event: done"));
+      assert.match(text, /"count":2/);
+    });
+  });
+
   it("generate provider=api calls Responses with API auth and selected options", async () => {
     const calls = [];
     globalThis.fetch = async (url, init) => {

@@ -31,6 +31,7 @@ import { THEME_FAMILIES } from "../types";
 import { isMultiResponse } from "../types";
 import {
   postGenerate,
+  postGenerateStream,
   postMultimodeGenerateStream,
   getHistory,
   getInflight,
@@ -4045,10 +4046,37 @@ export const useAppStore = create<AppState>((set, get) => ({
           : {}),
       };
 
-      const res: GenerateResponse = await postGenerate(payload);
+      const streamedFilenames = new Set<string>();
+      const res: GenerateResponse = s.count > 1
+        ? await postGenerateStream(payload, {
+          onImage: async (image) => {
+            streamedFilenames.add(image.filename);
+            const item: GenerateItem = {
+              image: image.image,
+              filename: image.filename,
+              reasoningEffort: image.reasoningEffort ?? s.reasoningEffort,
+              prompt,
+              userPrompt: composerPrompt || prompt,
+              revisedPrompt: image.revisedPrompt ?? null,
+              promptMode: image.promptMode ?? s.promptMode,
+              composerPrompt,
+              composerInsertedPrompts,
+              elapsed: image.elapsed,
+              provider: image.provider ?? s.provider,
+              usage: image.usage,
+              requestId: image.requestId ?? flightId,
+              quality: image.quality ?? s.quality,
+              size: image.size ?? size,
+              model: image.model ?? s.imageModel ?? null,
+            };
+            await addHistory(item, set, get);
+          },
+        })
+        : await postGenerate(payload);
 
       if (isMultiResponse(res) && res.images.length > 1) {
         for (const img of res.images) {
+          if (streamedFilenames.has(img.filename)) continue;
           const item: GenerateItem = {
             image: img.image,
             filename: img.filename,

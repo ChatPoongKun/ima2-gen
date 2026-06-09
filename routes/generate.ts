@@ -29,6 +29,12 @@ import {
 import { errInfo } from "../lib/errInfo.js";
 import { requireRuntimeContext, type RouteRuntimeContext, type RuntimeContext } from "../lib/runtimeContext.js";
 import { appendGenerationRequestLog } from "../lib/generationRequestLog.js";
+
+function sendSse(res: Response, event: string, data: unknown) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
 function validateModeration(ctx: RuntimeContext, moderation: unknown) {
   if (typeof moderation !== "string" || !ctx.config.oauth.validModeration.has(moderation)) {
     return { error: "moderation must be one of: auto, low" };
@@ -220,6 +226,14 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
           directApiKey: grokDirectApiKey,
         })
         : null;
+      const streamResponse = count > 1 && (req.get("accept") || "").includes("text/event-stream");
+      if (streamResponse) {
+        res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+        res.setHeader("Cache-Control", "no-cache, no-transform");
+        res.setHeader("Connection", "keep-alive");
+        res.flushHeaders?.();
+        sendSse(res, "phase", { phase: "generating", requestId, requested: count });
+      }
 
       const generateOne = async () => {
         if (activeProvider === "gemini-api") {
@@ -301,103 +315,131 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
         });
       };
 
-      const results = await Promise.allSettled(Array.from({ length: count }, generateOne));
-      throwIfJobCanceled(requestId);
       const images: Array<{ image: string; filename: string; revisedPrompt: any }> = [];
       const metadataByFilename = new Map<string, Record<string, unknown>>();
       let totalUsage: Record<string, number> | null = null;
       let totalWebSearchCalls = 0;
       let firstRetryMeta: Record<string, unknown> | null = null;
-      for (const r of results) {
-        if (r.status === "fulfilled" && r.value.b64) {
-          throwIfJobCanceled(requestId);
-          const valueWithMime = r.value as typeof r.value & { mime?: string };
-          const resultMime = activeProvider === "grok" || activeProvider === "agy" || activeProvider === "grok-api" || activeProvider === "gemini-api"
-            ? (valueWithMime.mime || detectImageMimeFromB64(r.value.b64) || mime)
-            : mime;
-          const resultFormat = activeProvider === "grok" || activeProvider === "agy" || activeProvider === "grok-api" || activeProvider === "gemini-api" ? imageFormatFromMime(resultMime) : effectiveFormat;
-          const retryValue = r.value as typeof r.value & {
-            retryKind?: string;
-            initialEventCount?: number;
-            initialEventTypes?: unknown;
-            referencesDroppedOnRetry?: boolean;
-            developerPromptDroppedOnRetry?: boolean;
-            webSearchDroppedOnRetry?: boolean;
+      const persistGeneratedResult = async (
+        value: Awaited<ReturnType<typeof generateOne>>,
+        index: number,
+      ) => {
+        if (!value.b64) return;
+        throwIfJobCanceled(requestId);
+        const valueWithMime = value as typeof value & { mime?: string };
+        const resultMime = activeProvider === "grok" || activeProvider === "agy" || activeProvider === "grok-api" || activeProvider === "gemini-api"
+          ? (valueWithMime.mime || detectImageMimeFromB64(value.b64) || mime)
+          : mime;
+        const resultFormat = activeProvider === "grok" || activeProvider === "agy" || activeProvider === "grok-api" || activeProvider === "gemini-api" ? imageFormatFromMime(resultMime) : effectiveFormat;
+        const retryValue = value as typeof value & {
+          retryKind?: string;
+          initialEventCount?: number;
+          initialEventTypes?: unknown;
+          referencesDroppedOnRetry?: boolean;
+          developerPromptDroppedOnRetry?: boolean;
+          webSearchDroppedOnRetry?: boolean;
+        };
+        if (!firstRetryMeta && retryValue.retryKind) {
+          firstRetryMeta = {
+            retryKind: retryValue.retryKind,
+            initialEventCount: retryValue.initialEventCount ?? null,
+            initialEventTypes: retryValue.initialEventTypes || null,
+            referencesDroppedOnRetry: retryValue.referencesDroppedOnRetry ?? null,
+            developerPromptDroppedOnRetry: retryValue.developerPromptDroppedOnRetry ?? null,
+            webSearchDroppedOnRetry: retryValue.webSearchDroppedOnRetry ?? null,
           };
-          if (!firstRetryMeta && retryValue.retryKind) {
-            firstRetryMeta = {
-              retryKind: retryValue.retryKind,
-              initialEventCount: retryValue.initialEventCount ?? null,
-              initialEventTypes: retryValue.initialEventTypes || null,
-              referencesDroppedOnRetry: retryValue.referencesDroppedOnRetry ?? null,
-              developerPromptDroppedOnRetry: retryValue.developerPromptDroppedOnRetry ?? null,
-              webSearchDroppedOnRetry: retryValue.webSearchDroppedOnRetry ?? null,
-            };
-          }
-          const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
-          const filename = `${Date.now()}_${rand}_${images.length}.${resultFormat}`;
-          const meta = {
-            kind: "classic",
+        }
+        const rand = randomBytes(ctx.config.ids.generatedHexBytes).toString("hex");
+        const filename = `${Date.now()}_${rand}_${index}.${resultFormat}`;
+        const meta = {
+          kind: "classic",
+          requestId,
+          sessionId,
+          clientNodeId,
+          prompt,
+          userPrompt: prompt,
+          revisedPrompt: value.revisedPrompt || null,
+          promptMode: normalizedPromptMode,
+          composerPrompt,
+          composerInsertedPrompts,
+          quality,
+          size: effectiveSize,
+          format: resultFormat,
+          moderation,
+          model: activeProvider === "grok" ? (quality === "high" ? "grok-imagine-image-quality" : imageModel) : imageModel,
+          reasoningEffort,
+          provider: activeProvider,
+          createdAt: Date.now(),
+          usage: value.usage || null,
+          webSearchCalls: value.webSearchCalls || 0,
+          webSearchEnabled,
+          refsCount: refCheck.refs.length,
+        };
+        const rawBuffer = Buffer.from(value.b64, "base64");
+        const embedded: any = await embedImageMetadataBestEffort(rawBuffer, resultFormat, meta, {
+          version: ctx.packageVersion,
+        });
+        if (!embedded.embedded) {
+          logEvent("generate", "metadata_embed_skipped", {
             requestId,
-            sessionId,
-            clientNodeId,
-            prompt,
-            userPrompt: prompt,
-            revisedPrompt: r.value.revisedPrompt || null,
-            promptMode: normalizedPromptMode,
-            composerPrompt,
-            composerInsertedPrompts,
+            filename,
+            code: embedded.code,
+            warning: embedded.warning,
+          });
+        }
+        const filePath = join(ctx.config.storage.generatedDir, filename);
+        await writeFile(filePath, embedded.buffer);
+        if (resultFormat !== "png") await safeWriteSidecar(filePath + ".json", meta);
+        metadataByFilename.set(filename, meta);
+        invalidateHistoryIndex();
+        const image = {
+          image: `data:${resultMime};base64,${value.b64}`,
+          filename,
+          revisedPrompt: value.revisedPrompt || null,
+        };
+        images.push(image);
+        if (streamResponse) {
+          sendSse(res, "image", {
+            ...image,
+            elapsed: +((Date.now() - startTime) / 1000).toFixed(1),
+            requestId,
+            provider: activeProvider,
             quality,
             size: effectiveSize,
-            format: resultFormat,
             moderation,
-            model: activeProvider === "grok" ? (quality === "high" ? "grok-imagine-image-quality" : imageModel) : imageModel,
+            model: imageModel,
             reasoningEffort,
-            provider: activeProvider,
-            createdAt: Date.now(),
-            usage: r.value.usage || null,
-            webSearchCalls: r.value.webSearchCalls || 0,
-            webSearchEnabled,
-            refsCount: refCheck.refs.length,
-          };
-          const rawBuffer = Buffer.from(r.value.b64, "base64");
-          const embedded: any = await embedImageMetadataBestEffort(rawBuffer, resultFormat, meta, {
-            version: ctx.packageVersion,
+            promptMode: normalizedPromptMode,
           });
-          if (!embedded.embedded) {
-            logEvent("generate", "metadata_embed_skipped", {
-              requestId,
-              filename,
-              code: embedded.code,
-              warning: embedded.warning,
+        }
+        if (value.usage) {
+          const usageValue = value.usage;
+          if (!totalUsage) totalUsage = { ...usageValue };
+          else {
+            const tu = totalUsage;
+            Object.keys(usageValue).forEach((k) => {
+              if (typeof usageValue[k] === "number") tu[k] = (tu[k] || 0) + usageValue[k];
             });
           }
-          const filePath = join(ctx.config.storage.generatedDir, filename);
-          await writeFile(filePath, embedded.buffer);
-          if (resultFormat !== "png") await safeWriteSidecar(filePath + ".json", meta);
-          metadataByFilename.set(filename, meta);
-          invalidateHistoryIndex();
-          images.push({
-            image: `data:${resultMime};base64,${r.value.b64}`,
-            filename,
-            revisedPrompt: r.value.revisedPrompt || null,
-          });
-          if (r.value.usage) {
-            const usageValue = r.value.usage;
-            if (!totalUsage) totalUsage = { ...usageValue };
-            else {
-              const tu = totalUsage;
-              Object.keys(usageValue).forEach((k) => {
-                if (typeof usageValue[k] === "number") tu[k] = (tu[k] || 0) + usageValue[k];
-              });
-            }
-          }
-          if (typeof r.value.webSearchCalls === "number") {
-            totalWebSearchCalls = activeProvider === "grok" || activeProvider === "grok-api"
-              ? Math.max(totalWebSearchCalls, r.value.webSearchCalls)
-              : totalWebSearchCalls + r.value.webSearchCalls;
-          }
-        } else if (r.status === "rejected") {
+        }
+        if (typeof value.webSearchCalls === "number") {
+          totalWebSearchCalls = activeProvider === "grok" || activeProvider === "grok-api"
+            ? Math.max(totalWebSearchCalls, value.webSearchCalls)
+            : totalWebSearchCalls + value.webSearchCalls;
+        }
+      };
+
+      const results = await Promise.allSettled(
+        Array.from({ length: count }, (_, index) =>
+          generateOne().then(async (value) => {
+            await persistGeneratedResult(value, index);
+            return value;
+          }),
+        ),
+      );
+      throwIfJobCanceled(requestId);
+      for (const r of results) {
+        if (r.status === "rejected") {
           logError("generate", "parallel_failed", r.reason, { requestId });
         }
       }
@@ -410,6 +452,16 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
             finishCanceled = true;
             finishHttpStatus = firstErr.status;
             finishErrorCode = firstErr.code;
+            if (streamResponse) {
+              sendSse(res, "error", {
+                error: firstErr.message,
+                code: firstErr.code,
+                status: firstErr.status,
+                requestId,
+              });
+              res.end();
+              return;
+            }
             return res.status(firstErr.status).json({
               error: firstErr.message,
               code: firstErr.code,
@@ -420,6 +472,16 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
           finishHttpStatus = status;
           finishErrorCode = firstErr.code;
           requestError = firstErr.message || String(firstErr.code);
+          if (streamResponse) {
+            sendSse(res, "error", {
+              error: firstErr.message,
+              code: firstErr.code,
+              status,
+              requestId,
+            });
+            res.end();
+            return;
+          }
           return res.status(status).json({
             error: firstErr.message,
             code: firstErr.code,
@@ -450,6 +512,16 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
         finishHttpStatus = 500;
         finishErrorCode = "GENERATE_ALL_FAILED";
         requestError = "All generation attempts failed";
+        if (streamResponse) {
+          sendSse(res, "error", {
+            error: requestError,
+            code: finishErrorCode,
+            status: finishHttpStatus,
+            requestId,
+          });
+          res.end();
+          return;
+        }
         return res.status(500).json({ error: "All generation attempts failed" });
       }
 
@@ -511,7 +583,11 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
           imageCount: images.length,
           elapsedMs: Date.now() - startTime,
         });
-        res.json({ images, elapsed, count: images.length, requestId, ...extra });
+        const payload = { images, elapsed, count: images.length, requestId, ...extra };
+        if (streamResponse) {
+          sendSse(res, "done", payload);
+          res.end();
+        } else res.json(payload);
       }
     } catch (e) {
       const err = errInfo(e);
@@ -522,6 +598,16 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
         finishCanceled = true;
         finishHttpStatus = canceled.status;
         finishErrorCode = canceled.code;
+        if (res.headersSent) {
+          sendSse(res, "error", {
+            error: canceled.message,
+            code: canceled.code,
+            status: canceled.status,
+            requestId,
+          });
+          res.end();
+          return;
+        }
         return res.status(canceled.status).json({
           error: canceled.message,
           code: canceled.code,
@@ -533,6 +619,16 @@ export function registerGenerateRoutes(app: Express, ctxRaw: RouteRuntimeContext
       finishErrorCode = fallbackCode || "GENERATE_FAILED";
       requestError = err.message;
       logError("generate", "error", err.raw, { requestId, code: finishErrorCode });
+      if (res.headersSent) {
+        sendSse(res, "error", {
+          error: err.message,
+          code: fallbackCode,
+          status: err.status || 500,
+          requestId,
+        });
+        res.end();
+        return;
+      }
       res.status(err.status || 500).json({
         error: err.message,
         code: fallbackCode,

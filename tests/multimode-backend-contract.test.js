@@ -36,7 +36,9 @@ describe("multimode backend contract", () => {
     assert.match(route, /app\.post\("\/api\/generate\/multimode"/);
     assert.match(route, /normalizeMaxImages/);
     assert.match(route, /generateMultimodeViaResponses/);
-    assert.match(classic, /Promise\.allSettled\(Array\.from\(\{ length: count \}, generateOne\)\)/);
+    assert.match(classic, /Promise\.allSettled\([\s\S]*Array\.from\(\{ length: count \}/);
+    assert.match(classic, /persistGeneratedResult\(value, index\)/);
+    assert.match(classic, /sendSse\(res, "image"/);
   });
 
   it("uses a strict prompt wrapper and collects multiple image_generation_call outputs", () => {

@@ -6,6 +6,7 @@ import type {
   MultimodeGenerateRequest,
   MultimodeGenerateResponse,
   GenerateResponse,
+  GenerateSingleResponse,
   OAuthStatus,
 } from "../types";
 import type { SavedCanvasAnnotations } from "../types/canvas";
@@ -110,6 +111,81 @@ export function postGenerate(payload: GenerateRequest): Promise<GenerateResponse
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+}
+
+export async function postGenerateStream(
+  payload: GenerateRequest,
+  handlers: {
+    onImage?: (image: GenerateSingleResponse) => void | Promise<void>;
+    onPhase?: (phase: { phase?: string; requestId?: string; requested?: number }) => void;
+  } = {},
+): Promise<GenerateResponse> {
+  const res = await fetch("/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+    body: JSON.stringify(payload),
+  });
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/event-stream")) {
+    const data = await res.json().catch(() => ({})) as GenerateResponse & {
+      error?: string;
+      code?: string;
+    };
+    if (!res.ok) {
+      const error = new Error(data.error ?? `Request failed: ${res.status}`) as Error & {
+        code?: string;
+        status?: number;
+      };
+      error.code = data.code;
+      error.status = res.status;
+      throw error;
+    }
+    return data;
+  }
+  if (!res.body) throw new Error("Image generation stream is unavailable");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalPayload: GenerateResponse | null = null;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary !== -1) {
+      const block = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      const parsed = parseSseBlock(block);
+      if (parsed?.event === "image") {
+        await handlers.onImage?.(parsed.data as GenerateSingleResponse);
+      } else if (parsed?.event === "phase") {
+        handlers.onPhase?.(parsed.data as { phase?: string; requestId?: string; requested?: number });
+      } else if (parsed?.event === "done") {
+        finalPayload = parsed.data as GenerateResponse;
+      } else if (parsed?.event === "error") {
+        const data = parsed.data as { error?: string; code?: string; status?: number };
+        const error = new Error(data.error ?? "Image generation failed") as Error & {
+          code?: string;
+          status?: number;
+        };
+        error.code = data.code;
+        error.status = data.status;
+        throw error;
+      }
+      boundary = buffer.indexOf("\n\n");
+    }
+  }
+  if (!finalPayload) {
+    const error = new Error("Image generation stream ended without a final response") as Error & {
+      code?: string;
+      status?: number;
+    };
+    error.code = "EMPTY_RESPONSE";
+    error.status = 422;
+    throw error;
+  }
+  return finalPayload;
 }
 
 export type GenerationRequestLogEntry = {
