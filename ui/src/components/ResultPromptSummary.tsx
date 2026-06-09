@@ -71,7 +71,10 @@ export function ResultPromptSummary({
   const tokens = view === "user" ? diff.before : diff.after;
 
   return (
-    <section className="result-prompt" aria-label={t("result.promptComparison")}>
+    <section
+      className={`result-prompt result-prompt--${view}`}
+      aria-label={t("result.promptComparison")}
+    >
       <div className="result-prompt__tabs" role="tablist">
         <button
           type="button"
@@ -96,7 +99,13 @@ export function ResultPromptSummary({
         {tokens.map((token, index) => (
           <span
             key={`${view}-${index}`}
-            className={token.changed ? "result-prompt__change" : undefined}
+            className={
+              token.changed
+                ? `result-prompt__change result-prompt__change--${
+                    view === "user" ? "removed" : "added"
+                  }`
+                : undefined
+            }
           >
             {token.text}
           </span>

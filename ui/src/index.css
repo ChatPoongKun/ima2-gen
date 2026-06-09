@@ -2316,6 +2316,11 @@ body {
   border-color: var(--border-strong);
   color: var(--text);
 }
+.result-prompt--revised,
+.result-prompt--revised:hover {
+  border-color: var(--green);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 25%, transparent);
+}
 .result-prompt__tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2341,6 +2346,10 @@ body {
   background: var(--surface-2);
   color: var(--text);
 }
+.result-prompt--revised .result-prompt__tabs button.active {
+  border-color: var(--green);
+  color: var(--green);
+}
 .result-prompt__text {
   max-height: 180px;
   padding: 4px 8px 6px;
@@ -2349,8 +2358,18 @@ body {
   text-align: left;
 }
 .result-prompt__change {
-  color: var(--red);
   font-weight: 700;
+}
+.result-prompt__change--removed {
+  color: var(--red);
+  text-decoration-line: line-through;
+  text-decoration-thickness: 1.5px;
+}
+.result-prompt__change--added {
+  color: var(--green);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
 }
 
 .result-meta {

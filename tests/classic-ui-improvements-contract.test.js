@@ -32,11 +32,16 @@ describe("classic UI improvements", () => {
   it("shows prompt differences without making the prompt panel a copy target", () => {
     const summary = readSource("ui/src/components/ResultPromptSummary.tsx");
     const actions = readSource("ui/src/components/ResultActions.tsx");
+    const styles = readSource("ui/src/index.css");
 
     assert.match(summary, /comparePrompts/);
     assert.match(summary, /result\.userPrompt/);
     assert.match(summary, /result\.revisedPrompt/);
-    assert.match(summary, /result-prompt__change/);
+    assert.match(summary, /result-prompt--\$\{view\}/);
+    assert.match(summary, /result-prompt__change--/);
+    assert.match(styles, /\.result-prompt--revised[\s\S]*border-color:\s*var\(--green\)/);
+    assert.match(styles, /\.result-prompt__change--removed[\s\S]*line-through/);
+    assert.match(styles, /\.result-prompt__change--added[\s\S]*underline/);
     assert.doesNotMatch(summary, /copyTextToClipboard|onCopy/);
     assert.match(actions, /result\.copyPrompt/);
   });
