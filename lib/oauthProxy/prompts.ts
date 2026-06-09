@@ -28,7 +28,7 @@ export const AUTO_PROMPT_FIDELITY_SUFFIX =
   VISIBLE_TEXT_LANGUAGE_POLICY;
 
 export const DIRECT_PROMPT_FIDELITY_SUFFIX =
-  "\n\nWhen you call the image_generation tool, use the user's prompt as the primary image prompt. Do not translate, summarize, restyle, add clarifiers, or inject additional style descriptors.\n\n" +
+  "\n\nDo not translate, summarize, rewrite, remove, reorder, or replace any part of the user prompt. You may append non-conflicting quality guidance from the developer instructions, but it must not change the user's subjects, actions, setting, style, mood, colors, composition, or other creative intent.\n\n" +
   VISIBLE_TEXT_LANGUAGE_POLICY;
 
 export const PROMPT_FIDELITY_SUFFIX = AUTO_PROMPT_FIDELITY_SUFFIX;
@@ -68,7 +68,7 @@ export const MULTIMODE_NO_SEARCH_DEVELOPER_PROMPT =
 
 export function buildUserTextPrompt(userPrompt: string | undefined, mode: string, options: Record<string, unknown> = {}) {
   if (mode === "direct") {
-    return `Generate an image with this exact prompt, no modifications: ${userPrompt}${DIRECT_PROMPT_FIDELITY_SUFFIX}`;
+    return `Use the following user prompt verbatim as the foundation of the image: ${userPrompt}${DIRECT_PROMPT_FIDELITY_SUFFIX}`;
   }
   const researchSuffix = resolveWebSearchEnabled(options) ? RESEARCH_SUFFIX : "";
   return `Generate an image: ${userPrompt}${researchSuffix}${AUTO_PROMPT_FIDELITY_SUFFIX}`;
@@ -106,7 +106,7 @@ export function buildMultimodeSequencePrompt(userPrompt: string, maxImages: numb
 
 export function buildEditTextPrompt(userPrompt: string | undefined, mode: string, options: Record<string, unknown> = {}) {
   if (mode === "direct") {
-    return `Edit this image with this exact prompt, no modifications: ${userPrompt}${DIRECT_PROMPT_FIDELITY_SUFFIX}`;
+    return `Use the following user prompt verbatim as the foundation of this image edit: ${userPrompt}${DIRECT_PROMPT_FIDELITY_SUFFIX}`;
   }
   const researchSuffix = resolveWebSearchEnabled(options) ? RESEARCH_SUFFIX : "";
   return `Edit this image: ${userPrompt}${researchSuffix}${AUTO_PROMPT_FIDELITY_SUFFIX}`;

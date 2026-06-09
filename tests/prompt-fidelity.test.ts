@@ -53,8 +53,9 @@ assert.equal(PROMPT_FIDELITY_SUFFIX, AUTO_PROMPT_FIDELITY_SUFFIX);
 assert.ok(AUTO_PROMPT_FIDELITY_SUFFIX.includes("treat the user's prompt as the source of truth"));
 assert.ok(AUTO_PROMPT_FIDELITY_SUFFIX.includes("pass it through unchanged"));
 assert.ok(!AUTO_PROMPT_FIDELITY_SUFFIX.includes("only append English clarifiers at the end when helpful"));
-assert.ok(!DIRECT_PROMPT_FIDELITY_SUFFIX.includes("append English clarifiers"));
-assert.ok(DIRECT_PROMPT_FIDELITY_SUFFIX.includes("Do not translate, summarize, restyle, add clarifiers"));
+assert.ok(DIRECT_PROMPT_FIDELITY_SUFFIX.includes("Do not translate, summarize, rewrite, remove, reorder, or replace"));
+assert.ok(DIRECT_PROMPT_FIDELITY_SUFFIX.includes("You may append non-conflicting quality guidance"));
+assert.ok(DIRECT_PROMPT_FIDELITY_SUFFIX.includes("must not change the user's subjects, actions, setting, style, mood, colors, composition"));
 assert.ok(AUTO_PROMPT_FIDELITY_SUFFIX.includes(VISIBLE_TEXT_LANGUAGE_POLICY));
 assert.ok(DIRECT_PROMPT_FIDELITY_SUFFIX.includes(VISIBLE_TEXT_LANGUAGE_POLICY));
 assert.ok(VISIBLE_TEXT_LANGUAGE_POLICY.includes("Korean text"));
@@ -63,8 +64,8 @@ assert.ok(VISIBLE_TEXT_LANGUAGE_POLICY.includes("Do not translate, romanize"));
 
 const generateDirect = buildUserTextPrompt("고양이 수채화", "direct");
 const generateAuto = buildUserTextPrompt("고양이 수채화", "auto");
-assert.ok(generateDirect.includes("Generate an image with this exact prompt, no modifications"));
-assert.ok(!generateDirect.includes("append English clarifiers"));
+assert.ok(generateDirect.includes("Use the following user prompt verbatim as the foundation of the image"));
+assert.ok(generateDirect.includes("You may append non-conflicting quality guidance"));
 assert.ok(generateAuto.includes("Generate an image: 고양이 수채화"));
 assert.ok(generateAuto.includes("If factual visual accuracy is required"));
 assert.ok(generateAuto.includes("If the user's prompt is already visually sufficient"));
@@ -73,8 +74,8 @@ assert.notEqual(generateDirect, generateAuto);
 
 const editDirect = buildEditTextPrompt("배경만 바꿔", "direct");
 const editAuto = buildEditTextPrompt("배경만 바꿔", "auto");
-assert.ok(editDirect.includes("Edit this image with this exact prompt, no modifications"));
-assert.ok(!editDirect.includes("append English clarifiers"));
+assert.ok(editDirect.includes("Use the following user prompt verbatim as the foundation of this image edit"));
+assert.ok(editDirect.includes("You may append non-conflicting quality guidance"));
 assert.ok(editAuto.includes("Edit this image: 배경만 바꿔"));
 assert.notEqual(editDirect, editAuto);
 
