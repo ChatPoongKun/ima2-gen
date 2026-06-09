@@ -2351,9 +2351,8 @@ body {
   color: var(--green);
 }
 .result-prompt__text {
-  max-height: 180px;
   padding: 4px 8px 6px;
-  overflow-y: auto;
+  overflow: visible;
   white-space: pre-wrap;
   text-align: left;
 }

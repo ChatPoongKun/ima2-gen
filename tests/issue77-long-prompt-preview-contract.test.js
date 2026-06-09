@@ -25,7 +25,7 @@ describe("issue #77 long prompt preview layout contract", () => {
     assert.doesNotMatch(canvas, /<div className="result-prompt" onClick=\{copyPrompt\}>/);
     assert.match(canvasModeDetails, /ResultPromptSummary/);
     assert.doesNotMatch(canvasModeDetails, /<div className="result-prompt" onClick=\{onCopyPrompt\}>/);
-    assert.match(summary, /className="result-prompt"/);
+    assert.match(summary, /className=\{`result-prompt result-prompt--\$\{view\}`\}/);
     assert.match(summary, /className="result-prompt__text"/);
     assert.match(summary, /role="tablist"/);
     assert.match(summary, /result-prompt__change/);
@@ -34,6 +34,7 @@ describe("issue #77 long prompt preview layout contract", () => {
 
   it("bounds prompt metadata so it cannot determine preview height", () => {
     const main = readSource("ui/src/main.tsx");
+    const baseCss = readSource("ui/src/index.css");
     const css = readSource("ui/src/styles/result-preview.css");
     const workflowCss = readSource("ui/src/styles/viewer-workflow.css");
     const classicCss = readSource("ui/src/styles/classic-workspace.css");
@@ -44,6 +45,7 @@ describe("issue #77 long prompt preview layout contract", () => {
     const image = cssBlock(css, ".result-preview-frame .result-img");
     const prompt = cssBlock(css, ".result-prompt");
     const promptText = cssBlock(css, ".result-prompt__text");
+    const basePromptText = cssBlock(baseCss, ".result-prompt__text");
 
     assert.match(main, /import "\.\/styles\/result-preview\.css"/);
     assert.match(container, /min-height:\s*0/);
@@ -59,6 +61,8 @@ describe("issue #77 long prompt preview layout contract", () => {
     assert.match(prompt, /overflow-y:\s*auto/);
     assert.match(prompt, /flex:\s*0 0 auto/);
     assert.match(promptText, /overflow-wrap:\s*anywhere/);
+    assert.match(basePromptText, /overflow:\s*visible/);
+    assert.doesNotMatch(basePromptText, /max-height|overflow-y:\s*auto/);
     assert.match(workflowCss, /\.result-container > \.result-preview-frame/);
     assert.match(classicCss, /\.classic-workspace__stage \.result-preview-frame/);
     assert.match(classicCss, /\.classic-workspace__stage \.result-prompt\s*\{[\s\S]*?display:\s*none/);
