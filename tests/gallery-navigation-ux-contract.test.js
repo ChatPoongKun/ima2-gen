@@ -10,25 +10,22 @@ function readSource(path) {
 }
 
 describe("gallery navigation UX contract", () => {
-  it("navigates focused generated images with arrow keys only on the viewer itself", () => {
+  it("keeps the viewer focusable while global shortcuts own navigation and deletion", () => {
     const canvas = readSource("ui/src/components/Canvas.tsx");
+    const shortcuts = readSource("ui/src/hooks/useGalleryViewerNavigation.ts");
     const domEvents = readSource("ui/src/lib/domEvents.ts");
     const ko = readSource("ui/src/i18n/ko.json");
     const en = readSource("ui/src/i18n/en.json");
     const css = readSource("ui/src/index.css");
 
     assert.match(canvas, /isEditableTarget/);
-    assert.match(canvas, /selectHistoryShortcutTarget/);
     assert.doesNotMatch(canvas, /selectImage/);
-    assert.match(canvas, /event\.key !== "ArrowLeft"/);
-    assert.match(canvas, /event\.key !== "Home"/);
-    assert.match(canvas, /event\.key === "Delete" \|\| event\.key === "Backspace"/);
-    assert.match(canvas, /event\.shiftKey/);
-    assert.match(canvas, /permanentlyDeleteHistoryItemByShortcut\(currentImage\)/);
-    assert.match(canvas, /trashHistoryItem\(currentImage\)/);
-    assert.match(canvas, /event\.target !== event\.currentTarget/);
+    assert.doesNotMatch(canvas, /handleViewerKeyDown/);
+    assert.doesNotMatch(canvas, /onKeyDown=\{handleViewerKeyDown\}/);
+    assert.match(shortcuts, /ArrowLeft:\s*"previous"/);
+    assert.match(shortcuts, /event\.key === "Delete" \|\| event\.key === "Backspace"/);
+    assert.match(shortcuts, /if \(event\.repeat\) return/);
     assert.match(canvas, /tabIndex=\{0\}/);
-    assert.match(canvas, /onKeyDown=\{handleViewerKeyDown\}/);
     assert.match(canvas, /className="result-container visible"/);
     assert.match(canvas, /aria-label=\{t\("canvas\.imageViewerAria"\)\}/);
     assert.match(domEvents, /HTMLInputElement/);

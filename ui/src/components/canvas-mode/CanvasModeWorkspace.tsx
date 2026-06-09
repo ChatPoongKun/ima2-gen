@@ -49,11 +49,6 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
     const id = s.multimodePreviewFlightId;
     return id ? s.multimodeSequences[id] ?? null : null;
   });
-  const selectHistoryShortcutTarget = useAppStore((s) => s.selectHistoryShortcutTarget);
-  const trashHistoryItem = useAppStore((s) => s.trashHistoryItem);
-  const permanentlyDeleteHistoryItemByShortcut = useAppStore(
-    (s) => s.permanentlyDeleteHistoryItemByShortcut,
-  );
   const markGeneratedResultsSeen = useAppStore((s) => s.markGeneratedResultsSeen);
   const activeGenerations = useAppStore((s) => s.activeGenerations);
   const quality = useAppStore((s) => s.quality);
@@ -302,15 +297,11 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
   const { spaceHeld, handleViewerKeyDown } = useCanvasModeShortcuts({
     canvasOpen,
     canvasZoom,
-    currentImage,
     annotations,
     undoBackgroundCleanup: backgroundCleanup.undoBackgroundCleanup,
     redoBackgroundCleanup: backgroundCleanup.redoBackgroundCleanup,
     handleBackgroundCleanupEscape: backgroundCleanup.handleBackgroundCleanupEscape,
     handleCloseCanvas,
-    selectHistoryShortcutTarget,
-    trashHistoryItem,
-    permanentlyDeleteHistoryItemByShortcut,
     setCanvasZoom,
     resetCanvasZoom,
     onCreateBlankCanvas: createBlankCanvas,

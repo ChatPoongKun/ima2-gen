@@ -10,7 +10,7 @@ function readSource(path) {
 }
 
 describe("gallery viewer focusless navigation contract", () => {
-  it("handles movement globally and delete only on the selected viewer", () => {
+  it("handles movement and deletion once through the global shortcut owner", () => {
     const hook = readSource("ui/src/hooks/useGalleryViewerNavigation.ts");
     const store = readSource("ui/src/store/useAppStore.ts");
     const canvas = readSource("ui/src/components/Canvas.tsx");
@@ -24,13 +24,15 @@ describe("gallery viewer focusless navigation contract", () => {
     assert.match(hook, /End:\s*"last"/);
     assert.match(hook, /PageUp:\s*"pagePrevious"/);
     assert.match(hook, /PageDown:\s*"pageNext"/);
-    assert.doesNotMatch(hook, /Delete:\s*/);
-    assert.doesNotMatch(hook, /Shift\+Delete/);
+    assert.match(hook, /event\.key === "Delete" \|\| event\.key === "Backspace"/);
+    assert.match(hook, /if \(event\.repeat\) return/);
+    assert.match(hook, /permanentlyDeleteHistoryItemByShortcut\(currentImage\)/);
+    assert.match(hook, /trashHistoryItem\(currentImage\)/);
     assert.match(hook, /uiMode !== "classic"/);
     assert.match(hook, /hasNavigationAnchor/);
     assert.match(hook, /Boolean\(s\.currentImage\) \|\| Boolean\(s\.multimodePreviewFlightId\)/);
     assert.match(hook, /if \(!hasNavigationAnchor\) return/);
-    assert.doesNotMatch(hook, /if \(!currentImage\) return/);
+    assert.match(hook, /if \(!currentImage\) return/);
     assert.match(hook, /event\.defaultPrevented/);
     assert.match(hook, /isEditableTarget\(event\.target\)/);
 
@@ -50,20 +52,14 @@ describe("gallery viewer focusless navigation contract", () => {
     assert.match(canvas, /ref=\{resultContainerRef\}/);
     assert.match(canvas, /<ResultActions onAfterDeleteFocus=\{restoreResultFocus\} \/>/);
     assert.match(canvas, /onMouseDown=\{handleViewerMouseDown\}/);
-    assert.match(canvas, /onKeyDown=\{handleViewerKeyDown\}/);
-    assert.match(canvas, /event\.key === "Delete" \|\| event\.key === "Backspace"/);
-    assert.match(canvas, /event\.target !== event\.currentTarget/);
-    assert.match(canvas, /event\.shiftKey/);
-    assert.match(canvas, /permanentlyDeleteHistoryItemByShortcut\(currentImage\)/);
-    assert.match(canvas, /trashHistoryItem\(currentImage\)/);
-    assert.match(canvas, /selectHistoryShortcutTarget\("previous"\)/);
-    assert.match(canvas, /selectHistoryShortcutTarget\("first"\)/);
+    assert.doesNotMatch(canvas, /onKeyDown=\{handleViewerKeyDown\}/);
+    assert.doesNotMatch(canvas, /const handleViewerKeyDown/);
     assert.match(css, /\.result-container:focus,/);
     assert.match(css, /\.result-img\s*\{[\s\S]*?cursor:\s*pointer;/);
     assert.match(css, /\.right-panel-backdrop\s*\{[\s\S]*?pointer-events:\s*none;/);
   });
 
-  it("keeps permanent delete explicit by click or focused Shift+Delete", () => {
+  it("keeps permanent delete explicit by click or global Shift+Delete", () => {
     const resultActions = readSource("ui/src/components/ResultActions.tsx");
     const store = readSource("ui/src/store/useAppStore.ts");
     const hook = readSource("ui/src/hooks/useGalleryViewerNavigation.ts");
@@ -72,7 +68,7 @@ describe("gallery viewer focusless navigation contract", () => {
     const canvasModeDetails = readSource("ui/src/components/canvas-mode/CanvasModeResultDetails.tsx");
     const canvasShortcuts = readSource("ui/src/components/canvas-mode/useCanvasModeShortcuts.ts");
 
-    assert.doesNotMatch(hook, /trashHistoryItem/);
+    assert.match(hook, /trashHistoryItem/);
     assert.match(resultActions, /onAfterDeleteFocus\?: \(\) => void/);
     assert.match(resultActions, /const deleteToTrash = async \(\) =>/);
     assert.match(resultActions, /await trashHistoryItem\(actionImage\)/);
@@ -82,15 +78,16 @@ describe("gallery viewer focusless navigation contract", () => {
     assert.match(resultActions, /onClick=\{\(\) => void deleteToTrash\(\)\}/);
     assert.match(resultActions, /onClick=\{\(\) => void deletePermanently\(\)\}/);
     assert.match(resultActions, /result\.permanentDelete/);
-    assert.match(canvas, /event\.shiftKey[\s\S]*permanentlyDeleteHistoryItemByShortcut\(currentImage\)/);
+    assert.doesNotMatch(canvas, /permanentlyDeleteHistoryItemByShortcut/);
     assert.match(canvasMode, /const resultContainerRef = useRef<HTMLDivElement>\(null\)/);
     assert.match(canvasMode, /const restoreResultFocus = useCallback/);
     assert.match(canvasMode, /<CanvasModeResultDetails/);
     assert.match(canvasMode, /onAfterDeleteFocus=\{restoreResultFocus\}/);
     assert.match(canvasModeDetails, /<ResultActions/);
     assert.match(canvasModeDetails, /onAfterDeleteFocus=\{onAfterDeleteFocus\}/);
-    assert.match(canvasShortcuts, /event\.shiftKey[\s\S]*permanentlyDeleteHistoryItemByShortcut\(currentImage\)/);
-    assert.match(canvasShortcuts, /event\.target !== event\.currentTarget/);
+    assert.doesNotMatch(canvasShortcuts, /permanentlyDeleteHistoryItemByShortcut/);
+    assert.doesNotMatch(canvasShortcuts, /selectHistoryShortcutTarget/);
+    assert.match(hook, /event\.shiftKey[\s\S]*permanentlyDeleteHistoryItemByShortcut\(currentImage\)/);
     assert.match(store, /permanentlyDeleteHistoryItemByClick:\s*async \(item\) => \{[\s\S]*permanentlyDeleteHistoryItemByShortcut\(item\)/);
     assert.match(store, /window\.confirm\(t\("result\.permanentDeleteConfirm"/);
   });

@@ -39,6 +39,7 @@ export function useGalleryViewerNavigation() {
       if (event.key === "Delete" || event.key === "Backspace") {
         if (!currentImage) return;
         event.preventDefault();
+        if (event.repeat) return;
         if (event.shiftKey) {
           void permanentlyDeleteHistoryItemByShortcut(currentImage);
         } else {
