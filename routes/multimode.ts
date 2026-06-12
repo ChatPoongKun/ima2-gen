@@ -24,6 +24,7 @@ import {
   normalizeComposerInsertedPrompts,
   normalizeComposerPrompt,
 } from "../lib/composerSnapshot.js";
+import { appendGenerationRequestLog } from "../lib/generationRequestLog.js";
 
 import { errInfo } from "../lib/errInfo.js";
 import { requireRuntimeContext, type RouteRuntimeContext, type RuntimeContext } from "../lib/runtimeContext.js";
@@ -81,6 +82,9 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
     let finishErrorCode;
     let finishMeta = {};
     let finishCanceled = false;
+    let requestPrompt = "";
+    let requestedCount = 1;
+    let requestError: string | null = null;
     const cancelController = new AbortController();
     const images: MultimodeRouteItem[] = [];
     const persistedIndexes = new Set<number>();
@@ -125,6 +129,8 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
         req.body?.composerInsertedPrompts,
       );
       const maxImages = normalizeMaxImages(req.body?.maxImages);
+      requestPrompt = typeof prompt === "string" ? prompt : "";
+      requestedCount = maxImages;
       const normalizedPromptMode = promptMode === "direct" ? "direct" : "auto";
       const { quality, warnings: qualityWarnings } = normalizeOAuthParams({ provider, quality: rawQuality });
       const providerOptions = resolveProviderOptions(ctx, {
@@ -387,6 +393,7 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
         finishStatus = "error";
         finishHttpStatus = 422;
         finishErrorCode = "EMPTY_RESPONSE";
+        requestError = "No image data returned from the multimode stream";
         finishMeta = { sequenceId, filenames: [], imageCount: 0, maxImages, status, composerPrompt: routeComposerPrompt, composerInsertedPrompts: routeComposerInsertedPrompts };
         sendSse(res, "error", {
           error: "No image data returned from the multimode stream",
@@ -505,6 +512,7 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = fallbackCode || "MULTIMODE_GENERATE_FAILED";
+      requestError = err.message;
       logError("multimode", "error", err.raw, { requestId, code: finishErrorCode });
       sendSse(res, "error", {
         error: err.message,
@@ -523,6 +531,21 @@ export function registerMultimodeRoutes(app: Express, ctxRaw: RouteRuntimeContex
         errorCode: finishErrorCode,
         meta: finishMeta,
       });
+      if (requestPrompt) {
+        await appendGenerationRequestLog(ctx.config.storage.generationRequestLogFile, {
+          id: `${Date.now()}_${randomBytes(4).toString("hex")}`,
+          requestId,
+          createdAt: Date.now(),
+          prompt: requestPrompt,
+          requested: requestedCount,
+          succeeded: Number((finishMeta as { imageCount?: number }).imageCount || images.length || 0),
+          error:
+            requestError ??
+            (finishStatus === "error" ? String(finishErrorCode || "MULTIMODE_GENERATE_FAILED") : null),
+        }).catch((error) => {
+          logError("multimode", "request_log_failed", error, { requestId });
+        });
+      }
       res.end();
     }
   });

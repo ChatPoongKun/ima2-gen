@@ -14,7 +14,11 @@ describe("classic UI improvements", () => {
     assert.match(css, /\.composer--sidebar \.composer__textarea\s*\{[\s\S]*?height:\s*50vh/);
     assert.match(css, /\.composer--sidebar \.composer__textarea\s*\{[\s\S]*?min-height:\s*15vh/);
     assert.match(css, /\.composer--sidebar \.composer__textarea\s*\{[\s\S]*?max-height:\s*50vh/);
-    assert.match(css, /\.composer--sidebar \.composer__textarea\s*\{[\s\S]*?resize:\s*vertical/);
+    assert.match(css, /\.composer--sidebar \.composer__textarea\s*\{[\s\S]*?resize:\s*none/);
+    assert.match(css, /\.composer__textarea-resize-handle\s*\{[\s\S]*?width:\s*100%/);
+    assert.match(css, /\.composer__textarea-resize-handle\s*\{[\s\S]*?cursor:\s*ns-resize/);
+    assert.match(composer, /className="composer__textarea-resize-handle"/);
+    assert.match(composer, /start\.height \+ event\.clientY - start\.y/);
     assert.match(
       composer,
       /if \(variant === "sidebar"\)\s*\{\s*if \(lastVariantRef\.current !== variant\)/,

@@ -1,4 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useAppStore } from "../store/useAppStore";
 import { useI18n } from "../i18n";
 import { SavePromptPopover } from "./SavePromptPopover";
@@ -44,8 +52,10 @@ export function PromptComposer({ variant = "sidebar" }: PromptComposerProps) {
 
   const fileInput = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaResizeStartRef = useRef<{ y: number; height: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const [sidebarTextareaHeight, setSidebarTextareaHeight] = useState<number | null>(null);
   const promptMode = useAppStore((s) => s.promptMode);
   const setPromptMode = useAppStore((s) => s.setPromptMode);
   const multimode = useAppStore((s) => s.multimode);
@@ -67,6 +77,34 @@ export function PromptComposer({ variant = "sidebar" }: PromptComposerProps) {
     : refs.length > 0
       ? t("prompt.placeholderWithRefs")
       : t("prompt.placeholder");
+
+  const startTextareaResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    textareaResizeStartRef.current = {
+      y: event.clientY,
+      height: textarea.getBoundingClientRect().height,
+    };
+  };
+
+  const continueTextareaResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = textareaResizeStartRef.current;
+    if (!start) return;
+    const minHeight = window.innerHeight * 0.15;
+    const maxHeight = window.innerHeight * 0.5;
+    setSidebarTextareaHeight(
+      Math.min(maxHeight, Math.max(minHeight, start.height + event.clientY - start.y)),
+    );
+  };
+
+  const stopTextareaResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    textareaResizeStartRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
 
   const handleImageFiles = async (files: File[]) => {
     if (files.length === 0) return;
@@ -291,6 +329,11 @@ export function PromptComposer({ variant = "sidebar" }: PromptComposerProps) {
       <textarea
         ref={textareaRef}
         className="prompt-area composer__textarea"
+        style={
+          variant === "sidebar" && sidebarTextareaHeight !== null
+            ? { height: sidebarTextareaHeight }
+            : undefined
+        }
         value={prompt}
         placeholder={placeholder}
         onChange={(e) => setPrompt(e.target.value)}
@@ -306,6 +349,18 @@ export function PromptComposer({ variant = "sidebar" }: PromptComposerProps) {
           }
         }}
       />
+      {variant === "sidebar" ? (
+        <button
+          type="button"
+          className="composer__textarea-resize-handle"
+          aria-label={t("prompt.label")}
+          title={t("prompt.label")}
+          onPointerDown={startTextareaResize}
+          onPointerMove={continueTextareaResize}
+          onPointerUp={stopTextareaResize}
+          onPointerCancel={stopTextareaResize}
+        />
+      ) : null}
 
       {afterPrompts.length > 0 && (
         <div className="composer__prompt-chips composer__prompt-chips--after">

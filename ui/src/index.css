@@ -3057,7 +3057,37 @@ body {
   height: 50vh;
   min-height: 15vh;
   max-height: 50vh;
-  resize: vertical;
+  resize: none;
+}
+.composer__textarea-resize-handle {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  flex: 0 0 12px;
+  margin: -4px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.composer__textarea-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  opacity: 0.62;
+  transform: translateY(-50%);
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.composer__textarea-resize-handle:hover::before,
+.composer__textarea-resize-handle:focus-visible::before {
+  background: var(--text-dim);
+  opacity: 1;
 }
 .composer__textarea:focus,
 .composer__textarea:focus-visible {
@@ -4365,6 +4395,9 @@ body {
     min-height: 96px;
     max-height: var(--composer-textarea-max-height);
     resize: none;
+  }
+  .composer__textarea-resize-handle {
+    display: none;
   }
   .history-strip {
     flex-direction: row;

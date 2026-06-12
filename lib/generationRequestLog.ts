@@ -32,7 +32,7 @@ export function appendGenerationRequestLog(
   path: string,
   entry: GenerationRequestLogEntry,
 ): Promise<void> {
-  writeQueue = writeQueue.then(async () => {
+  writeQueue = writeQueue.catch(() => undefined).then(async () => {
     await mkdir(dirname(path), { recursive: true });
     const entries = await readEntries(path);
     await atomicWriteJson(path, [entry, ...entries].slice(0, MAX_ENTRIES));

@@ -86,6 +86,16 @@ describe("multimode backend contract", () => {
     assert.match(route, /generationStrategy: "one-call-text-sequence"/);
   });
 
+  it("logs sequence requests with success counts and errors", () => {
+    const route = readSource("routes/multimode.ts");
+
+    assert.match(route, /appendGenerationRequestLog/);
+    assert.match(route, /requested:\s*requestedCount/);
+    assert.match(route, /succeeded:\s*Number\(/);
+    assert.match(route, /requestError = err\.message/);
+    assert.match(route, /finishErrorCode \|\| "MULTIMODE_GENERATE_FAILED"/);
+  });
+
   it("saves multimode images incrementally and preserves partial timeout output", () => {
     const route = readSource("routes/multimode.ts");
 

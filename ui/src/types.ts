@@ -211,6 +211,7 @@ export type GenerateRequest = {
   references?: string[];
   requestId?: string;
   mode?: "auto" | "direct";
+  storyboard?: boolean;
   webSearchEnabled?: boolean;
   composerPrompt?: string;
   composerInsertedPrompts?: ComposerInsertedPromptSnapshot[];
